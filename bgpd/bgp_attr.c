@@ -42,6 +42,10 @@
 #include "bgp_flowspec_private.h"
 #include "bgp_mac.h"
 
+#ifdef USE_FC
+#include "bgp_fc.h"
+#endif
+
 /* Attribute strings for logging. */
 static const struct message attr_str[] = {
 	{BGP_ATTR_ORIGIN, "ORIGIN"},
@@ -4472,6 +4476,39 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
 		stream_put(s, bgp_attr_get_lcommunity(attr)->val,
 			   lcom_length(bgp_attr_get_lcommunity(attr)));
 	}
+
+#ifdef USE_FC
+    /* FC_BGP */
+    FCList_t *fclist = NULL;
+    size_t fclist_sizep;
+    size_t fc_attr_length = 0;
+    u64 fake_fc_sig = 0x0123456789abcdef;
+    FC_t fake_fc = {0};
+    fake_fc.cur_as = peer->remote;
+    fake_fc.next_hop = peer->local_as;
+    memset(fake_fc.ski, 0, sizeof(fake_fc.ski));
+    fake_fc.algo_id = 0x01;
+    fake_fc.flags = 0x00;
+    fake_fc.length = sizeof(fake_fc);
+    memcpy(fake_fc.signature, &fake_fc_sig, sizeof(fake_fc_sig));
+
+
+    fclist = attr->fclist;
+
+    stream_putc(s, BGP_ATTR_FLAG_TRANS | BGP_ATTR_FLAG_EXTLEN);
+    stream_putc(s, BGP_ATTR_FC);
+    fclist_sizep = stream_get_endp(s);
+    stream_putw(s, 0);
+    if (fclist && fclist->length != 0)
+    {
+        memcpy(s, fclist->fcs, fclist->length);
+    }
+    memcpy(s, &fake_fc, sizeof(fake_fc));
+    stream_putw_at(s, fclist_sizep,
+            fclist->length+sizeof(fake_fc));
+
+
+#endif // USE_FC
 
 	/* Route Reflector. */
 	if (peer->sort == BGP_PEER_IBGP && from

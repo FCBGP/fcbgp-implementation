@@ -11,6 +11,10 @@
 #include "bgpd/bgp_encap_types.h"
 #include "srte.h"
 
+#ifdef USE_FC
+#include "bgp_fc.h"
+#endif
+
 /* Simple bit mapping. */
 #define BITMAP_NBBY 8
 
@@ -181,6 +185,11 @@ struct attr {
 
 	/* Large Communities attribute. */
 	struct lcommunity *lcommunity;
+
+#ifdef USE_FC
+    /* FC List */
+    FCList_t *fclist;
+#endif
 
 	/* Route-Reflector Cluster attribute */
 	struct cluster_list *cluster1;

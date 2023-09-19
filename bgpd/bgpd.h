@@ -34,6 +34,10 @@
 
 #include "lib/bfd.h"
 
+#ifndef USE_FC
+#define USE_FC
+#endif
+
 #define BGP_MAX_HOSTNAME 64	/* Linux max, is larger than most other sys */
 #define BGP_PEER_MAX_HASH_SIZE 16384
 
