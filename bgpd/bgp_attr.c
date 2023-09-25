@@ -1721,6 +1721,14 @@ static int bgp_attr_fc(struct bgp_attr_parser_args *args)
     /* Set aspath attribute flag. */
 	attr->flag |= ATTR_FLAG_BIT(BGP_ATTR_FC);
 
+    /* 1. parse FC */
+
+    /* 2. store to local */
+
+    /* 3. send to on-path nodes */
+
+
+
 	return BGP_ATTR_PARSE_PROCEED;
 }
 #endif //USE_FC
@@ -4509,6 +4517,12 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
     size_t fclist_sizep = 0;
     size_t length = 0;
     FCList_t *fclist = NULL;
+    /*
+     * sig content
+     *  local asn
+     *  remote asn
+     *  prefix = ipaddr, prefix-length
+     * */
     u32 sig1 = htonl(0x01234567);
     u32 sig2 = htonl(0x89abcdef);
 
