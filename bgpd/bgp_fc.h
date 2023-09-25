@@ -7,29 +7,27 @@
 #ifndef BGP_FC_H
 #define BGP_FC_H
 
-#include <stdint.h>
+#include "bgp_config.h"
 
-typedef u8 uint8_t;
-typedef u16 uint16_t;
-typedef u32 uint32_t;
-typedef u64 uint64_t;
+#define MAX_FC 256
+#define FCS_SIZE (sizeof(FC_t) * MAX_FC)
 
 typedef struct FC_s
 {
-    u32 cur_as;
-    u32 next_hop;
+    u32 local_asn;
+    u32 nexthop_asn;
     u8 ski[20];
     u8 algo_id;
     u8 flags;
-    u16 length;
-    u8[72] signature;
+    u16 siglen;
+    u8 sig[80]; // DER format default 64B => ~72B
 } FC_t;
 
 typedef struct FCList_s
 {
-    int size; // number of FC in fcs
     int length; // length of FCs
-    FC_t *fcs;
+    int size; // number of FC in fcs
+    u8 fcs[FCS_SIZE];
 } FCList_t;
 
 #endif // BGP_FC_H

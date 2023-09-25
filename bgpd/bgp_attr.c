@@ -1706,6 +1706,25 @@ static enum bgp_attr_parse_ret bgp_attr_aspath_check(struct peer *const peer,
 	return BGP_ATTR_PARSE_PROCEED;
 }
 
+#ifdef USE_FC
+/* Parse FC information. */
+static int bgp_attr_fc(struct bgp_attr_parser_args *args)
+{
+	struct peer *const peer = args->peer;
+	struct attr *const attr = args->attr;
+	const bgp_size_t length = args->length;
+
+    FCList_t fclist;
+    fclist.length = length;
+    stream_get(fclist.fcs, BGP_INPUT(peer), fclist.length);
+
+    /* Set aspath attribute flag. */
+	attr->flag |= ATTR_FLAG_BIT(BGP_ATTR_FC);
+
+	return BGP_ATTR_PARSE_PROCEED;
+}
+#endif //USE_FC
+
 /* Parse AS4 path information.  This function is another wrapper of
    aspath_parse. */
 static int bgp_attr_as4_path(struct bgp_attr_parser_args *args,
@@ -3606,6 +3625,12 @@ enum bgp_attr_parse_ret bgp_attr_parse(struct peer *peer, struct attr *attr,
 						      &as4_aggregator,
 						      &as4_aggregator_addr);
 			break;
+#ifdef USE_FC
+        case BGP_ATTR_FC:
+            ret = bgp_attr_fc(&attr_args);
+            break;
+#endif // USE_FC
+
 		case BGP_ATTR_COMMUNITIES:
 			ret = bgp_attr_community(&attr_args);
 			break;
@@ -4479,35 +4504,47 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
 
 #ifdef USE_FC
     /* FC_BGP */
+    int i = 0;
+    FC_t fc = { 0 };
+    size_t fclist_sizep = 0;
+    size_t length = 0;
     FCList_t *fclist = NULL;
-    size_t fclist_sizep;
-    size_t fc_attr_length = 0;
-    u64 fake_fc_sig = 0x0123456789abcdef;
-    FC_t fake_fc = {0};
-    fake_fc.cur_as = peer->remote;
-    fake_fc.next_hop = peer->local_as;
-    memset(fake_fc.ski, 0, sizeof(fake_fc.ski));
-    fake_fc.algo_id = 0x01;
-    fake_fc.flags = 0x00;
-    fake_fc.length = sizeof(fake_fc);
-    memcpy(fake_fc.signature, &fake_fc_sig, sizeof(fake_fc_sig));
+    u32 sig1 = htonl(0x01234567);
+    u32 sig2 = htonl(0x89abcdef);
 
-
-    fclist = attr->fclist;
-
-    stream_putc(s, BGP_ATTR_FLAG_TRANS | BGP_ATTR_FLAG_EXTLEN);
+    // 1. gen current fc
+    fc.local_asn = htonl(peer->local_as);
+    fc.nexthop_asn = htonl(peer->as);
+    memset(fc.ski, 0, sizeof(fc.ski));
+    fc.algo_id = 0x01;
+    fc.flags = 0x00;
+    fc.siglen = htons(sizeof(fc.sig));
+    for (i=0; i<8; ++i)
+    {
+        memcpy(&(fc.sig[sizeof(u64)*i]), &sig1, sizeof(u32));
+        memcpy(&(fc.sig[sizeof(u64)*i + sizeof(u32)]),
+                &sig2, sizeof(u32));
+    }
+    memcpy(&(fc.sig[sizeof(u64)*i]), &sig1, sizeof(u32));
+    memcpy(&(fc.sig[sizeof(u64)*i + sizeof(u32)]),
+            &sig2, sizeof(u32));
+    // 2. concat
+    stream_putc(s, BGP_ATTR_FLAG_OPTIONAL | BGP_ATTR_FLAG_TRANS
+            | BGP_ATTR_FLAG_EXTLEN);
     stream_putc(s, BGP_ATTR_FC);
     fclist_sizep = stream_get_endp(s);
     stream_putw(s, 0);
-    if (fclist && fclist->length != 0)
+    fclist = attr->fclist;
+    if (fclist)
     {
-        memcpy(s, fclist->fcs, fclist->length);
+        zlog_debug("fclist->size: %d", fclist->size);
+        stream_put(s, fclist->fcs, fclist->length);
+        length = fclist->length;
     }
-    memcpy(s, &fake_fc, sizeof(fake_fc));
-    stream_putw_at(s, fclist_sizep,
-            fclist->length+sizeof(fake_fc));
-
-
+    stream_put(s, &fc, sizeof(fc));
+    // 3. put FC attr length
+    stream_putw_at(s, fclist_sizep, length + sizeof(fc));
+    zlog_debug("length + sizeof(fc): %lu", length+sizeof(fc));
 #endif // USE_FC
 
 	/* Route Reflector. */

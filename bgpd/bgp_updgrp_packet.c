@@ -774,15 +774,15 @@ struct bpacket *subgroup_update_packet(struct update_subgroup *subgrp)
 			}
 		}
 
-		if ((afi == AFI_IP && safi == SAFI_UNICAST)
-		    && !peer_cap_enhe(peer, afi, safi))
-			stream_put_prefix_addpath(s, dest_p, addpath_capable,
-						  addpath_tx_id);
-		else {
-			/* Encode the prefix in MP_REACH_NLRI attribute */
-			if (dest->pdest)
-				prd = (struct prefix_rd *)bgp_dest_get_prefix(
-					dest->pdest);
+        if ((afi == AFI_IP && safi == SAFI_UNICAST)
+                && !peer_cap_enhe(peer, afi, safi))
+            stream_put_prefix_addpath(s, dest_p, addpath_capable,
+                    addpath_tx_id);
+        else {
+            /* Encode the prefix in MP_REACH_NLRI attribute */
+            if (dest->pdest)
+                prd = (struct prefix_rd *)bgp_dest_get_prefix(
+                        dest->pdest);
 
 			if (safi == SAFI_LABELED_UNICAST) {
 				label = bgp_adv_label(dest, path, peer, afi,
