@@ -341,6 +341,9 @@ int main(int argc, char *argv[])
     openssl3("123", 3);
     printf("+++++++++++++++++++++++++++++\n");
     deprecated();
+    printf("+++++++++++++++++++++++++++++\n");
+    // openssl3();
+    printf("+++++++++++++++++++++++++++++\n");
 
     return 0;
 }

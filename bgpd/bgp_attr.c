@@ -1723,10 +1723,11 @@ static int bgp_attr_fc(struct bgp_attr_parser_args *args)
 
     /* 1. parse FC */
 
-    /* 2. store to local */
+    /* 2. gen ACL */
 
-    /* 3. send to on-path nodes */
+    /* 3. store to local */
 
+    /* 4. send to on-path nodes */
 
 
 	return BGP_ATTR_PARSE_PROCEED;

@@ -32,5 +32,16 @@ typedef struct FCList_s
     FC_t fcs[MAX_FC];  //FC_t *fcs;
 } FCList_t;
 
+// database ops
+int select_cb(void *args, int argc, char **argv, char **az_col_name);
+sqlite3* open_db();
+int create_table();
+int insert_fc(sqlite3* db, FCList_t *fclist);
+void close_db(sqlite3* db, char *err_msg);
+
+// binding message
+int send_to_node();
+
+
 #endif // BGP_FC_H
 
