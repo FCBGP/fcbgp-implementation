@@ -279,6 +279,7 @@ cleanup:
     return result;
 }
 
+#if 0
 int do_sign(EVP_PKEY *pkey)
 {
     int ret = 0;
@@ -336,13 +337,14 @@ cleanup:
 
     return ret;
 }
+#endif
 
 int main(int argc, char *argv[])
 {
     printf("+++++++++++++++++++++++++++++\n");
     deprecated();
     printf("+++++++++++++++++++++++++++++\n");
-    openssl3();
+    // openssl3();
     printf("+++++++++++++++++++++++++++++\n");
 
     return 0;
