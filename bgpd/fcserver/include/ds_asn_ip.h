@@ -53,13 +53,4 @@ typedef struct ht_node_as_s
     asn_ip_t ap;
 } ht_node_as_t;
 
-typedef struct fcserver_s
-{
-    // as-ip totoal num, of course it's as's number
-    u8 asns_num;
-    u32 asns[FCSRV_MAX_LINK_AS];
-    u32 local_asn;
-    char fname[BUFSIZ];
-    node_as_t aps[FCSRV_MAX_LINK_AS];
-} fcserver_t;
 #endif // DS_ASN_IP_H

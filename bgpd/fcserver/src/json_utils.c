@@ -98,7 +98,7 @@ cjson_root_ptr(const char *fname)
 }
 
     int
-read_asn_ips(fcserver_t *fcserver, htbl_ctx_t *ht)
+read_asn_ips()
 {
     cJSON *root = NULL, *asn_list = NULL;
     cJSON *elem = NULL, *asn = NULL,  *acs = NULL;
@@ -108,12 +108,12 @@ read_asn_ips(fcserver_t *fcserver, htbl_ctx_t *ht)
     ht_node_as_t *node = NULL;
     int size = 0, i = 0, j = 0, addr_num = 0, ret = 0;
 
-    root = cjson_root_ptr(fcserver->fname);
+    root = cjson_root_ptr(g_fcserver.fname);
     assert(root);
     asn_list = cJSON_GetObjectItem(root, "asn_list");
     assert(asn_list);
     size = cJSON_GetArraySize(asn_list);
-    fcserver->asns_num = size;
+    g_fcserver.asns_num = size;
 
     for (i=0; i<size; ++i)
     {
@@ -151,8 +151,8 @@ read_asn_ips(fcserver_t *fcserver, htbl_ctx_t *ht)
             inet_pton(AF_INET6, addr->valuestring, &meta.ap.prefix.ip6s[j].ip);
         }
         meta.ap.prefix.ip6s_num = addr_num;
-        fcserver->asns[i] = meta.asn;
-        node = htbl_meta_insert(ht, &meta, &ret);
+        g_fcserver.asns[i] = meta.asn;
+        node = htbl_meta_insert(&g_fcserver.ht, &meta, &ret);
         if (!node)
         {
             fprintf(stderr, "insert failed\n");
@@ -166,17 +166,18 @@ read_asn_ips(fcserver_t *fcserver, htbl_ctx_t *ht)
 }
 
     void
-print_asn_ips(htbl_ctx_t *ht, fcserver_t *fcserver)
+print_asn_ips()
 {
     int i=0, j=0, ret=0;
     node_as_t meta;
     ht_node_as_t *node;
     char ipstr[INET6_ADDRSTRLEN] = {0};
+    htbl_ctx_t *ht = &g_fcserver.ht;
 
-    printf("asns_num: %d\n", fcserver->asns_num);
-    for (i=0; i<fcserver->asns_num; ++i)
+    printf("asns_num: %d\n", g_fcserver.asns_num);
+    for (i=0; i<g_fcserver.asns_num; ++i)
     {
-        meta.asn = fcserver->asns[i];
+        meta.asn = g_fcserver.asns[i];
         node = htbl_meta_find(ht, &meta);
 
         if (node) {

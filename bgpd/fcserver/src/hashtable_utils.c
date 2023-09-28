@@ -103,7 +103,7 @@ static htbl_ops_t g_htbl_ops = {
 
 // 这里需要注意到是，htbl_ops需要是在ht之后不能销毁的
 // 所以只能使用g_htbl_ops这种用法了
-int create_fcserver_hashtable(htbl_ctx_t *ht)
+int fcserver_hashtable_create(htbl_ctx_t *ht)
 {
     int ret = 0;
 
@@ -120,7 +120,7 @@ int create_fcserver_hashtable(htbl_ctx_t *ht)
     return 0;
 }
 
-int destroy_fcserver_hashtable(htbl_ctx_t *ht)
+int fcserver_hashtable_destroy(htbl_ctx_t *ht)
 {
     htbl_fini(ht);
     return 0;

@@ -25,9 +25,10 @@ typedef struct fcmsg_bm_st
     u8 ipversion;       // 1 for ipv4, 2 for ipv6
     u8 type;            // 0 for onpath nodes, 1 for offpath nodes
     u8 action;          // 0 for add/update, 1 for del/withdraw
-    u8 as_num;          //
+    u8 as_num;          // num of as in aspath
     u8 src_ip_num;      // src ip prefix num
     u8 dst_ip_num;      // dst ip prefix num
+    u8 fc_num;          // num of fc in fclist
     u8 reserved;
     u32 local_asn;      // local as number
     u32 version;
@@ -39,6 +40,16 @@ typedef struct fcmsg_bm_st
     u8 ski[20];
     u8 signature[80];
 } __attribute__((packed)) fcmsg_bm_t;
+
+typedef struct fcmsg_bm_new_s
+{
+    fcmsg_bm_t old_bm;
+    u8 new_fc_num;
+    u8 new_as_num;
+    FC_t new_fclist[FCSRV_MAX_LINK_AS];
+    u8 new_ski[20];
+    u8 new_signature[80];
+} __attribute__((packed)) fcmsg_bm_new_t;
 
 #endif // ds_binding_message_h
 

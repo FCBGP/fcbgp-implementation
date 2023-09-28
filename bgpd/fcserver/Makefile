@@ -6,13 +6,18 @@ LFLAGS += -Llib
 
 CFLAGS += -g -Wall
 
-TRD_PARTY_LIB += lib/libcJSON.so lib/libncs.so lib/libdiag.so lib/libhtable.so
-TRD_PARTY_LIBARY += -lcJSON -lncs -lm -ldiag -lhtable
+TRD_PARTY_LIB += lib/libcJSON.so lib/libncs.so lib/libdiag.so
+TRD_PARTY_LIB += lib/libhtable.so
+
+TRD_PARTY_LIBARY += -lcJSON -lncs -lm -ldiag -lhtable -lsqlite3
+
+SERVER_SRCS += src/main.c src/json_utils.c src/hashtable_utils.c
+SERVER_SRCS += src/dbutils.c src/server_utils.c
 
 all: bin/server
 	./bin/server -a 10
 
-bin/server: src/server.c src/json_utils.c src/hashtable_utils.c $(TRD_PARTY_LIB)
+bin/server: $(SERVER_SRCS) $(TRD_PARTY_LIB)
 	mkdir -p bin/
 	gcc $(CFLAGS) -o $@ $? $(INC_DIR) $(LFLAGS) $(TRD_PARTY_LIBARY)
 
