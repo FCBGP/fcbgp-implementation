@@ -12,9 +12,6 @@
 #include "common.h"
 #include "libhtable.h"
 
-#define FCSRV_MAX_LINK_AS 256
-#define FCSRV_MAX_SRC_PREFIX 256
-
 typedef struct acs_s
 {
     char ipv4[INET_ADDRSTRLEN];
@@ -58,8 +55,11 @@ typedef struct ht_node_as_s
 
 typedef struct fcserver_s
 {
-    u8 aps_num;
+    // as-ip totoal num, of course it's as's number
+    u8 asns_num;
+    u32 asns[FCSRV_MAX_LINK_AS];
     u32 local_asn;
+    char fname[BUFSIZ];
     node_as_t aps[FCSRV_MAX_LINK_AS];
 } fcserver_t;
 #endif // DS_ASN_IP_H

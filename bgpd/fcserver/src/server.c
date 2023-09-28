@@ -26,18 +26,19 @@
 #include "libmutex.h"
 #include "libncs.h"
 #include "utils.h"
-#include "mln_hash.h"
 
 static void help()
 {
-    printf("\t-h                              print this message.\n");
-    printf("\t-f <asnlist.json location>     specify the location of asnlist.json\n");
+    printf("\t-h                            print this message.\n");
+    printf("\t-a                            specify local as number.\n");
+    printf("\t-f <asnlist.json location>    specify the location of asnlist.json\n");
 }
 
-static int parse_args(int argc, char *argv[], char *fname)
+static int parse_args(int argc, char *argv[], fcserver_t *fcsrv)
 {
     int ch = '\0';
-    while ((ch = getopt(argc, argv, "hf:")) != -1)
+    int specified_local_asn = 0;
+    while ((ch = getopt(argc, argv, "hf:a:")) != -1)
     {
         switch (ch)
         {
@@ -46,21 +47,32 @@ static int parse_args(int argc, char *argv[], char *fname)
             exit(EXIT_SUCCESS);
         case 'f':
             size_t fname_len = strlen(optarg);
-            memcpy(fname, optarg, fname_len);
-            fname[fname_len] = '\0';
+            memcpy(fcsrv->fname, optarg, fname_len);
+            fcsrv->fname[fname_len] = '\0';
             break;
+        case 'a':
+            fcsrv->local_asn = (u32) optarg;
+            specified_local_asn = 1;
+            break;
+
         default:
             printf("unknow option: %c\n", ch); help();
             break;
         }
     }
 
-    if (!fname || strlen(fname) == 0)
+    if (!fcsrv->fname || strlen(fcsrv->fname) == 0)
     {
         // fprintf(stderr, "MUST use -f to specify the asnlist.json\n");
         // exit(-1);
         char *pfname = "assets/asnlist.json";
-        memcpy(fname, pfname, strlen(pfname));
+        memcpy(fcsrv->fname, pfname, strlen(pfname));
+    }
+
+    if (!specified_local_asn)
+    {
+        fprintf(stderr, "MUST use -a to specify the local as number.\n");
+        exit(-1);
     }
 
     return 0;
@@ -68,24 +80,23 @@ static int parse_args(int argc, char *argv[], char *fname)
 
 int main(int argc, char *argv[])
 {
-    char fname[BUFSIZ] = {0};
-    int asns[FCSRV_MAX_LINK_AS] = {0};
-    int asns_size = 0;
     fcserver_t fcserver = {0};
     htbl_ctx_t ht;
 
     // 1. 读取SRC-IP和ASN对应关系，必须使用-f指定asnlist.json位置就行
     //     不指定则需要默认bin/server执行，否则会报错
-    parse_args(argc, argv, fname);
+    parse_args(argc, argv, &fcserver);
     create_fcserver_hashtable(&ht);
-    read_asn_ips(fname, &fcserver, &ht, asns, &asns_size);
-    // print_asn_ips(&ht, asns, asns_size);
-
+    read_asn_ips(&fcserver, &ht);
     htbl_display(&ht);
-    // 2.
+    printf("=====================================================\n");
+    print_asn_ips(&ht, &fcserver);
+    printf("=====================================================\n");
 
+    // 2. 监听等待连接
+
+    // 销毁
     destroy_fcserver_hashtable(&ht);
-    // mln_hash_free(ht, M_HASH_F_VAL);
 
     return 0;
 }
