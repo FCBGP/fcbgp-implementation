@@ -31,22 +31,22 @@ int demo_node_display(void *node)
     ht_node_as_t *node_as = (ht_node_as_t *) node;
 
     printf("asn: %d\n", node_as->asn);
-    printf("\tacs\n");
-    printf("\t\tipv4: %s\n", node_as->ap.acs.ipv4);
-    printf("\t\tipv6: %s\n", node_as->ap.acs.ipv6);
-    printf("\tprefix\n");
+    printf("  acs:\n");
+    printf("    ipv4: %s\n", node_as->ap.acs.ipv4);
+    printf("    ipv6: %s\n", node_as->ap.acs.ipv6);
+    printf("  prefix:\n");
     for (i=0; i<node_as->ap.prefix.ip4s_num; ++i)
     {
         inet_ntop(AF_INET, &node_as->ap.prefix.ip4s[i].ip,
                 ipstr, (socklen_t)sizeof(ipstr));
-        printf("\t\tipv4: %s/%d\n",
+        printf("    ipv4: %s/%d\n",
                 ipstr, node_as->ap.prefix.ip4s[i].prefix_length);
     }
     for (i=0; i<node_as->ap.prefix.ip6s_num; ++i)
     {
         inet_ntop(AF_INET6, &node_as->ap.prefix.ip6s[i].ip,
                 ipstr, (socklen_t)sizeof(ipstr));
-        printf("\t\tipv6: %s/%d\n",
+        printf("    ipv6: %s/%d\n",
                 ipstr, node_as->ap.prefix.ip6s[i].prefix_length);
     }
 

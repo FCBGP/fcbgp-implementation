@@ -79,10 +79,12 @@ int main(int argc, char *argv[])
     parse_args(argc, argv, fname);
     create_fcserver_hashtable(&ht);
     read_asn_ips(fname, &fcserver, &ht, asns, &asns_size);
-    print_asn_ips(&ht, asns, asns_size);
+    // print_asn_ips(&ht, asns, asns_size);
 
+    htbl_display(&ht);
     // 2.
 
+    destroy_fcserver_hashtable(&ht);
     // mln_hash_free(ht, M_HASH_F_VAL);
 
     return 0;
