@@ -105,7 +105,7 @@ read_asn_ips(const char *fname, fcserver_t *fcserver,
     cJSON *elem = NULL, *asn = NULL,  *acs = NULL;
     cJSON *ipv4 = NULL, *ipv6 = NULL, *ip4s = NULL, *ip6s = NULL;
     cJSON *addr = NULL, *prefix_len = NULL;
-    node_as_t *meta = NULL;
+    node_as_t meta = {0};
     ht_node_as_t *node = NULL;
     int size = 0, i = 0, j = 0, addr_num = 0, ret = 0;
 
@@ -127,16 +127,10 @@ read_asn_ips(const char *fname, fcserver_t *fcserver,
         ipv4 = cJSON_GetObjectItem(acs, "ipv4");
         ipv6 = cJSON_GetObjectItem(acs, "ipv6");
 
-        if ((meta = (node_as_t*)malloc(sizeof(node_as_t))) == NULL)
-        {
-            fprintf(stderr, "malloc failed\n");
-            return -1;
-        }
-        memset(meta, 0, sizeof(node_as_t));
-        meta->asn = asn->valueint;
-        memcpy(meta->ap.acs.ipv4, ipv4->valuestring,
+        meta.asn = asn->valueint;
+        memcpy(meta.ap.acs.ipv4, ipv4->valuestring,
                 strlen(ipv4->valuestring));
-        memcpy(meta->ap.acs.ipv6, ipv6->valuestring,
+        memcpy(meta.ap.acs.ipv6, ipv6->valuestring,
                 strlen(ipv6->valuestring));
         addr_num = cJSON_GetArraySize(ip4s);
         for (j=0; j<addr_num; ++j)
@@ -144,28 +138,30 @@ read_asn_ips(const char *fname, fcserver_t *fcserver,
             elem = cJSON_GetArrayItem(ip4s, j);
             addr = cJSON_GetObjectItem(elem, "addr");
             prefix_len = cJSON_GetObjectItem(elem, "prefixlen");
-            meta->ap.prefix.ip4s[j].prefix_length = prefix_len->valueint;
-            inet_pton(AF_INET, addr->valuestring, &meta->ap.prefix.ip4s[j].ip);
+            meta.ap.prefix.ip4s[j].prefix_length = prefix_len->valueint;
+            inet_pton(AF_INET, addr->valuestring, &meta.ap.prefix.ip4s[j].ip);
         }
-        meta->ap.prefix.ip4s_num = addr_num;
+        meta.ap.prefix.ip4s_num = addr_num;
         addr_num = cJSON_GetArraySize(ip6s);
         for (j=0; j<addr_num; ++j)
         {
             elem = cJSON_GetArrayItem(ip6s, j);
             addr = cJSON_GetObjectItem(elem, "addr");
             prefix_len = cJSON_GetObjectItem(elem, "prefixlen");
-            meta->ap.prefix.ip6s[j].prefix_length = prefix_len->valueint;
-            inet_pton(AF_INET6, addr->valuestring, &meta->ap.prefix.ip6s[j].ip);
+            meta.ap.prefix.ip6s[j].prefix_length = prefix_len->valueint;
+            inet_pton(AF_INET6, addr->valuestring, &meta.ap.prefix.ip6s[j].ip);
         }
-        meta->ap.prefix.ip6s_num = addr_num;
-        asns[i] = meta->asn;
-        node = htbl_meta_insert(ht, meta, &ret);
+        meta.ap.prefix.ip6s_num = addr_num;
+        asns[i] = meta.asn;
+        node = htbl_meta_insert(ht, &meta, &ret);
         if (!node)
         {
             fprintf(stderr, "insert failed\n");
             return -1;
         }
     }
+
+    cJSON_Delete(root);
 
     return 0;
 }
