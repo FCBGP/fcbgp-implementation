@@ -98,8 +98,7 @@ cjson_root_ptr(const char *fname)
 }
 
     int
-read_asn_ips(const char *fname, fcserver_t *fcserver,
-        htbl_ctx_t *ht, int *asns, int *asns_size)
+read_asn_ips(fcserver_t *fcserver, htbl_ctx_t *ht)
 {
     cJSON *root = NULL, *asn_list = NULL;
     cJSON *elem = NULL, *asn = NULL,  *acs = NULL;
@@ -109,12 +108,12 @@ read_asn_ips(const char *fname, fcserver_t *fcserver,
     ht_node_as_t *node = NULL;
     int size = 0, i = 0, j = 0, addr_num = 0, ret = 0;
 
-    root = cjson_root_ptr(fname);
+    root = cjson_root_ptr(fcserver->fname);
     assert(root);
     asn_list = cJSON_GetObjectItem(root, "asn_list");
     assert(asn_list);
     size = cJSON_GetArraySize(asn_list);
-    *asns_size = size;
+    fcserver->asns_num = size;
 
     for (i=0; i<size; ++i)
     {
@@ -152,7 +151,7 @@ read_asn_ips(const char *fname, fcserver_t *fcserver,
             inet_pton(AF_INET6, addr->valuestring, &meta.ap.prefix.ip6s[j].ip);
         }
         meta.ap.prefix.ip6s_num = addr_num;
-        asns[i] = meta.asn;
+        fcserver->asns[i] = meta.asn;
         node = htbl_meta_insert(ht, &meta, &ret);
         if (!node)
         {
@@ -167,37 +166,47 @@ read_asn_ips(const char *fname, fcserver_t *fcserver,
 }
 
     void
-print_asn_ips(htbl_ctx_t *ht, int *asns, int asns_size)
+print_asn_ips(htbl_ctx_t *ht, fcserver_t *fcserver)
 {
     int i=0, j=0, ret=0;
     node_as_t meta;
     ht_node_as_t *node;
     char ipstr[INET6_ADDRSTRLEN] = {0};
 
-    printf("asns_size: %d\n", asns_size);
-    for (i=0; i<asns_size; ++i)
+    printf("asns_num: %d\n", fcserver->asns_num);
+    for (i=0; i<fcserver->asns_num; ++i)
     {
-        meta.asn = asns[i];
+        meta.asn = fcserver->asns[i];
         node = htbl_meta_find(ht, &meta);
 
-        printf("asn: %d\n", node->asn);
-        printf("  acs:\n");
-        printf("    ipv4: %s\n", node->ap.acs.ipv4);
-        printf("    ipv6: %s\n", node->ap.acs.ipv6);
-        printf("  prefix:\n");
-        for (j=0; j<node->ap.prefix.ip4s_num; ++j)
-        {
-            inet_ntop(AF_INET, &node->ap.prefix.ip4s[j].ip,
-                    ipstr, (socklen_t)sizeof(ipstr));
-            printf("    ipv4: %s/%d\n",
-                    ipstr, node->ap.prefix.ip4s[j].prefix_length);
+        if (node) {
+            printf("asn: %d\n", node->asn);
+            printf("  acs:\n");
+            printf("    ipv4: %s\n", node->ap.acs.ipv4);
+            printf("    ipv6: %s\n", node->ap.acs.ipv6);
+            printf("  prefix:\n");
+            for (j=0; j<node->ap.prefix.ip4s_num; ++j)
+            {
+                inet_ntop(AF_INET, &node->ap.prefix.ip4s[j].ip,
+                        ipstr, (socklen_t)sizeof(ipstr));
+                printf("    ipv4: %s/%d\n",
+                        ipstr, node->ap.prefix.ip4s[j].prefix_length);
+            }
+            for (j=0; j<node->ap.prefix.ip6s_num; ++j)
+            {
+                inet_ntop(AF_INET6, &node->ap.prefix.ip6s[j].ip,
+                        ipstr, (socklen_t)sizeof(ipstr));
+                printf("    ipv6: %s/%d\n",
+                        ipstr, node->ap.prefix.ip6s[j].prefix_length);
+            }
+
+            htbl_node_drop(ht, node);
         }
-        for (j=0; j<node->ap.prefix.ip6s_num; ++j)
+
+        if (node)
         {
-            inet_ntop(AF_INET6, &node->ap.prefix.ip6s[j].ip,
-                    ipstr, (socklen_t)sizeof(ipstr));
-            printf("    ipv6: %s/%d\n",
-                    ipstr, node->ap.prefix.ip6s[j].prefix_length);
+            htbl_node_delete(ht, node);
+            node = NULL;
         }
     }
 }

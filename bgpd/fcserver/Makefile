@@ -1,16 +1,16 @@
-INC_DIR = -Iinclude -I/usr/local/melon/include
+INC_DIR = -Iinclude
 LIBS_DIR = $(shell ls ../libs | grep -v Makefile)
 LIB_DIR += $(foreach i,$(LIBS_DIR),../libs/$(i))
 INC_DIR += $(foreach i,$(LIB_DIR),-I$(i))
-LFLAGS += -Llib -L/usr/local/melon/lib
+LFLAGS += -Llib
 
 CFLAGS += -g -Wall
 
 TRD_PARTY_LIB += lib/libcJSON.so lib/libncs.so lib/libdiag.so lib/libhtable.so
-TRD_PARTY_LIBARY += -lcJSON -lncs -lmelon -lm -ldiag -lhtable
+TRD_PARTY_LIBARY += -lcJSON -lncs -lm -ldiag -lhtable
 
 all: bin/server
-	./bin/server
+	./bin/server -a 10
 
 bin/server: src/server.c src/json_utils.c src/hashtable_utils.c $(TRD_PARTY_LIB)
 	mkdir -p bin/
