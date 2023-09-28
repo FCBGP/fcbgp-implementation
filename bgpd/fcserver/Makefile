@@ -6,27 +6,38 @@ LFLAGS += -Llib -L/usr/local/melon/lib
 
 CFLAGS += -g -Wall
 
-TRD_PARTY_LIB += lib/libcJSON.so lib/libncs.so lib/libdiag.so
-TRD_PARTY_LIBARY += -lcJSON -lncs -lmelon -lm -ldiag
+TRD_PARTY_LIB += lib/libcJSON.so lib/libncs.so lib/libdiag.so lib/libhtable.so
+TRD_PARTY_LIBARY += -lcJSON -lncs -lmelon -lm -ldiag -lhtable
 
-bin/server: src/server.c src/json_utils.c $(TRD_PARTY_LIB)
+all: bin/server
+	./bin/server
+
+bin/server: src/server.c src/json_utils.c src/hashtable_utils.c $(TRD_PARTY_LIB)
 	mkdir -p bin/
 	gcc $(CFLAGS) -o $@ $? $(INC_DIR) $(LFLAGS) $(TRD_PARTY_LIBARY)
 
+bin/test_ht: src/test_ht.c $(TRD_PARTY_LIB)
+	mkdir -p bin/
+	gcc $(CFLAGS) -o $@ $? $(INC_DIR) $(LFLAGS) $(TRD_PARTY_LIBARY)
+
+bin/test_ht2: src/hashtable_utils.c $(TRD_PARTY_LIB)
+	mkdir -p bin/
+	gcc $(CFLAGS) -DTEST_MAIN -o $@ $? $(INC_DIR) $(LFLAGS) $(TRD_PARTY_LIBARY)
+
 lib/libcJSON.so: ../libs/cJSONlib/cJSON.c
-	mkdir -p lib/
 	gcc $(CFLAGS) -o $@ -fPIC -shared $? $(INC_DIR)
 
 lib/libncs.so: ../libs/ncslib/libncs.c
-	mkdir -p lib
 	gcc $(CFLAGS) -o $@ -fPIC -shared $? $(INC_DIR)
 
 lib/libdiag.so: ../libs/diaglib/libdiag.c ../libs/baselib/libstring.c
-	mkdir -p lib
+	gcc $(CFLAGS) -o $@ -fPIC -shared $? $(INC_DIR)
+
+lib/libhtable.so: ../libs/htablelib/libhtable.c ../libs/baselib/liblist.c
 	gcc $(CFLAGS) -o $@ -fPIC -shared $? $(INC_DIR)
 
 clean:
 	@rm -rf bin/*
-	@rm -rf lib
+	@rm -rf lib/*
 
 .PHONY: clean distclean
