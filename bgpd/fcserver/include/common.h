@@ -19,4 +19,6 @@ typedef uint64_t u64;
 #define FCSRV_MAX_LINK_AS 256
 #define FCSRV_MAX_SRC_PREFIX 256
 
+#define TCP_PROTO 0x06
+
 #endif // COMMON_H

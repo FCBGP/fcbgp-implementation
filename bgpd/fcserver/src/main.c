@@ -1,5 +1,5 @@
 /********************************************************************************
-* File Name:    server.c
+* File Name:    main.c
 * Author:       basilguo@163.com
 * Created Time: 2023-09-27 07:55:18
 * Description:
@@ -34,7 +34,7 @@ static void help()
     printf("\t-f <asnlist.json location>    specify the location of asnlist.json\n");
 }
 
-static int parse_args(int argc, char *argv[], fcserver_t *fcsrv)
+static int parse_args(int argc, char *argv[], fcserver_t *fcserver)
 {
     int ch = '\0';
     int specified_local_asn = 0;
@@ -47,11 +47,11 @@ static int parse_args(int argc, char *argv[], fcserver_t *fcsrv)
             exit(EXIT_SUCCESS);
         case 'f':
             size_t fname_len = strlen(optarg);
-            memcpy(fcsrv->fname, optarg, fname_len);
-            fcsrv->fname[fname_len] = '\0';
+            memcpy(fcserver->fname, optarg, fname_len);
+            fcserver->fname[fname_len] = '\0';
             break;
         case 'a':
-            fcsrv->local_asn = (u32) optarg;
+            fcserver->local_asn = (u32) atol(optarg);
             specified_local_asn = 1;
             break;
 
@@ -61,12 +61,12 @@ static int parse_args(int argc, char *argv[], fcserver_t *fcsrv)
         }
     }
 
-    if (!fcsrv->fname || strlen(fcsrv->fname) == 0)
+    if (!fcserver->fname || strlen(fcserver->fname) == 0)
     {
         // fprintf(stderr, "MUST use -f to specify the asnlist.json\n");
         // exit(-1);
         char *pfname = "assets/asnlist.json";
-        memcpy(fcsrv->fname, pfname, strlen(pfname));
+        memcpy(fcserver->fname, pfname, strlen(pfname));
     }
 
     if (!specified_local_asn)
@@ -80,23 +80,25 @@ static int parse_args(int argc, char *argv[], fcserver_t *fcsrv)
 
 int main(int argc, char *argv[])
 {
-    fcserver_t fcserver = {0};
-    htbl_ctx_t ht;
+    fcserver_create();
+    parse_args(argc, argv, &g_fcserver);
+
 
     // 1. 读取SRC-IP和ASN对应关系，必须使用-f指定asnlist.json位置就行
     //     不指定则需要默认bin/server执行，否则会报错
-    parse_args(argc, argv, &fcserver);
-    create_fcserver_hashtable(&ht);
-    read_asn_ips(&fcserver, &ht);
-    htbl_display(&ht);
+    fcserver_hashtable_create(&g_fcserver.ht);
+    read_asn_ips();
+    htbl_display(&g_fcserver.ht);
     printf("=====================================================\n");
-    print_asn_ips(&ht, &fcserver);
+    print_asn_ips();
     printf("=====================================================\n");
 
     // 2. 监听等待连接
+    broadcast_server_create();
+    bgpd_server_create();
 
-    // 销毁
-    destroy_fcserver_hashtable(&ht);
+    // 销毁fcserver
+    fcserver_destroy();
 
     return 0;
 }
