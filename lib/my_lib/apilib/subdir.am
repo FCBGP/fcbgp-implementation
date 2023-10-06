@@ -1,0 +1,23 @@
+#
+# libreqapi
+#
+
+lib_libreqapi_la_CFLAGS = -I/home/zhanght/frr/lib
+lib_LTLIBRARIES += lib/libreqapi.la
+lib_libreqapi_la_LIBADD = lib/libreq.la lib/libdiag.la lib/libmbs.la
+lib_libreqapi_la_SOURCES = \
+    lib/libs/apilib/sender_req.c \
+    # end
+
+# Add logic to build mgmt.proto
+lib_libreqapi_la_LIBADD += $(PROTOBUF_C_LIBS)
+
+clippy_scan += \
+    lib/libs/apilib/sender_req.c \
+    # end
+
+pkginclude_HEADERS += \
+    lib/libapi.h \
+    lib/reqapi.h \
+    # end
+

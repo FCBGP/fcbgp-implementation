@@ -1,0 +1,53 @@
+#
+# libbase
+#
+
+lib_LTLIBRARIES += lib/libbase.la
+lib_libbase_la_LIBADD = $(LIBCAP) $(UNWIND_LIBS) $(LIBYANG_LIBS) $(LUA_LIB) $(UST_LIBS) $(LIBCRYPT) $(LIBDL) $(LIBM) -lz
+lib_libbase_la_SOURCES = \
+    lib/libs/baselib/libmem.c \
+    lib/libs/baselib/libstring.c \
+    lib/libs/baselib/liblist.c \
+    lib/libs/baselib/librqueue.c \
+    lib/libs/baselib/libcrc32.c \
+    lib/libs/baselib/libbase64.c \
+    lib/libs/baselib/libchecksum.c \
+    lib/libs/baselib/libtty.c \
+    # end
+
+# Add logic to build mgmt.proto
+lib_libbase_la_LIBADD += $(PROTOBUF_C_LIBS)
+
+clippy_scan += \
+    lib/libs/baselib/libmem.c \
+    lib/libs/baselib/libstring.c \
+    lib/libs/baselib/liblist.c \
+    lib/libs/baselib/librqueue.c \
+    lib/libs/baselib/libcrc32.c \
+    lib/libs/baselib/libbase64.c \
+    lib/libs/baselib/libchecksum.c \
+    lib/libs/baselib/libtty.c \
+    # end
+
+pkginclude_HEADERS += \
+    lib/libs/baselib/libmem.h\
+    lib/libs/baselib/libstring.h\
+    lib/libs/baselib/liblist.h\
+    lib/libs/baselib/librqueue.h\
+    lib/libs/baselib/libcrc32.h\
+    lib/libs/baselib/libbase64.h\
+    lib/libs/baselib/libchecksum.h\
+    lib/libs/baselib/libtty.h\
+    lib/libs/baselib/libtypes.h\
+    lib/libs/baselib/libendian.h\
+    lib/libs/baselib/libmutex.h\
+    lib/libs/baselib/libatomic.h\
+    lib/libs/baselib/libatomic64.h\
+    lib/libs/baselib/libcondition.h\
+    lib/libs/baselib/librwlock.h\
+    lib/libs/baselib/libspinlock.h\
+    lib/libs/baselib/libjhash.h\
+    lib/libs/baselib/libphdr.h\
+    lib/libs/baselib/libthread.h \
+    # end
+

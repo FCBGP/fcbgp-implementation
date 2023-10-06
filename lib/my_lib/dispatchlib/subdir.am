@@ -1,0 +1,22 @@
+#
+# libdispatch
+#
+
+lib_libdispatch_la_CFLAGS = -I/home/zhanght/frr/lib
+lib_LTLIBRARIES += lib/libdispatch.la
+lib_libdispatch_la_LIBADD = lib/libbase.la lib/libdiag.la
+lib_libdispatch_la_SOURCES = \
+    lib/libs/dispatchlib/libdispatch.c \
+    # end
+
+# Add logic to build mgmt.proto
+lib_libdispatch_la_LIBADD += $(PROTOBUF_C_LIBS)
+
+clippy_scan += \
+    lib/libs/dispatchlib/libdispatch.c \
+    # end
+
+pkginclude_HEADERS += \
+    lib/libs/dispatchlib/libdispatch.h \
+    # end
+

@@ -187,6 +187,7 @@ include tools/subdir.am
 include mgmtd/subdir.am
 
 include bgpd/subdir.am
+include senderd/subdir.am
 include bgpd/rfp-example/librfp/subdir.am
 include bgpd/rfp-example/rfptest/subdir.am
 include ripd/subdir.am
@@ -219,6 +220,7 @@ if PKGSRC
 rcdir=@pkgsrcrcdir@
 rc_SCRIPTS = \
 	pkgsrc/bgpd.sh \
+	pkgsrc/senderd.sh \
 	pkgsrc/ospf6d.sh \
 	pkgsrc/ospfd.sh \
 	pkgsrc/ripd.sh \
@@ -264,6 +266,7 @@ EXTRA_DIST += \
 	babeld/Makefile \
 	mgmtd/Makefile \
 	bgpd/Makefile \
+	senderd/Makefile \
 	bgpd/rfp-example/librfp/Makefile \
 	bgpd/rfp-example/rfptest/Makefile \
 	doc/Makefile \
@@ -297,12 +300,12 @@ EXTRA_DIST += \
 AM_V_LLVM_BC = $(am__v_LLVM_BC_$(V))
 am__v_LLVM_BC_ = $(am__v_LLVM_BC_$(AM_DEFAULT_VERBOSITY))
 am__v_LLVM_BC_0 = @echo "  LLVM.BC " $@;
-am__v_LLVM_BC_1 = 
+am__v_LLVM_BC_1 =
 
 AM_V_LLVM_LD = $(am__v_LLVM_LD_$(V))
 am__v_LLVM_LD_ = $(am__v_LLVM_LD_$(AM_DEFAULT_VERBOSITY))
 am__v_LLVM_LD_0 = @echo "  LLVM.LD " $@;
-am__v_LLVM_LD_1 = 
+am__v_LLVM_LD_1 =
 
 SUFFIXES += .lo.bc .o.bc
 
@@ -340,7 +343,7 @@ redistclean:
 	$(MAKE) distclean CONFIG_CLEAN_FILES="$(filter-out $(EXTRA_DIST), $(CONFIG_CLEAN_FILES))"
 
 indent:
-	tools/indent.py `find sharpd bgpd mgmtd eigrpd include isisd lib nhrpd ospf6d ospfd pimd qpb ripd vtysh zebra -name '*.[ch]' | grep -v include/linux`
+	tools/indent.py `find sharpd bgpd senderd mgmtd eigrpd include isisd lib nhrpd ospf6d ospfd pimd qpb ripd vtysh zebra -name '*.[ch]' | grep -v include/linux`
 
 if HAVE_GCOV
 

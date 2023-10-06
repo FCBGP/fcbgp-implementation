@@ -1,0 +1,25 @@
+#
+# libcJSON
+#
+
+lib_LTLIBRARIES += lib/libcJSON.la
+lib_libcJSON_la_LDFLAGS = $(LIB_LDFLAGS) -version-info 0:0:0 -Xlinker -e_libcJSON_version
+lib_libcJSON_la_LIBADD = $(LIBCAP) $(UNWIND_LIBS) $(LIBYANG_LIBS) $(LUA_LIB) $(UST_LIBS) $(LIBCRYPT) $(LIBDL) $(LIBM)
+lib_libcJSON_la_SOURCES = \
+    lib/libs/cJSONlib/cJSON.c \
+    lib/libs/cJSONlib/cJSON_Utils.c \
+    # end
+
+# Add logic to build mgmt.proto
+lib_libcJSON_la_LIBADD += $(PROTOBUF_C_LIBS)
+
+clippy_scan += \
+    lib/libs/cJSONlib/cJSON.c \
+    lib/libs/cJSONlib/cJSON_Utils.c \
+    # end
+
+pkginclude_HEADERS += \
+    lib/libs/cJSONlib/cJSON.h \
+    lib/libs/cJSONlib/cJSON_Utils.h \
+    # end
+

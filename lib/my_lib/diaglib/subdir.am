@@ -1,0 +1,22 @@
+#
+# libdiag
+#
+
+lib_libdiag_la_CFLAGS = -I/home/zhanght/frr/lib/libs/baselib
+lib_LTLIBRARIES += lib/libdiag.la
+lib_libdiag_la_LIBADD = lib/libbase.la
+lib_libdiag_la_SOURCES = \
+    lib/libs/diaglib/libdiag.c \
+    # end
+
+# Add logic to build mgmt.proto
+lib_libdiag_la_LIBADD += $(PROTOBUF_C_LIBS)
+
+clippy_scan += \
+    lib/libs/diaglib/libdiag.c \
+    # end
+
+pkginclude_HEADERS += \
+    lib/libs/diaglib/libdiag.h \
+    # end
+

@@ -1,0 +1,22 @@
+#
+# libstream
+#
+
+lib_libstream_la_CFLAGS = -I/home/zhanght/frr/lib
+lib_LTLIBRARIES += lib/libstream.la
+lib_libstream_la_LIBADD = lib/libmd5.la lib/libdiag.la
+lib_libstream_la_SOURCES = \
+    lib/libs/streamlib/libstream.c \
+    # end
+
+# Add logic to build mgmt.proto
+lib_libstream_la_LIBADD += $(PROTOBUF_C_LIBS)
+
+clippy_scan += \
+    lib/libs/streamlib/libstream.c \
+    # end
+
+pkginclude_HEADERS += \
+    lib/libs/streamlib/libstream.h \
+    # end
+

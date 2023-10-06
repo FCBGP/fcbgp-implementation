@@ -1,0 +1,26 @@
+#
+# libfrr
+#
+
+include lib/libs/baselib/subdir.am
+include lib/libs/diaglib/subdir.am
+include lib/libs/cachelib/subdir.am
+include lib/libs/cJSONlib/subdir.am
+include lib/libs/mbslib/subdir.am
+include lib/libs/sysmgrlib/subdir.am
+include lib/libs/md5lib/subdir.am
+include lib/libs/msgpacklib/subdir.am
+include lib/libs/streamlib/subdir.am
+include lib/libs/niolib/subdir.am
+include lib/libs/sha256lib/subdir.am
+include lib/libs/reqlib/subdir.am
+include lib/libs/apilib/subdir.am
+include lib/libs/replib/subdir.am
+include lib/libs/listenerlib/subdir.am
+include lib/libs/dispatchlib/subdir.am
+include lib/libs/ncslib/subdir.am
+include lib/libs/ncs6lib/subdir.am
+include lib/libs/cmdlib/subdir.am
+include lib/libs/mpselib/subdir.am
+
+

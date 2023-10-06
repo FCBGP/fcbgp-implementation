@@ -1,0 +1,24 @@
+#
+# libmpse
+#
+
+lib_libmpse_la_CFLAGS = -I/home/zhanght/frr/lib
+lib_LTLIBRARIES += lib/libmpse.la
+lib_libmpse_la_LIBADD = lib/libbase.la lib/libdiag.la
+lib_libmpse_la_SOURCES = \
+    lib/libs/mpselib/libmpse.c \
+    lib/libs/mpselib/algs/ac.c \
+    lib/libs/mpselib/algs/wm.c \
+    # end
+
+# Add logic to build mgmt.proto
+lib_libmpse_la_LIBADD += $(PROTOBUF_C_LIBS)
+
+clippy_scan += \
+    lib/libs/mpselib/libmpse.c \
+    # end
+
+pkginclude_HEADERS += \
+    lib/libs/mpselib/libmpse.h \
+    # end
+

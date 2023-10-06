@@ -1,0 +1,22 @@
+#
+# libmd5
+#
+
+lib_libmd5_la_CFLAGS = -I/home/zhanght/frr/lib/libs/baselib -I/home/zhanght/frr/lib/libs/diaglib
+lib_LTLIBRARIES += lib/libmd5.la
+lib_libmd5_la_LIBADD = lib/libbase.la lib/libdiag.la
+lib_libmd5_la_SOURCES = \
+    lib/libs/md5lib/libmd5.c \
+    # end
+
+# Add logic to build mgmt.proto
+lib_libmd5_la_LIBADD += $(PROTOBUF_C_LIBS)
+
+clippy_scan += \
+    lib/libs/md5lib/libmd5.c \
+    # end
+
+pkginclude_HEADERS += \
+    lib/libs/md5lib/libmd5.h \
+    # end
+

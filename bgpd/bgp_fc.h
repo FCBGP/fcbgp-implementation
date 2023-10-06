@@ -27,7 +27,8 @@ typedef struct FCList_s
 {
     int length; // length of FCs
     int size; // number of FC in fcs
-    u8 fcs[FCS_SIZE];
+//    u8 fcs[FCS_SIZE];
+    FC_t fcs[MAX_FC];  //FC_t *fcs;
 } FCList_t;
 
 #endif // BGP_FC_H

@@ -1,0 +1,28 @@
+#
+# libnio
+#
+
+lib_libnio_la_CFLAGS = -I/home/zhanght/frr/lib/libs/baselib \
+                       -I/home/zhanght/frr/lib/libs/diaglib \
+                       -I/home/zhanght/frr/lib/libs/sysmgrlib \
+                       -I/home/zhanght/frr/lib/libs/mbslib \
+                       # end
+lib_LTLIBRARIES += lib/libnio.la
+lib_libnio_la_LIBADD = lib/libbase.la lib/libdiag.la lib/libmbs.la lib/libsysmgr.la
+lib_libnio_la_SOURCES = \
+    lib/libs/niolib/libnio.c \
+    lib/libs/niolib/librawsock.c \
+    # end
+
+# Add logic to build mgmt.proto
+lib_libnio_la_LIBADD += $(PROTOBUF_C_LIBS)
+
+clippy_scan += \
+    lib/libs/niolib/libnio.c \
+    lib/libs/niolib/librawsock.c \
+    # end
+
+pkginclude_HEADERS += \
+    lib/libs/niolib/libnio.h \
+    # end
+

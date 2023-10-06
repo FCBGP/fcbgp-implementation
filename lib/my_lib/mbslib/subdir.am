@@ -1,0 +1,22 @@
+#
+# libmbs
+#
+
+lib_libmbs_la_CFLAGS = -I/home/zhanght/frr/lib/libs/baselib -I/home/zhanght/frr/lib/libs/diaglib
+lib_LTLIBRARIES += lib/libmbs.la
+lib_libmbs_la_LIBADD = lib/libbase.la lib/libdiag.la
+lib_libmbs_la_SOURCES = \
+    lib/libs/mbslib/libmbs.c \
+    # end
+
+# Add logic to build mgmt.proto
+lib_libmbs_la_LIBADD += $(PROTOBUF_C_LIBS)
+
+clippy_scan += \
+    lib/libs/mbslib/libmbs.c \
+    # end
+
+pkginclude_HEADERS += \
+    lib/libs/mbslib/libmbs.h \
+    # end
+

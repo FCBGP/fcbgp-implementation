@@ -1,0 +1,22 @@
+#
+# libcmd
+#
+
+lib_libcmd_la_CFLAGS = -I/home/zhanght/frr/lib
+lib_LTLIBRARIES += lib/libcmd.la
+lib_libcmd_la_LIBADD = lib/libbase.la lib/libstream.la
+lib_libcmd_la_SOURCES = \
+    lib/libs/cmdlib/libcmd.c \
+    # end
+
+# Add logic to build mgmt.proto
+lib_libcmd_la_LIBADD += $(PROTOBUF_C_LIBS)
+
+clippy_scan += \
+    lib/libs/cmdlib/libcmd.c \
+    # end
+
+pkginclude_HEADERS += \
+    lib/libs/cmdlib/libcmd.h \
+    # end
+

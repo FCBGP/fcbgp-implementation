@@ -622,6 +622,8 @@ AC_ARG_ENABLE([zebra],
   AS_HELP_STRING([--disable-zebra], [do not build zebra daemon]))
 AC_ARG_ENABLE([bgpd],
   AS_HELP_STRING([--disable-bgpd], [do not build bgpd]))
+AC_ARG_ENABLE([senderd],
+  AS_HELP_STRING([--disable-senderd], [do not build senderd]))
 AC_ARG_ENABLE([mgmtd],
   AS_HELP_STRING([--disable-mgmtd], [do not build mgmtd]))
 AC_ARG_ENABLE([mgmtd_local_validations],
@@ -1753,6 +1755,10 @@ AS_IF([test "$enable_bgpd" != "no"], [
   AC_DEFINE([HAVE_BGPD], [1], [bgpd])
 ])
 
+AS_IF([test "$enable_senderd" != "no"], [
+  AC_DEFINE([HAVE_SENDERD], [1], [senderd])
+])
+
 AS_IF([test "$enable_mgmtd" != "no"], [
 
   AC_DEFINE([HAVE_MGMTD], [1], [mgmtd])
@@ -1900,6 +1906,12 @@ if test "$enable_bgp_announce" = "no";then
   AC_DEFINE([DISABLE_BGP_ANNOUNCE], [1], [Disable BGP installation to zebra])
 else
   AC_DEFINE([DISABLE_BGP_ANNOUNCE], [0], [Disable BGP installation to zebra])
+fi
+
+if test "$enable_sender_announce" = "no";then
+  AC_DEFINE([DISABLE_SENDER_ANNOUNCE], [1], [Disable SENDER installation to zebra])
+else
+  AC_DEFINE([DISABLE_SENDER_ANNOUNCE], [0], [Disable SENDER installation to zebra])
 fi
 
 if test "$enable_bgp_vnc" != "no";then
@@ -2773,6 +2785,7 @@ dnl daemons
 AM_CONDITIONAL([VTYSH], [test "$VTYSH" = "vtysh"])
 AM_CONDITIONAL([ZEBRA], [test "$enable_zebra" != "no"])
 AM_CONDITIONAL([BGPD], [test "$enable_bgpd" != "no"])
+AM_CONDITIONAL([SENDERD], [test "$enable_senderd" != "no"])
 AM_CONDITIONAL([MGMTD], [test "$enable_mgmtd" != "no"])
 AM_CONDITIONAL([RIPD], [test "$enable_ripd" != "no"])
 AM_CONDITIONAL([OSPFD], [test "$enable_ospfd" != "no"])

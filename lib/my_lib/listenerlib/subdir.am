@@ -1,0 +1,22 @@
+#
+# liblistener
+#
+
+lib_liblistener_la_CFLAGS = -I/home/zhanght/frr/lib
+lib_LTLIBRARIES += lib/liblistener.la
+lib_liblistener_la_LIBADD = lib/libbase.la lib/libdiag.la
+lib_liblistener_la_SOURCES = \
+    lib/libs/listenerlib/liblistener.c \
+    # end
+
+# Add logic to build mgmt.proto
+lib_liblistener_la_LIBADD += $(PROTOBUF_C_LIBS)
+
+clippy_scan += \
+    lib/libs/listenerlib/liblistener.c \
+    # end
+
+pkginclude_HEADERS += \
+    lib/libs/listenerlib/liblistener.h \
+    # end
+
