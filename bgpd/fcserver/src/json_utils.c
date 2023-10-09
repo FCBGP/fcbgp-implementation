@@ -168,7 +168,7 @@ read_asn_ips()
     void
 print_asn_ips()
 {
-    int i=0, j=0, ret=0;
+    int i=0, j=0;
     node_as_t meta;
     ht_node_as_t *node;
     char ipstr[INET6_ADDRSTRLEN] = {0};
