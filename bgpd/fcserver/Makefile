@@ -1,4 +1,4 @@
-INC_DIR = -Iinclude
+INC_DIR = -Iinclude -I..
 LIBS_DIR = $(shell ls ../libs | grep -v Makefile)
 LIB_DIR += $(foreach i,$(LIBS_DIR),../libs/$(i))
 INC_DIR += $(foreach i,$(LIB_DIR),-I$(i))
@@ -9,13 +9,19 @@ CFLAGS += -g -Wall
 TRD_PARTY_LIB += lib/libcJSON.so lib/libncs.so lib/libdiag.so
 TRD_PARTY_LIB += lib/libhtable.so
 
-TRD_PARTY_LIBARY += -lcJSON -lncs -lm -ldiag -lhtable -lsqlite3
+TRD_PARTY_LIBARY += -lcJSON -lncs -lm -ldiag -lhtable -lsqlite3 -lpthread
+TRD_PARTY_LIBARY += -lcrypto
 
 SERVER_SRCS += src/main.c src/json_utils.c src/hashtable_utils.c
-SERVER_SRCS += src/dbutils.c src/server_utils.c
+SERVER_SRCS += src/dbutils.c src/sigutils.c src/server_utils.c
+SERVER_SRCS += src/bc_server_utils.c src/bgpd_server_utils.c
 
 all: bin/server
 	./bin/server -a 10
+
+bin/test_send_fclist: src/test_send_fclist.c
+	mkdir -p bin/
+	gcc $(CFLAGS) -o $@ $? -Iinclude $(LFLAGS)
 
 bin/server: $(SERVER_SRCS) $(TRD_PARTY_LIB)
 	mkdir -p bin/

@@ -7,13 +7,78 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+
 #include <openssl/bio.h>
+#include <openssl/buffer.h>
 #include <openssl/ec.h>
 #include <openssl/ecdsa.h>
 #include <openssl/err.h>
+#include <openssl/evp.h>
 #include <openssl/pem.h>
 #include <openssl/core_names.h>
 #include <openssl/x509.h>
+
+#include "libdiag.h"
+
+int base64_encode(const unsigned char *msg, size_t length, char **b64msg)
+{
+    BIO *bio, *b64;
+    BUF_MEM *buff;
+    b64 = BIO_new(BIO_f_base64());
+    bio = BIO_new(BIO_s_mem());
+    bio = BIO_push(b64, bio);
+
+    // ignore new lines - write everything in one line
+    BIO_set_flags(bio, BIO_FLAGS_BASE64_NO_NL);
+    BIO_write(bio, msg, length);
+    BIO_flush(bio);
+    BIO_get_mem_ptr(bio, &buff);
+    BIO_set_close(bio, BIO_NOCLOSE);
+    BIO_free_all(bio);
+
+    *b64msg = (*buff).data;
+
+    return 0;
+}
+
+static size_t inline calc_decode_len(const char *b64msg)
+{
+    size_t len = strlen(b64msg);
+    size_t padding = 0;
+
+    if (b64msg[len-1] == '=' && b64msg[len-2] == '=')
+        padding = 2;
+    else if (b64msg[len-1] == '=')
+        padding = 1;
+
+    return (len * 3) / 4 - padding;
+}
+
+int base64_decode(const char *b64msg, unsigned char **msg, size_t *length)
+{
+    BIO *bio, *b64;
+    int decode_len = calc_decode_len(b64msg);
+
+    *msg = (unsigned char *) malloc(decode_len + 1);
+    (*msg)[decode_len] = '\0';
+
+    bio = BIO_new_mem_buf(b64msg, -1);
+    b64 = BIO_new(BIO_f_base64());
+    bio = BIO_push(b64, bio);
+
+    BIO_set_flags(bio, BIO_FLAGS_BASE64_NO_NL);
+    *length = BIO_read(bio, *msg, strlen(b64msg));
+    if (*length != decode_len)
+    {
+        DIAG_ERROR("error b64 decode length\n");
+        return -1;
+    }
+
+    BIO_free_all(bio);
+
+    return 0;
+}
 
 static int sha256_encode(const char *const msg, unsigned char *digest,
         unsigned int *digest_len)
@@ -107,7 +172,7 @@ int read_eckey_from_file(int is_pub_key, EC_KEY *pkey)
             perror("fopen()");
             return -1;
         }
-        pkey = PEM_read_ECPrivateKey(fp, NULL, NULL, NULL)
+        pkey = PEM_read_ECPrivateKey(fp, NULL, NULL, NULL);
     }
     fclose(fp);
 

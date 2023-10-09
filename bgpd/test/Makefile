@@ -39,5 +39,10 @@ bin/test_libhtable: test_libhtable.c
 		../libs/htablelib/libhtable.c -I../libs/htablelib \
 		-I../libs/baselib \
 
+bin/test_base64: test_base64.c
+	mkdir -p bin
+	gcc -g -o $@ $? -lcrypto
+	bin/test_base64
+
 clean:
 	-rm bin/*

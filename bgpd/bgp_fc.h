@@ -14,7 +14,8 @@
 
 typedef struct FC_s
 {
-    u32 local_asn;
+    u32 previous_asn;
+    u32 current_asn; // current asn
     u32 nexthop_asn;
     u8 ski[20];
     u8 algo_id;

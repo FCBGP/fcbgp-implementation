@@ -14,6 +14,7 @@
 #include <stdlib.h>
 #include "libdiag.h"
 #include "utils.h"
+#include "dbutils.h"
 
 /************ DB start *************/
 /* Open database */
@@ -32,9 +33,22 @@ int db_open(sqlite3 **db, const char *dbname)
     return 0;
 }
 
+int db_store_bm_handler(void *data, int argc, char **argv,
+        char **az_col_name)
+{
+    return 0;
+}
+
+int db_select_bm_handler(void *data, int argc, char **argv,
+        char **az_col_name)
+{
+    return 0;
+}
+
 /* Execute SQL statement */
-int db_exec(sqlite3 *db, const char *sql, void *data,
-        int (*cb)(void *data, int argc, char **argv, char **az_col_name))
+int db_exec(sqlite3 *db, const char *sql,
+        int (*cb)(void *data, int argc, char **argv, char **az_col_name),
+        void *data)
 {
     char *zErrMsg = 0;
     int rc;
@@ -59,30 +73,28 @@ int db_close(sqlite3 *db)
     return 0;
 }
 
-void init_db()
+void init_db(sqlite3 **db)
 {
-    sqlite3 *db = NULL;
     char sql[BUFSIZ];
 
-    db_open(&db, DB_NAME);
+    db_open(db, DB_NAME);
     bzero(sql, BUFSIZ);
-    sprintf(sql, "DROP TABLE fcs;");
+    sprintf(sql, "DROP TABLE IF EXISTS fcs;");
     DIAG_DEBUG("sql: %s\n", sql);
-    db_exec(db, sql, NULL, NULL);
+    db_exec(*db, sql, NULL, NULL);
 
     bzero(sql, BUFSIZ);
     sprintf(sql, "CREATE TABLE fcs("
             "ipversion INT NOT NULL,"
             "type INT NOT NULL,"
             "action INT NOT NULL,"
-            "as_num INT NOT NULL,"
+            "fc_num INT NOT NULL,"
             "src_ip_num INT NOT NULL,"
             "dst_ip_num INT NOT NULL,"
-            "fc_num INT NOT NULL,"
+            "siglen INT NOT NULL,"
             "local_asn INT NOT NULL,"
             "version INT NOT NULL,"
             "subversion INT NOT NULL,"
-            "aspath CHAR(1024) NOT NULL,"
             "src_ip CHAR(1024) NOT NULL,"
             "dst_ip CHAR(1024) NOT NULL,"
             "fclist CHAR(2048) NOT NULL,"
@@ -90,9 +102,8 @@ void init_db()
             "signature CHAR(1024) NOT NULL,"
            );
     DIAG_DEBUG("sql: %s\n", sql);
-    db_exec(db, sql, NULL, NULL);
+    db_exec(*db, sql, NULL, NULL);
     // bzero(sql, 1024);
     // sprintf(sql, "DELETE FROM relation WHERE asn = %u", asn);
-    // db_exec(db, sql, NULL, NULL);
-    db_close(db);
+    // db_exec(*db, sql, NULL, NULL);
 }

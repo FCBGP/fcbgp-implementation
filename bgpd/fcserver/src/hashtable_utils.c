@@ -106,23 +106,27 @@ static htbl_ops_t g_htbl_ops = {
 int fcserver_hashtable_create(htbl_ctx_t *ht)
 {
     int ret = 0;
-
-
     ht->bucketcnt = FCSRV_MAX_LINK_AS;
     ht->ops = &g_htbl_ops;
 
     ret = htbl_init(ht);
-    printf("htbl_init return %d ptr size %d spinlock size %d atomic size %d hlist size %d rwlock size %d hnode size %d node size %d\n",
-            ret, (int)sizeof(void *), (int)sizeof(spinlock_t), (int)sizeof(atomic_t),
-            (int)sizeof(htbl_hlist_t), (int)sizeof(rwlock_t),
-            (int)sizeof(htbl_node_t), (int)sizeof(ht_node_as_t));
+    ASSERT_RET(ret);
+    /*
+       printf("htbl_init return %d ptr size %d spinlock size %d atomic size %d hlist size %d rwlock size %d hnode size %d node size %d\n",
+       ret, (int)sizeof(void *), (int)sizeof(spinlock_t), (int)sizeof(atomic_t),
+       (int)sizeof(htbl_hlist_t), (int)sizeof(rwlock_t),
+       (int)sizeof(htbl_node_t), (int)sizeof(ht_node_as_t));
+       */
 
     return 0;
 }
 
 int fcserver_hashtable_destroy(htbl_ctx_t *ht)
 {
-    htbl_fini(ht);
+    if (ht)
+    {
+        htbl_fini(ht);
+    }
     return 0;
 }
 
@@ -150,10 +154,12 @@ int main(void)
     };
 
     htbl_init(&ht);
-    printf("htbl_init return %d ptr size %d spinlock size %d atomic size %d hlist size %d rwlock size %d hnode size %d node size %d\n",
-            ret, (int)sizeof(void *), (int)sizeof(spinlock_t), (int)sizeof(atomic_t),
-            (int)sizeof(htbl_hlist_t), (int)sizeof(rwlock_t),
-            (int)sizeof(htbl_node_t), (int)sizeof(ht_node_as_t));
+    /*
+       printf("htbl_init return %d ptr size %d spinlock size %d atomic size %d hlist size %d rwlock size %d hnode size %d node size %d\n",
+       ret, (int)sizeof(void *), (int)sizeof(spinlock_t), (int)sizeof(atomic_t),
+       (int)sizeof(htbl_hlist_t), (int)sizeof(rwlock_t),
+       (int)sizeof(htbl_node_t), (int)sizeof(ht_node_as_t));
+       */
 
     added = htbl_meta_insert(&ht, &meta, &ret);
     printf("insert asn=10 return %p ret %d\n", added, ret);

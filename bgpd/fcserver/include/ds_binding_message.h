@@ -14,28 +14,25 @@
 
 typedef struct fcmsg_hdr_st
 {
-    u8 type;
+    u8 type; // 1 for pubkey, 2 for bm
     u16 length;
-    u8 data[0];
+    u8 reserved;
 } __attribute__((packed)) fcmsg_hdr_t;
-
 
 typedef struct fcmsg_bm_st
 {
     u8 ipversion;       // 1 for ipv4, 2 for ipv6
-    u8 type;            // 0 for onpath nodes, 1 for offpath nodes
+    u8 type;            // 0 for onpath nodes, 1 for offpath
     u8 action;          // 0 for add/update, 1 for del/withdraw
-    u8 as_num;          // num of as in aspath
-    u8 src_ip_num;      // src ip prefix num
-    u8 dst_ip_num;      // dst ip prefix num
-    u8 fc_num;          // num of fc in fclist
-    u8 reserved;
+    u8 fc_num;          // num of fc in fclist, boundary
+    u8 src_ip_num;      // src ip prefix num, boundary
+    u8 dst_ip_num;      // dst ip prefix num, boundary
+    u16 siglen;
     u32 local_asn;      // local as number
     u32 version;
     u32 subversion;
-    u32 aspath[FCSRV_MAX_LINK_AS];
-    ip_t src_ip[FCSRV_MAX_PREFIX];
-    ip_t dst_ip[FCSRV_MAX_PREFIX];
+    ip_t src_ip[FCSRV_MAX_SRC_PREFIX];
+    ip_t dst_ip[FCSRV_MAX_SRC_PREFIX];
     FC_t fclist[FCSRV_MAX_LINK_AS];
     u8 ski[20];
     u8 signature[80];
