@@ -51,6 +51,7 @@ static int bm_sent_to_peer(const char *addr, const fcmsg_bm_t *bm,
     while (len != bufferlen)
     {
         len = len + send(sockfd, buffer+len, bufferlen-len, 0);
+        printf("len = %d, bufferlen = %d\n", len, bufferlen);
     }
 
     close(sockfd);
@@ -68,10 +69,14 @@ static int bm_broadcast_to_peer(const fcmsg_bm_t *bm, char *buffer,
         // TODO wether asn is in aspath
         ht_node_as_t *node = htbl_meta_find(&g_fcserver.ht,
                 &bm->fclist[i].current_asn);
-        if (g_fcserver.local_asn != node->asn)
+        if (node)
         {
-            bm_sent_to_peer(node->ap.acs.ipv4,
-                    bm, buffer, bufferlen);
+            printf("sent to %d\n", node->asn);
+            if (g_fcserver.local_asn != node->asn)
+            {
+                bm_sent_to_peer(node->ap.acs.ipv4,
+                        bm, buffer, bufferlen);
+            }
         }
     }
 
@@ -86,6 +91,7 @@ int bm_write_to_db(const fcmsg_bm_t *bm)
     char buff_dst_ip[BUFSIZ/4] = {0};
     char buff_fclist[BUFSIZ/4] = {0};
     char buff[BUFSIZ] = {0};
+    char buff_ski[100] = {0};
     int cur = 0, i = 0;
     socklen_t socklen;
     struct sockaddr_in *sin = NULL;
@@ -184,7 +190,7 @@ int bm_write_to_db(const fcmsg_bm_t *bm)
     cur = 0;
     for (int j=0; j<20; ++j)
     {
-        snprintf(buff+cur, BUFSIZ, "%02X",
+        snprintf(buff_ski+cur, BUFSIZ, "%02X",
                 bm->fclist[i].ski[j]);
         cur += 2;
     }
@@ -195,7 +201,7 @@ int bm_write_to_db(const fcmsg_bm_t *bm)
             bm->ipversion, bm->type, bm->action, bm->fc_num,
             bm->src_ip_num, bm->dst_ip_num, bm->siglen, bm->local_asn,
             bm->version, bm->subversion, buff_src_ip, buff_dst_ip,
-            buff_fclist, buff, bm->signature);
+            buff_fclist, buff_ski, bm->signature);
     printf("SQL: %s\n", sql);
     db_exec(g_fcserver.db, sql, db_store_bm_handler, NULL);
 
@@ -343,6 +349,7 @@ int bm_handler(char *buffer, int bufferlen, int is_bc)
     bm_write_to_db(&bm);
     if (!is_bc)
     {
+        printf("bc to peers\n");
         bm_broadcast_to_peer(&bm, buffer, bufferlen);
     }
 
