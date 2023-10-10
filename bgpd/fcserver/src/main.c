@@ -84,17 +84,17 @@ static int parse_args(int argc, char *argv[])
 int main(int argc, char *argv[])
 {
     parse_args(argc, argv);
+    diag_init("fc");
     fcserver_hashtable_create(&g_fcserver.ht);
 
     // 读取SRC-IP和ASN对应关系，必须使用-f指定asnlist.json位置就行
     //     不指定则需要默认bin/server执行，否则会报错
     read_asn_ips();
-    // htbl_display(&g_fcserver.ht);
-    printf("=====================================================\n");
     print_asn_ips();
-    printf("=====================================================\n");
+    // htbl_display(&g_fcserver.ht);
 
     signal(SIGINT, signal_handler);
+
     fcserver_create();
 
     while (1)

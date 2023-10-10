@@ -41,7 +41,7 @@ static int bm_sent_to_peer(const char *addr, const fcmsg_bm_t *bm,
     sockaddr.sin_family = AF_INET;
     sockaddr.sin_port = htons(FC_BROADCAST_PORT);
     inet_pton(AF_INET, addr, &sockaddr.sin_addr);
-    if ((ret = connect(sockfd, (struct sockadd*)&sockaddr,
+    if ((ret = connect(sockfd, (struct sockaddr*)&sockaddr,
                     sizeof(sockaddr))) < 0)
     {
         perror("connect()");
@@ -68,7 +68,11 @@ static int bm_broadcast_to_peer(const fcmsg_bm_t *bm, char *buffer,
         // TODO wether asn is in aspath
         ht_node_as_t *node = htbl_meta_find(&g_fcserver.ht,
                 &bm->fclist[i].current_asn);
-        bm_sent_to_peer(node->ap.acs.ipv4, bm, buffer, bufferlen);
+        if (g_fcserver.local_asn != node->asn)
+        {
+            bm_sent_to_peer(node->ap.acs.ipv4,
+                    bm, buffer, bufferlen);
+        }
     }
 
     return 0;
@@ -81,15 +85,18 @@ int bm_write_to_db(const fcmsg_bm_t *bm)
     char buff_src_ip[BUFSIZ/4] = {0};
     char buff_dst_ip[BUFSIZ/4] = {0};
     char buff_fclist[BUFSIZ/4] = {0};
-    unsigned char buff[BUFSIZ];
+    char buff[BUFSIZ] = {0};
     int cur = 0, i = 0;
     socklen_t socklen;
+    struct sockaddr_in *sin = NULL;
+    struct sockaddr_in6 *sin6 = NULL;
 
     if (bm->ipversion == 4)
     {
         socklen = sizeof(struct sockaddr_in);
     } else if (bm->ipversion == 6)
     {
+        socklen = sizeof(struct sockaddr_in6);
         DIAG_ERROR("THIS IS NOT supported: %d!\n", bm->ipversion);
         return 0;
     } else
@@ -98,47 +105,98 @@ int bm_write_to_db(const fcmsg_bm_t *bm)
         return -1;
     }
 
+    // use , to split strings
     // base64 encode src_ip
     cur = 0;
-    memset(buff, 0, BUFSIZ);
+    // memset(buff, 0, BUFSIZ);
     for (i=0; i<bm->src_ip_num; ++i)
     {
-        inet_ntop(AF_INET, &bm->src_ip[i].ip, (char*)buff+cur, socklen);
-        cur += socklen;
-        snprintf(buff+cur, BUFSIZ, "%d", bm->src_ip[i].prefix_length);
-        cur += sizeof(bm->src_ip[i].prefix_length);
+        if (bm->ipversion == 4)
+        {
+            sin = (struct sockaddr_in *)&bm->src_ip[i].ip;
+            inet_ntop(AF_INET, &sin->sin_addr, buff_src_ip+cur, socklen);
+        } else {
+            sin6 = (struct sockaddr_in6 *)&bm->src_ip[i].ip;
+            inet_ntop(AF_INET, &sin6->sin6_addr, buff_src_ip+cur, socklen);
+        }
+        cur += strlen(buff_src_ip+cur);
+        snprintf(buff_src_ip+cur, BUFSIZ, "/%d,",
+                bm->src_ip[i].prefix_length);
+        cur += strlen(buff_src_ip+cur);
+        DIAG_DEBUG("src: %s\n", buff_src_ip);
     }
-    base64_encode(buff, cur, buff_src_ip);
+
+    // base64_encode(buff, cur, buff_src_ip);
 
     // base64 encode dst_ip
     cur = 0;
-    memset(buff, 0, BUFSIZ);
+    // memset(buff_dst_ip, 0, BUFSIZ);
     for (i=0; i<bm->dst_ip_num; ++i)
     {
-        inet_ntop(AF_INET, &bm->dst_ip[i].ip, (char*)buff+cur, socklen);
-        cur += socklen;
-        snprintf(buff+cur, BUFSIZ, "%d", bm->dst_ip[i].prefix_length);
-        cur += sizeof(bm->dst_ip[i].prefix_length);
+        if (bm->ipversion == 4)
+        {
+            sin = (struct sockaddr_in *)&bm->dst_ip[i].ip;
+            inet_ntop(AF_INET, &sin->sin_addr, buff_dst_ip+cur, socklen);
+        } else {
+            sin6 = (struct sockaddr_in6 *)&bm->dst_ip[i].ip;
+            inet_ntop(AF_INET, &sin6->sin6_addr, buff_dst_ip+cur, socklen);
+        }
+        cur += strlen(buff_dst_ip+cur);
+        snprintf(buff_dst_ip+cur, BUFSIZ, "/%d,", bm->dst_ip[i].prefix_length);
+        cur += strlen(buff_dst_ip+cur);
+        DIAG_DEBUG("dst: %s\n", buff_dst_ip);
     }
-    base64_encode(buff, cur, buff_dst_ip);
+    // base64_encode(buff, cur, buff_dst_ip);
 
     // base64 encode fclist
     cur = 0;
-    memset(buff, 0, BUFSIZ);
+    // memset(buff, 0, BUFSIZ);
     for (i=0; i<bm->fc_num; ++i)
     {
-        snprintf(buff+cur, BUFSIZ, "%s", (unsigned char *)&bm->fclist[i]);
-        cur += sizeof(FC_t);
+        snprintf(buff_fclist+cur, BUFSIZ, "%08X-%08X-%08X-",
+                bm->fclist[i].previous_asn,
+                bm->fclist[i].current_asn,
+                bm->fclist[i].nexthop_asn);
+        cur += 8*3 + 3;
+        for (int j=0; j<20; ++j)
+        {
+            snprintf(buff_fclist+cur, BUFSIZ, "%02X",
+                    bm->fclist[i].ski[j]);
+            cur += 2;
+        }
+        snprintf(buff_fclist+cur, BUFSIZ, "-%02X-%02X-%04X-",
+                bm->fclist[i].algo_id,
+                bm->fclist[i].flags, bm->fclist[i].siglen);
+        cur += 8 + 4;
+
+        snprintf(buff_fclist+cur, BUFSIZ, "%s,",
+                &bm->fclist[i].sig);
+        cur += bm->fclist[i].siglen;
+        DIAG_DEBUG("fclist: %s\n", buff_fclist);
     }
-    base64_encode(buff, cur, buff_fclist);
+    // base64_encode(buff, cur, buff_fclist);
+
+    printf("buff-srcip: %s\n", buff_src_ip);
+    printf("buff-dstip: %s\n", buff_dst_ip);
+    printf("buff-fclist: %s\n", buff_fclist);
+
+    // ski
+    cur = 0;
+    for (int j=0; j<20; ++j)
+    {
+        snprintf(buff+cur, BUFSIZ, "%02X",
+                bm->fclist[i].ski[j]);
+        cur += 2;
+    }
 
     snprintf(sql, BUFSIZ,
-            "INSERT INTO fcs VALUES(%u, %u, %u, %u, %u, %u, %u, %u, %u,"
-            "%u, %s, %s, %s, %s, %s)",
+            "INSERT INTO fcs VALUES(%u, %u, %u, %u, %u, %u, %u, %u, %u, "
+            "%u, '%s', '%s', '%s', '%s', '%s')",
             bm->ipversion, bm->type, bm->action, bm->fc_num,
             bm->src_ip_num, bm->dst_ip_num, bm->siglen, bm->local_asn,
             bm->version, bm->subversion, buff_src_ip, buff_dst_ip,
-            buff_fclist, bm->ski, bm->signature);
+            buff_fclist, buff, bm->signature);
+    printf("SQL: %s\n", sql);
     db_exec(g_fcserver.db, sql, db_store_bm_handler, NULL);
 
     return 0;
@@ -198,20 +256,47 @@ int bm_handler(char *buffer, int bufferlen, int is_bc)
     cur += sizeof(u32); // subversion
     memcpy(&bm, buff, cur);
 
+    bm.siglen = ntohs(bm.siglen);
+    bm.local_asn = ntohl(bm.local_asn);
+    bm.version = ntohl(bm.version);
+    bm.subversion = ntohl(bm.subversion);
+
     // src_ip
     for (i=0; i<bm.src_ip_num; ++i)
     {
-        memcpy(&bm.src_ip[i].ip, buff+cur, ip_len);
-        memcpy(&bm.src_ip[i].prefix_length, buff+cur+4, 1);
+        if (bm.ipversion == 4)
+        {
+            struct sockaddr_in* addr = &bm.src_ip[i].ip;
+            memcpy(&(addr->sin_addr),
+                    buff+cur, sizeof(struct in_addr));
+        } else
+        {
+            struct sockaddr_in6* addr = &bm.src_ip[i].ip;
+            memcpy(&(addr->sin6_addr),
+                    buff+cur, sizeof(struct in6_addr));
+        }
+        memcpy(&bm.src_ip[i].prefix_length, buff+cur+ip_len, 1);
         cur += ip_len + 1;
     }
+
     // dst_ip
     for (i=0; i<bm.dst_ip_num; ++i)
     {
-        memcpy(&bm.dst_ip[i].ip, buff+cur, ip_len);
-        memcpy(&bm.dst_ip[i].prefix_length, buff+cur+4, 1);
+        if (bm.ipversion == 4)
+        {
+            struct sockaddr_in* addr = &bm.dst_ip[i].ip;
+            memcpy(&(addr->sin_addr),
+                    buff+cur, sizeof(struct in_addr));
+        } else
+        {
+            struct sockaddr_in6* addr = &bm.dst_ip[i].ip;
+            memcpy(&(addr->sin6_addr),
+                    buff+cur, sizeof(struct in6_addr));
+        }
+        memcpy(&bm.dst_ip[i].prefix_length, buff+cur+ip_len, 1);
         cur += ip_len + 1;
     }
+
     // fclist
     int fc_fixlen = sizeof(u32) // prev asn
         +sizeof(u32) // curr asn
@@ -220,10 +305,15 @@ int bm_handler(char *buffer, int bufferlen, int is_bc)
         +sizeof(u8)  // algo_id
         +sizeof(u8)  // flags
         +sizeof(u16); // siglen
+
     for (i=0; i<bm.fc_num; ++i)
     {
         memcpy(&bm.fclist[i], buff+cur, fc_fixlen);
         cur += fc_fixlen;
+        bm.fclist[i].previous_asn = ntohl(bm.fclist[i].previous_asn);
+        bm.fclist[i].current_asn = ntohl(bm.fclist[i].current_asn);
+        bm.fclist[i].nexthop_asn = ntohl(bm.fclist[i].nexthop_asn);
+        bm.fclist[i].siglen = ntohs(bm.fclist[i].siglen);
         memcpy(bm.fclist[i].sig, buff+cur, bm.fclist[i].siglen);
         cur += bm.fclist[i].siglen;
     }
@@ -249,10 +339,10 @@ int bm_handler(char *buffer, int bufferlen, int is_bc)
         bm_verify_signature(bm.signature, bm.siglen);
     }
 
+    // gen_acl(&bm);
     bm_write_to_db(&bm);
     if (!is_bc)
     {
-        // gen_acl(&bm);
         bm_broadcast_to_peer(&bm, buffer, bufferlen);
     }
 
@@ -268,10 +358,10 @@ int bgpd_server_handler(ncs_ctx_t *ctx)
     {
         memset(buff, 0, BUFSIZ);
         len = ncs_server_recv(ctx, buff, BUFSIZ);
-        DIAG_DEBUG("received from %s:%d %s:%d %s:%s, len = %d\n",
-                ctx->remote_addr, ctx->remote_port,
+        DIAG_DEBUG("len = %d, received from %s:%d %s:%d %s:%s\n",
+                len, ctx->remote_addr, ctx->remote_port,
                 ctx->local_addr, ctx->local_port,
-                ctx->server_peeraddr, ctx->client_peeraddr, len);
+                ctx->server_peeraddr, ctx->client_peeraddr);
         if (len > 0)
         {
             if (buff[0] == 1) // pubkey
@@ -290,7 +380,7 @@ int bgpd_server_handler(ncs_ctx_t *ctx)
                 return -1;
             }
         }
-    } while (1);
+    } while (0);
 
     ncs_client_stop(ctx);
 
@@ -299,14 +389,15 @@ int bgpd_server_handler(ncs_ctx_t *ctx)
 
 void *bgpd_server_create(void * args)
 {
-    (void) args;
+    acs_t *acs = (acs_t *)args;
+
     if ((bgpd_ctx = ncs_create("bgpd", TCP_PROTO)) == NULL)
     {
         DIAG_ERROR("create bgpd ncs failed\n");
         exit(-ENOMEM);
     }
 
-    ncs_setup(bgpd_ctx, INADDR_ANY, FC_BGPD_PORT, NULL, 0);
+    ncs_setup(bgpd_ctx, acs->ipv4, FC_BGPD_PORT, NULL, 0);
     ncs_timeout(bgpd_ctx, 10, -1);
     ncs_setkeepalive(bgpd_ctx, 10);
     ncs_server_enable(bgpd_ctx);

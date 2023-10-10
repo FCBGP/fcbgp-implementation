@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/types.h>
 #include <assert.h>
 #include "cJSON.h"
 #include "common.h"
@@ -126,6 +127,19 @@ read_asn_ips()
         ipv4 = cJSON_GetObjectItem(acs, "ipv4");
         ipv6 = cJSON_GetObjectItem(acs, "ipv6");
 
+        /*
+        printf("asn: %d, g_fcserver.local_asn: %d\n",
+                asn->valueint, g_fcserver.local_asn);
+
+        if (asn->valueint == g_fcserver.local_asn)
+        {
+            memcpy(g_fcserver.ipv4, ipv4->valuestring,
+                    strlen(ipv4->valuestring));
+            memcpy(g_fcserver.ipv6, ipv6->valuestring,
+                    strlen(ipv6->valuestring));
+        }
+        */
+
         meta.asn = asn->valueint;
         memcpy(meta.ap.acs.ipv4, ipv4->valuestring,
                 strlen(ipv4->valuestring));
@@ -168,6 +182,7 @@ read_asn_ips()
     void
 print_asn_ips()
 {
+    printf("=====================================================\n");
     int i=0, j=0;
     node_as_t meta;
     ht_node_as_t *node;
@@ -189,25 +204,28 @@ print_asn_ips()
             for (j=0; j<node->ap.prefix.ip4s_num; ++j)
             {
                 inet_ntop(AF_INET, &node->ap.prefix.ip4s[j].ip,
-                        ipstr, (socklen_t)sizeof(ipstr));
+                        ipstr, (socklen_t)sizeof(struct sockaddr_in));
                 printf("    ipv4: %s/%d\n",
                         ipstr, node->ap.prefix.ip4s[j].prefix_length);
             }
             for (j=0; j<node->ap.prefix.ip6s_num; ++j)
             {
                 inet_ntop(AF_INET6, &node->ap.prefix.ip6s[j].ip,
-                        ipstr, (socklen_t)sizeof(ipstr));
+                        ipstr, (socklen_t)sizeof(struct sockaddr_in));
                 printf("    ipv6: %s/%d\n",
                         ipstr, node->ap.prefix.ip6s[j].prefix_length);
             }
 
-            htbl_node_drop(ht, node);
+            // htbl_node_drop(ht, node);
         }
 
+        /*
         if (node)
         {
             htbl_node_delete(ht, node);
             node = NULL;
         }
+        */
     }
+    printf("=====================================================\n");
 }

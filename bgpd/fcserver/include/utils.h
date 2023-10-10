@@ -37,6 +37,10 @@ typedef struct fcserver_s
     u8 asns_num;
     u32 asns[FCSRV_MAX_LINK_AS];
     u32 local_asn;
+    /*
+    char ipv4[INET_ADDRSTRLEN];
+    char ipv6[INET6_ADDRSTRLEN];
+    */
     sqlite3 *db;
     htbl_ctx_t ht;
     char fname[BUFSIZ];
@@ -48,7 +52,7 @@ extern ncs_ctx_t *bgpd_ctx;
 extern ncs_ctx_t *bc_ctx;
 
 /* SIG */
-extern int base64_encode(const unsigned char *msg, size_t length, char ** b64msg);
+extern int base64_encode(const unsigned char *msg, size_t length, char * b64msg);
 extern int base64_decode(const char *b64msg, unsigned char **msg, size_t *length);
 
 /* JSON */
