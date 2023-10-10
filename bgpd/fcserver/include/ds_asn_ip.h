@@ -20,6 +20,7 @@ typedef struct acs_s
 
 typedef struct ip_s
 {
+    // struct sockaddr ip;
     struct sockaddr ip;
     u8 prefix_length;
 } ip_t;

@@ -21,7 +21,7 @@
 
 #include "libdiag.h"
 
-int base64_encode(const unsigned char *msg, size_t length, char **b64msg)
+int base64_encode(const unsigned char *msg, size_t length, char *b64msg)
 {
     BIO *bio, *b64;
     BUF_MEM *buff;
@@ -37,7 +37,9 @@ int base64_encode(const unsigned char *msg, size_t length, char **b64msg)
     BIO_set_close(bio, BIO_NOCLOSE);
     BIO_free_all(bio);
 
-    *b64msg = (*buff).data;
+    memcpy(b64msg, (*buff).data, strlen((*buff).data));
+    printf("msg: %s\nb64msg: %s\ndata: %s\n",
+            msg, b64msg, (*buff).data);
 
     return 0;
 }

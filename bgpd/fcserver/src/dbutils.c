@@ -99,7 +99,7 @@ void init_db(sqlite3 **db)
             "dst_ip CHAR(1024) NOT NULL,"
             "fclist CHAR(2048) NOT NULL,"
             "ski CHAR(20) NOT NULL,"
-            "signature CHAR(1024) NOT NULL,"
+            "signature CHAR(1024) NOT NULL)"
            );
     DIAG_DEBUG("sql: %s\n", sql);
     db_exec(*db, sql, NULL, NULL);

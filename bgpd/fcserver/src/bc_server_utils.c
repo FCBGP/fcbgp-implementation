@@ -33,10 +33,10 @@ int broadcast_server_handler(ncs_ctx_t *ctx)
     {
         memset(buff, 0, BUFSIZ);
         len = ncs_server_recv(ctx, buff, BUFSIZ);
-        DIAG_DEBUG("received from %s:%d %s:%d %s:%s, len = %d\n",
-                ctx->remote_addr, ctx->remote_port,
+        DIAG_DEBUG("len = %d, received from %s:%d %s:%d %s:%s\n",
+                len, ctx->remote_addr, ctx->remote_port,
                 ctx->local_addr, ctx->local_port,
-                ctx->server_peeraddr, ctx->client_peeraddr, len);
+                ctx->server_peeraddr, ctx->client_peeraddr);
         if (len > 0)
         {
             if (buff[0] == 2) // bm
@@ -47,8 +47,7 @@ int broadcast_server_handler(ncs_ctx_t *ctx)
                 continue;
             }
         }
-
-    } while (1);
+    } while (0);
 
     ncs_client_stop(ctx);
     return 0;
@@ -56,14 +55,14 @@ int broadcast_server_handler(ncs_ctx_t *ctx)
 
 void *broadcast_server_create(void *args)
 {
-    (void) args;
+    acs_t *acs = (acs_t *) args;
     if ((bc_ctx = ncs_create("broadcast", TCP_PROTO)) == NULL)
     {
         DIAG_ERROR("create broadcast ncs failed\n");
         exit(-ENOMEM);
     }
 
-    ncs_setup(bc_ctx, INADDR_ANY, FC_BROADCAST_PORT, NULL, 0);
+    ncs_setup(bc_ctx, acs->ipv4, FC_BROADCAST_PORT, NULL, 0);
     ncs_timeout(bc_ctx, 10, -1);
     ncs_setkeepalive(bc_ctx, 10);
     ncs_server_enable(bc_ctx);

@@ -16,13 +16,15 @@
 #include <signal.h>
 #include <pthread.h>
 
+#include "common.h"
+#include "ds_asn_ip.h"
 #include "dbutils.h"
 #include "utils.h"
 #include "libncs.h"
 #include "libdiag.h"
 #include "libhtable.h"
 
-fcserver_t g_fcserver;
+fcserver_t g_fcserver = {0};
 
 void signal_handler(int sig_num)
 {
@@ -48,11 +50,24 @@ void signal_handler(int sig_num)
 
 int fcserver_create()
 {
-    memset(&g_fcserver, 0, sizeof(fcserver_t));
+    node_as_t meta;
+    ht_node_as_t *node;
+
     init_db(&g_fcserver.db);
 
-    bgpd_server_create(NULL);
-    // broadcast_server_create(NULL);
+    meta.asn = g_fcserver.local_asn;
+    node = htbl_meta_find(&g_fcserver.ht, &meta);
+
+    if (node)
+    {
+        printf("asn: %d\n", node->asn);
+        printf("  acs:\n");
+        printf("    ipv4: %s\n", node->ap.acs.ipv4);
+        printf("    ipv6: %s\n", node->ap.acs.ipv6);
+
+        bgpd_server_create(&node->ap.acs);
+        broadcast_server_create(&node->ap.acs);
+    }
 
     return 0;
 }
@@ -63,6 +78,8 @@ int fcserver_destroy()
     db_close(g_fcserver.db);
     printf("Destroy Hashtable\n");
     fcserver_hashtable_destroy(&g_fcserver.ht);
+    printf("Close diag\n");
+    diag_fini();
 
     return 0;
 }
