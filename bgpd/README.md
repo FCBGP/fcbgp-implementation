@@ -23,5 +23,10 @@ $ sudo make install
 $ sudo vim /etc/ld.so.conf.d/melon.conf
 # –¥»Î /usr/local/melon/include
 $ sudo ldconfig
+```
 
+```bash
+# libdiag
+$ sudo mkdir /opt/log
+$ sudo chmod 777 /opt/log
 ```
