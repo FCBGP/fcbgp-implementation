@@ -36,12 +36,14 @@ void signal_handler(int sig_num)
             ncs_destroy(bgpd_ctx);
             bgpd_ctx = NULL;
         }
+        /*
         if (bc_ctx)
         {
             ncs_manager_stop(bc_ctx);
             ncs_destroy(bc_ctx);
             bc_ctx = NULL;
         }
+        */
         fcserver_destroy();
         printf("bye bye!\n");
         exit(0);
@@ -66,7 +68,7 @@ int fcserver_create()
         printf("    ipv6: %s\n", node->ap.acs.ipv6);
 
         bgpd_server_create(&node->ap.acs);
-        broadcast_server_create(&node->ap.acs);
+        // broadcast_server_create(&node->ap.acs);
     }
 
     return 0;

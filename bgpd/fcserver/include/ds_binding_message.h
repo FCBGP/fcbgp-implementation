@@ -34,7 +34,7 @@ typedef struct fcmsg_bm_st
     ip_t src_ip[FCSRV_MAX_SRC_PREFIX];
     ip_t dst_ip[FCSRV_MAX_SRC_PREFIX];
     FC_t fclist[FCSRV_MAX_LINK_AS];
-    u8 ski[20];
+    u8 ski[SKI_LENGTH];
     u8 signature[80];
 } __attribute__((packed)) fcmsg_bm_t;
 
@@ -44,7 +44,7 @@ typedef struct fcmsg_bm_new_s
     u8 new_fc_num;
     u8 new_as_num;
     FC_t new_fclist[FCSRV_MAX_LINK_AS];
-    u8 new_ski[20];
+    u8 new_ski[SKI_LENGTH];
     u8 new_signature[80];
 } __attribute__((packed)) fcmsg_bm_new_t;
 

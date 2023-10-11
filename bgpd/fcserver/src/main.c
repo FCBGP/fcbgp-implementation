@@ -93,6 +93,8 @@ int main(int argc, char *argv[])
     print_asn_ips();
     // htbl_display(&g_fcserver.ht);
 
+    init_crypto_env(&g_fcserver);
+
     signal(SIGINT, signal_handler);
 
     fcserver_create();

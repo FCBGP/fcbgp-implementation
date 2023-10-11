@@ -20,8 +20,10 @@
 #include <openssl/x509.h>
 
 #include "libdiag.h"
+#include "utils.h"
 
-int base64_encode(const unsigned char *msg, size_t length, char *b64msg)
+    int
+base64_encode(const unsigned char *msg, size_t length, char *b64msg)
 {
     BIO *bio, *b64;
     BUF_MEM *buff;
@@ -44,7 +46,8 @@ int base64_encode(const unsigned char *msg, size_t length, char *b64msg)
     return 0;
 }
 
-static size_t inline calc_decode_len(const char *b64msg)
+    static size_t inline
+calc_decode_len(const char *b64msg)
 {
     size_t len = strlen(b64msg);
     size_t padding = 0;
@@ -57,7 +60,8 @@ static size_t inline calc_decode_len(const char *b64msg)
     return (len * 3) / 4 - padding;
 }
 
-int base64_decode(const char *b64msg, unsigned char **msg, size_t *length)
+    int
+base64_decode(const char *b64msg, unsigned char **msg, size_t *length)
 {
     BIO *bio, *b64;
     int decode_len = calc_decode_len(b64msg);
@@ -82,7 +86,8 @@ int base64_decode(const char *b64msg, unsigned char **msg, size_t *length)
     return 0;
 }
 
-static int sha256_encode(const char *const msg, unsigned char *digest,
+    static int
+sha256_encode(const char *const msg, unsigned char *digest,
         unsigned int *digest_len)
 {
     int i = 0, ret = 1;
@@ -134,12 +139,10 @@ static int sha256_encode(const char *const msg, unsigned char *digest,
         goto error;
     }
 
-    printf("Digest_len is : %u, Digest is: ", *digest_len);
+    DIAG_DEBUG("Digest_len is : %u, Digest is: ", *digest_len);
     for (i = 0; i < *digest_len; i++)
-        printf("%02x", digest[i]);
-    printf("\n");
-
-    return 0;
+        DIAG_DEBUG("%02x", digest[i]);
+    DIAG_DEBUG("\n");
 
 error:
     /* Clean up all the resources we allocated */
@@ -153,7 +156,8 @@ error:
     return ret;
 }
 
-int read_eckey_from_file(int is_pub_key, EC_KEY *pkey)
+    static int
+read_eckey_from_file(int is_pub_key, EC_KEY **pkey)
 {
     const char *public_key_fname = "assets/eccpri256.pem";
     const char *private_key_fname = "assets/eccpri256.key";
@@ -167,16 +171,79 @@ int read_eckey_from_file(int is_pub_key, EC_KEY *pkey)
             return -1;
         }
 
-        pkey = PEM_read_EC_PUBKEY(fp, NULL, NULL, NULL);
+        *pkey = PEM_read_EC_PUBKEY(fp, NULL, NULL, NULL);
     } else {
         if ((fp = fopen(private_key_fname, "rb")) == NULL)
         {
             perror("fopen()");
             return -1;
         }
-        pkey = PEM_read_ECPrivateKey(fp, NULL, NULL, NULL);
+        *pkey = PEM_read_ECPrivateKey(fp, NULL, NULL, NULL);
     }
     fclose(fp);
+
+    return 0;
+}
+
+    int
+ecdsa_sign(EC_KEY *prikey, const char *const msg,
+        unsigned char **sigbuff, unsigned int *siglen)
+{
+    unsigned char digest[EVP_MAX_MD_SIZE] = {0};
+    unsigned int digestlen = 0;
+    unsigned int keylen = 0;
+    int ret = 0;
+
+    sha256_encode(msg, digest, &digestlen);
+    keylen = ECDSA_size(prikey);
+    *sigbuff = OPENSSL_malloc(keylen);
+    ret = ECDSA_sign(0, digest, digestlen, *sigbuff, siglen, prikey);
+
+    /*
+    printf("sig len: %u\nsignature: ", *siglen);
+    for (int i=0; i<*siglen; ++i)
+    {
+        printf("%02X", (*sigbuff)[i]);
+    }
+    printf("\n");
+    */
+
+    return 0;
+}
+
+    int
+ecdsa_verify(EC_KEY *pubkey, const char *const msg,
+        const unsigned char *sigbuff, unsigned int siglen)
+{
+    unsigned char digest[EVP_MAX_MD_SIZE] = {0};
+    unsigned int digestlen = 0;
+    unsigned int keylen = 0;
+    int ret = 0;
+
+    sha256_encode(msg, digest, &digestlen);
+    ret = ECDSA_verify(0, digest, digestlen, sigbuff, siglen, pubkey);
+    /*
+    if (ret == 1)
+    {
+        printf("verify ok\n");
+    }
+    else if (ret == 0)
+    {
+        printf("verify failed\n");
+    } else
+    {
+        printf("error\n");
+    }
+    */
+
+    return ret;
+}
+
+    int
+init_crypto_env(fcserver_t *fcserver)
+{
+    read_eckey_from_file(1, &fcserver->pubkey);
+    read_eckey_from_file(0, &fcserver->prikey);
 
     return 0;
 }

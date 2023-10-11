@@ -13,6 +13,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "libdiag.h"
+#include "common.h"
 #include "utils.h"
 #include "dbutils.h"
 
