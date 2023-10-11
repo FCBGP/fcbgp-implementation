@@ -14,14 +14,15 @@ TRD_PARTY_LIBARY += -lcrypto
 
 SERVER_SRCS += src/main.c src/json_utils.c src/hashtable_utils.c
 SERVER_SRCS += src/dbutils.c src/sigutils.c src/server_utils.c
-SERVER_SRCS += src/bc_server_utils.c src/bgpd_server_utils.c
+# SERVER_SRCS += src/bc_server_utils.c
+SERVER_SRCS += src/bgpd_server_utils.c
 
 all: bin/server
 	./bin/server -a 10
 
-bin/test_send_fclist: src/test_send_fclist.c
+bin/test_send_fclist: src/test_send_fclist.c src/sigutils.c $(TRD_PARTY_LIB)
 	mkdir -p bin/
-	gcc $(CFLAGS) -o $@ $? -Iinclude $(LFLAGS)
+	gcc $(CFLAGS) -o $@ $? $(INC_DIR) $(LFLAGS) $(TRD_PARTY_LIBARY)
 
 bin/server: $(SERVER_SRCS) $(TRD_PARTY_LIB)
 	mkdir -p bin/
