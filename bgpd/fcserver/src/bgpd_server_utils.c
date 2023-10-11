@@ -11,6 +11,7 @@
 #include <time.h>
 #include <sqlite3.h>
 #include <arpa/inet.h>
+#include <netinet/in.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <signal.h>
@@ -65,12 +66,14 @@ bm_broadcast_to_peer(const fcmsg_bm_t *bm, char *buffer,
         int bufferlen)
 {
     int i = 0;
+    node_as_t meta;
 
     for (i=0; i<bm->fc_num; ++i)
     {
         // TODO wether asn is in aspath
+        meta.asn = bm->fclist[i].current_asn;
         ht_node_as_t *node = htbl_meta_find(&g_fcserver.ht,
-                &bm->fclist[i].current_asn);
+                &meta);
         if (node)
         {
             printf("sent to %d\n", node->asn);
@@ -123,10 +126,10 @@ bm_write_to_db(const fcmsg_bm_t *bm)
     {
         if (bm->ipversion == IPV4)
         {
-            sin = (struct sockaddr_in *)&bm->src_ip[i].ip;
+            sin = (struct sockaddr_in *)&(bm->src_ip[i].ip);
             inet_ntop(AF_INET, &sin->sin_addr, buff_src_ip+cur, socklen);
         } else {
-            sin6 = (struct sockaddr_in6 *)&bm->src_ip[i].ip;
+            sin6 = (struct sockaddr_in6 *)&(bm->src_ip[i].ip);
             inet_ntop(AF_INET, &sin6->sin6_addr, buff_src_ip+cur, socklen);
         }
         cur += strlen(buff_src_ip+cur);
@@ -145,10 +148,10 @@ bm_write_to_db(const fcmsg_bm_t *bm)
     {
         if (bm->ipversion == IPV4)
         {
-            sin = (struct sockaddr_in *)&bm->dst_ip[i].ip;
+            sin = (struct sockaddr_in *)&(bm->dst_ip[i].ip);
             inet_ntop(AF_INET, &sin->sin_addr, buff_dst_ip+cur, socklen);
         } else {
-            sin6 = (struct sockaddr_in6 *)&bm->dst_ip[i].ip;
+            sin6 = (struct sockaddr_in6 *)&(bm->dst_ip[i].ip);
             inet_ntop(AF_INET, &sin6->sin6_addr, buff_dst_ip+cur, socklen);
         }
         cur += strlen(buff_dst_ip+cur);
@@ -179,10 +182,15 @@ bm_write_to_db(const fcmsg_bm_t *bm)
                 bm->fclist[i].flags, bm->fclist[i].siglen);
         cur += 8 + 4;
 
-        snprintf(buff_fclist+cur, BUFF_SIZE, "%s,",
-                &bm->fclist[i].sig);
-        cur += bm->fclist[i].siglen;
-        DIAG_DEBUG("fclist: %s\n", buff_fclist);
+        for (int j=0; j<bm->fclist[i].siglen; ++j)
+        {
+            snprintf(buff_fclist+cur, BUFF_SIZE, "%02X",
+                bm->fclist[i].sig[j]);
+            cur += 2;
+        }
+        snprintf(buff_fclist+cur, BUFF_SIZE, ",");
+        cur += 1;
+        DIAG_DEBUG("curlen: %d, fclist: %s\n", cur, buff_fclist);
     }
     // base64_encode(buff, cur, buff_fclist);
 
@@ -227,15 +235,58 @@ pubkey_handler(const char *buff, int len)
 }
 
     static int
-bm_verify_fc(FC_t *fclist, int size)
+bm_verify_fc(fcmsg_bm_t *bm)
 {
-    return 0;
-}
+    char msg[BUFSIZ];
+    int ret = 0;
+    int msglen = 0;
+    int i = 0, j = 0;
+    struct sockaddr_in *ip4;
+    struct sockaddr_in6 *ip6;
 
-    static int
-bm_verify_signature(char *signature, int siglen)
-{
-
+    for (i=0; i<bm->fc_num; ++i)
+    {
+        memset(msg, 0, BUFSIZ);
+        msglen = 0;
+        // hash(prev_asn, curr_asn, next_asn, dst_ip)
+        // asn
+        memcpy(msg + msglen, &(bm->fclist[i].previous_asn), sizeof(u32));
+        msglen += sizeof(u32);
+        memcpy(msg + msglen, &(bm->fclist[i].current_asn), sizeof(u32));
+        msglen += sizeof(u32);
+        memcpy(msg + msglen, &(bm->fclist[i].nexthop_asn), sizeof(u32));
+        msglen += sizeof(u32);
+        // dst_ip
+        for (j=0; j<bm->dst_ip_num; ++j)
+        {
+            if (bm->ipversion == IPV4)
+            {
+                ip4 = (struct sockaddr_in*)&(bm->dst_ip[j].ip);
+                memcpy(msg+msglen, &(ip4->sin_addr), IP4_LENGTH);
+                msglen += IP4_LENGTH;
+            } else {
+                ip6 = (struct sockaddr_in6*)&(bm->dst_ip[j].ip);
+                memcpy(msg+msglen, &(ip6->sin6_addr), IP6_LENGTH);
+                msglen += IP6_LENGTH;
+            }
+            memcpy(msg+msglen, &bm->dst_ip[j].prefix_length, 1);
+            msglen += 1;
+        }
+        ret = ecdsa_verify(g_fcserver.pubkey, msg,
+                bm->fclist[i].sig, bm->fclist[i].siglen);
+        switch (ret)
+        {
+        case 1:
+            printf("verify fc ok\n");
+            break;
+        case 0:
+            printf("verify fc failed\n");
+            break;
+        default:
+            printf("verify fc error\n");
+            break;
+        }
+    }
     return 0;
 }
 
@@ -349,7 +400,7 @@ bm_handler(char *buffer, int bufferlen, int msg_type)
     }
 
     // TODO verify fc
-    ret = bm_verify_fc(bm.fclist, bm.fc_num);
+    ret = bm_verify_fc(&bm);
     ASSERT_RET(ret);
 
     // TODO need read from g_fcserver.

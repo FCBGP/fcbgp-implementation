@@ -156,7 +156,7 @@ error:
     return ret;
 }
 
-    static int
+    int
 read_eckey_from_file(int is_pub_key, EC_KEY **pkey)
 {
     const char *public_key_fname = "assets/eccpri256.pem";
@@ -199,14 +199,12 @@ ecdsa_sign(EC_KEY *prikey, const char *const msg,
     *sigbuff = OPENSSL_malloc(keylen);
     ret = ECDSA_sign(0, digest, digestlen, *sigbuff, siglen, prikey);
 
-    /*
     printf("sig len: %u\nsignature: ", *siglen);
     for (int i=0; i<*siglen; ++i)
     {
         printf("%02X", (*sigbuff)[i]);
     }
     printf("\n");
-    */
 
     return 0;
 }
@@ -217,7 +215,6 @@ ecdsa_verify(EC_KEY *pubkey, const char *const msg,
 {
     unsigned char digest[EVP_MAX_MD_SIZE] = {0};
     unsigned int digestlen = 0;
-    unsigned int keylen = 0;
     int ret = 0;
 
     sha256_encode(msg, digest, &digestlen);
