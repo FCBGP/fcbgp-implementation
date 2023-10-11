@@ -125,20 +125,6 @@ int fcserver_hashtable_destroy(htbl_ctx_t *ht)
 {
     if (ht)
     {
-        ht_node_as_t *added, *matched;
-        node_as_t meta;
-        for (int i=0; i<g_fcserver.asns_num; ++i)
-        {
-            meta.asn = g_fcserver.asns[i];
-            if ((matched = htbl_meta_find(ht, &meta)) != NULL)
-            {
-                htbl_node_drop(ht, matched);
-            }
-            if (matched)
-            {
-                htbl_node_delete(ht, matched);
-            }
-        }
         htbl_fini(ht);
     }
     return 0;

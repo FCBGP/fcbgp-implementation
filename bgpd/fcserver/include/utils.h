@@ -65,6 +65,7 @@ extern ncs_ctx_t *bc_ctx;
 
 /* SIG */
 extern int init_crypto_env(fcserver_t *fcserver);
+extern int read_eckey_from_file(int is_pub_key, EC_KEY **pkey);
 extern int base64_encode(const unsigned char *msg, size_t length,
         char * b64msg);
 extern int base64_decode(const char *b64msg, unsigned char **msg,

@@ -13,6 +13,7 @@
 #include <sys/types.h>
 #include <stdint.h>
 #include <unistd.h>
+#include "utils.h"
 
 typedef uint8_t u8;
 typedef uint16_t u16;
@@ -21,10 +22,15 @@ typedef uint32_t u32;
 int main(int argc, char *argv[])
 {
     char buff[BUFSIZ] = {0};
+    char msg[BUFSIZ] = {0};
+    int msglen = 0;
     int length = 0;
     int sockfd = socket(AF_INET, SOCK_STREAM, 0);
     struct sockaddr_in sockaddr;
     int len = 0, ret = 0;
+    EC_KEY *prikey = NULL;
+
+    read_eckey_from_file(0, &prikey);
 
     // hdr
     buff[length] = 2; // bm
@@ -82,15 +88,36 @@ int main(int argc, char *argv[])
     // fclist -- 1
     for (int j=0; j<3; ++j)
     {
-        asn = htonl(0 + j*10);
+        memset(msg, 0, BUFSIZ);
+        msglen = 0;
+        asn = 0 + j * 10;
+        memcpy(msg+msglen, &asn, sizeof(u32)); // ecdsa_sign
+        msglen += sizeof(u32);
+        asn = htonl(asn);
         memcpy(&buff[length], &asn, sizeof(u32)); // previous-asn
         length += sizeof(u32);
-        asn = htonl(10 + j*10);
+
+        asn = 10 + j*10;
+        memcpy(msg+msglen, &asn, sizeof(u32)); // ecdsa_sign
+        msglen += sizeof(u32);
+        asn = htonl(asn);
         memcpy(&buff[length], &asn, sizeof(u32)); // current-asn
         length += sizeof(u32);
-        asn = htonl(20 + j*10);
+
+        asn = 20 + j*10;
+        memcpy(msg+msglen, &asn, sizeof(u32)); // ecdsa_sign
+        msglen += sizeof(u32);
+        asn = htonl(asn);
         memcpy(&buff[length], &asn, sizeof(u32)); // nexthop-asn
         length += sizeof(u32);
+
+        asn = 0xc0a80301; // ecdsa_sign dst_ip
+        memcpy(msg+msglen, &asn, sizeof(u32));
+        msglen += sizeof(u32);
+        u8 prefixlen = 0x18;
+        memcpy(msg+msglen, &prefixlen, sizeof(u8));
+        msglen += sizeof(u8);
+
         memset(&buff[length], 0, 20); // ski
         length += 20;
         buff[length] = 1; // algo-id
@@ -98,6 +125,9 @@ int main(int argc, char *argv[])
         buff[length] = 0; // flags
         length += sizeof(u8);
 
+
+        // fclist-sig
+#if 0
         siglen = htons(72); // siglen
         memcpy(&buff[length], &siglen, sizeof(u16));
         length += sizeof(u16);
@@ -111,6 +141,17 @@ int main(int argc, char *argv[])
             memcpy(&buff[length], &sig2, sizeof(sig2));
             length += sizeof(u32);
         }
+#else
+        unsigned char *sigbuff = NULL;
+        unsigned int sigbufflen = 0;
+        ecdsa_sign(prikey, msg, &sigbuff, &sigbufflen);
+        siglen = htons(sigbufflen);
+        memcpy(&buff[length], &siglen, sizeof(u16));
+        length += sizeof(u16);
+        memcpy(&buff[length], sigbuff, sigbufflen);
+        length += sigbufflen;
+        OPENSSL_free(sigbuff);
+#endif
     }
 
     len = length;

@@ -40,7 +40,7 @@ typedef struct fcmsg_bm_st
 
 typedef struct fcmsg_bm_new_s
 {
-    fcmsg_bm_t old_bm;
+    fcmsg_bm_t *old_bm;
     u8 new_fc_num;
     u8 new_as_num;
     FC_t new_fclist[FCSRV_MAX_LINK_AS];
