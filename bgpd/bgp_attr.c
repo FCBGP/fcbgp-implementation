@@ -1708,27 +1708,71 @@ static enum bgp_attr_parse_ret bgp_attr_aspath_check(struct peer *const peer,
 
 #ifdef USE_FC
 /* Parse FC information. */
-static int bgp_attr_fc(struct bgp_attr_parser_args *args)
+static int bgp_attr_fc(struct bgp_attr_parser_args *args, FCList_t *fclist)
 {
 	struct peer *const peer = args->peer;
 	struct attr *const attr = args->attr;
 	const bgp_size_t length = args->length;
-
-    FCList_t fclist;
-    fclist.length = length;
-    stream_get(fclist.fcs, BGP_INPUT(peer), fclist.length);
+    int curpos = 0;
+    char buff[BUFSIZ] = {0};
 
     /* Set aspath attribute flag. */
 	attr->flag |= ATTR_FLAG_BIT(BGP_ATTR_FC);
 
     /* 1. parse FC */
+    stream_get(buff, BGP_INPUT(peer), length);
+    if (fclist != NULL)
+    {
+        fclist->length = length;
+        fclist->size = 0;
 
+        while (curpos < length)
+        {
+            memcpy(&fclist->fcs[fclist->size].previous_asn,
+                    &buff[curpos], sizeof(u32));
+            curpos += sizeof(u32);
+            fclist->fcs[fclist->size].previous_asn
+                = ntohl(fclist->fcs[fclist->size].previous_asn);
+
+            memcpy(&fclist->fcs[fclist->size].current_asn,
+                    &buff[curpos], sizeof(u32));
+            curpos += sizeof(u32);
+            fclist->fcs[fclist->size].current_asn
+                = ntohl(fclist->fcs[fclist->size].current_asn);
+
+            memcpy(&fclist->fcs[fclist->size].nexthop_asn,
+                    &buff[curpos], sizeof(u32));
+            curpos += sizeof(u32);
+            fclist->fcs[fclist->size].nexthop_asn
+                = ntohl(fclist->fcs[fclist->size].nexthop_asn);
+
+            memcpy(&fclist->fcs[fclist->size].ski, &buff[curpos], 20);
+            curpos += 20;
+
+            fclist->fcs[fclist->size].algo_id = buff[curpos];
+            curpos += 1;
+
+            fclist->fcs[fclist->size].flags = buff[curpos];
+            curpos += 1;
+
+            memcpy(&fclist->fcs[fclist->size].siglen,
+                    &buff[curpos], sizeof(u16));
+            curpos += sizeof(u16);
+            fclist->fcs[fclist->size].siglen
+                = ntohs(fclist->fcs[fclist->size].siglen);
+
+            memcpy(fclist->fcs[fclist->size].sig,
+                    &buff[curpos], fclist->fcs[fclist->size].siglen);
+
+            fclist->size ++;
+        }
+    }
+
+
+    // following steps would implement at FCServer
     /* 2. gen ACL */
-
     /* 3. store to local */
-
-    /* 4. send to on-path nodes */
-
+    /* 4. send to fcserver */
 
 	return BGP_ATTR_PARSE_PROCEED;
 }
@@ -3429,10 +3473,17 @@ static int bgp_attr_check(struct peer *peer, struct attr *attr)
 
 /* Read attribute of update packet.  This function is called from
    bgp_update_receive() in bgp_packet.c.  */
+#ifdef USE_FC
+enum bgp_attr_parse_ret bgp_attr_parse(struct peer *peer, struct attr *attr,
+				       bgp_size_t size,
+				       struct bgp_nlri *mp_update,
+				       struct bgp_nlri *mp_withdraw, FCList_t *fclist)
+#else
 enum bgp_attr_parse_ret bgp_attr_parse(struct peer *peer, struct attr *attr,
 				       bgp_size_t size,
 				       struct bgp_nlri *mp_update,
 				       struct bgp_nlri *mp_withdraw)
+#endif  // USE_FC
 {
 	enum bgp_attr_parse_ret ret;
 	uint8_t flag = 0;
@@ -3636,7 +3687,7 @@ enum bgp_attr_parse_ret bgp_attr_parse(struct peer *peer, struct attr *attr,
 			break;
 #ifdef USE_FC
         case BGP_ATTR_FC:
-            ret = bgp_attr_fc(&attr_args);
+            ret = bgp_attr_fc(&attr_args, fclist);
             break;
 #endif // USE_FC
 
@@ -4541,7 +4592,8 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
     u32 sig2 = htonl(0x89abcdef);
 
     // 1. gen current fc
-    fc.local_asn = htonl(peer->local_as);
+    fc.previous_asn = 0;
+    fc.current_asn = htonl(peer->local_as);
     fc.nexthop_asn = htonl(peer->as);
     memset(fc.ski, 0, sizeof(fc.ski));
     fc.algo_id = 0x01;

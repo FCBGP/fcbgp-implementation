@@ -1942,9 +1942,15 @@ static int bgp_update_receive(struct peer *peer, bgp_size_t size)
 
 	/* Parse attribute when it exists. */
 	if (attribute_len) {
+#ifndef USE_FC
 		attr_parse_ret = bgp_attr_parse(peer, &attr, attribute_len,
 						&nlris[NLRI_MP_UPDATE],
 						&nlris[NLRI_MP_WITHDRAW]);
+#else
+		attr_parse_ret = bgp_attr_parse(peer, &attr, attribute_len,
+						&nlris[NLRI_MP_UPDATE],
+						&nlris[NLRI_MP_WITHDRAW], NULL);
+#endif
 		if (attr_parse_ret == BGP_ATTR_PARSE_ERROR) {
 			bgp_attr_unintern_sub(&attr);
 			return BGP_Stop;

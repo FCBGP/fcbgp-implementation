@@ -503,6 +503,7 @@ bgpd_server_handler(ncs_ctx_t *ctx)
 bgpd_server_create(void * args)
 {
     acs_t *acs = (acs_t *)args;
+    (void*)acs;
 
     if ((bgpd_ctx = ncs_create("bgpd", TCP_PROTO)) == NULL)
     {
@@ -510,7 +511,8 @@ bgpd_server_create(void * args)
         exit(-ENOMEM);
     }
 
-    ncs_setup(bgpd_ctx, acs->ipv4, FC_PORT, NULL, 0);
+    // ncs_setup(bgpd_ctx, acs->ipv4, FC_PORT, NULL, 0);
+    ncs_setup(bgpd_ctx, "0.0.0.0", FC_PORT, NULL, 0);
     ncs_timeout(bgpd_ctx, 10, -1);
     ncs_setkeepalive(bgpd_ctx, 10);
     ncs_server_enable(bgpd_ctx);
