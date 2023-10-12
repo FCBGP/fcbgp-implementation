@@ -79,6 +79,10 @@
 #include "bgpd/bgp_mac.h"
 #include "bgp_trace.h"
 
+#ifdef USE_FC
+#include "bgpd/bgp_fc.h"
+#endif
+
 DEFINE_MTYPE_STATIC(BGPD, PEER_TX_SHUTDOWN_MSG, "Peer shutdown message (TX)");
 DEFINE_MTYPE_STATIC(BGPD, BGP_EVPN_INFO, "BGP EVPN instance information");
 DEFINE_QOBJ_TYPE(bgp_master);
