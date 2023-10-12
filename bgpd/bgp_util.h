@@ -19,7 +19,7 @@
 #include "lib/zlog.h"
 #include "bgp_config.h"
 
-static int sha256(const unsigned char * const msg, unsigned char *digest,
+static int sha256(const unsigned char * const msg, unsigned int msg_len,  unsigned char *digest,
         unsigned int *digest_len)
 {
     int i = 0;
@@ -39,7 +39,9 @@ static int sha256(const unsigned char * const msg, unsigned char *digest,
     }
 
     EVP_DigestInit_ex(mdctx, md, NULL);
-    EVP_DigestUpdate(mdctx, msg, strlen(msg));
+    if (msg != NULL && msg_len > 0){
+        EVP_DigestUpdate(mdctx, msg, msg_len);
+    }
     EVP_DigestFinal_ex(mdctx, digest, digest_len);
     EVP_MD_CTX_free(mdctx);
 

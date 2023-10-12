@@ -4513,6 +4513,19 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
 #ifdef USE_FC
     /* FC_BGP */
     int i = 0;
+
+#if 0
+    typedef struct FC_s {
+        u32 previous_asn;
+        u32 current_asn;
+        u32 nexthop_asn;
+        u8 ski[20];
+        u8 algo_id;
+        u8 flags;
+        u16 siglen;
+        u8 sig[80]; // DER format default 64B => ~72B
+    } FC_t;
+#endif
     FC_t fc = { 0 };
     size_t fclist_sizep = 0;
     size_t length = 0;

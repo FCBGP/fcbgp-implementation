@@ -19,8 +19,7 @@
 #include <openssl/x509.h>
 
 
-
-int sha256(const char * const msg, unsigned char *digest, unsigned int
+int sha256(const char * const msg, int msg_len, unsigned char *digest, unsigned int
         *digest_len)
 {
     int i = 0, ret = 1;
@@ -58,7 +57,7 @@ int sha256(const char * const msg, unsigned char *digest, unsigned int
      * Pass the message to be digested. This can be passed in over multiple
      * EVP_DigestUpdate calls if necessary
      */
-    if (!EVP_DigestUpdate(mdctx, msg, strlen(msg)))
+    if (!EVP_DigestUpdate(mdctx, msg, msg_len))
     {
         goto error;
     }
@@ -106,7 +105,7 @@ int deprecated()
     unsigned char digest[EVP_MAX_MD_SIZE] = {0};
     unsigned int digest_len = 0;
 
-    sha256(msg, digest, &digest_len);
+    sha256(msg, strlen(msg), digest, &digest_len);
 
 
     eckey = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
@@ -279,14 +278,13 @@ cleanup:
     return result;
 }
 
-#if 0
-int do_sign(EVP_PKEY *pkey)
+int do_sign(EVP_PKEY *pkey, char *msg, int length)
 {
     int ret = 0;
-    const char *msg = "hello world";
     unsigned char digest[EVP_MAX_MD_SIZE] = {0};
     unsigned int digest_len = 0;
-    sha256(msg, digest, &digest_len);
+    EVP_PKEY_CTX *sign_ctx = NULL;
+    sha256(msg, length, digest, &digest_len);
 
     unsigned char *sig = NULL;
     EVP_MD_CTX *md_ctx = NULL;
@@ -309,7 +307,7 @@ cleanup:
     return ret;
 }
 
-int openssl3()
+int openssl3(char *msg, int msg_len)
 {
     int ret = -1;
     EVP_PKEY *pkey = NULL;
@@ -328,7 +326,7 @@ int openssl3()
       */
      ret = 0;
 
-     do_sign(pkey);
+     do_sign(pkey, msg, msg_len);
 
 cleanup:
      if (ret != 0)
@@ -337,15 +335,12 @@ cleanup:
 
     return ret;
 }
-#endif
 
 int main(int argc, char *argv[])
 {
+    openssl3("123", 3);
     printf("+++++++++++++++++++++++++++++\n");
     deprecated();
-    printf("+++++++++++++++++++++++++++++\n");
-    //  openssl3();
-    printf("+++++++++++++++++++++++++++++\n");
 
     return 0;
 }
