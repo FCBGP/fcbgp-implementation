@@ -278,7 +278,8 @@ cleanup:
     return result;
 }
 
-int do_sign(EVP_PKEY *pkey, char *msg, int length)
+#if 0
+int do_sign(EVP_PKEY *pkey)
 {
     int ret = 0;
     unsigned char digest[EVP_MAX_MD_SIZE] = {0};
@@ -335,6 +336,7 @@ cleanup:
 
     return ret;
 }
+#endif
 
 int main(int argc, char *argv[])
 {
