@@ -30,3 +30,10 @@ $ sudo ldconfig
 $ sudo mkdir /opt/log
 $ sudo chmod 777 /opt/log
 ```
+
+# CHANGELOG
+
+## 2023.10.11
+
+- [x] FCServer is ready
+- [ ] `bgp_attr_fc`
