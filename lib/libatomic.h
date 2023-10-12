@@ -14,7 +14,7 @@ typedef struct atomic_st {
     spinlock_t spinlock;
 } atomic_t;
 
-static inline void atomic_init(atomic_t * v)
+static inline void myatomic_init(atomic_t * v)
 {
     v->counter = 0;
     spinlock_init(&(v->spinlock));

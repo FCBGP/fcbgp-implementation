@@ -18,6 +18,12 @@
     c ^= b; c -= jhash_rol32(b, 24); \
 }
 
+/*
+uint32_t jhash_rol32(uint32_t word, uint32_t shift);
+uint32_t jhash_1word(uint32_t a, uint32_t initval);
+uint32_t jhash_2words(uint32_t a, uint32_t b, uint32_t initval);
+uint32_t jhash_3words(uint32_t a, uint32_t b, uint32_t c, uint32_t initval);
+
 static inline uint32_t jhash_rol32(uint32_t word, uint32_t shift)
 {
     return (word << shift) | (word >> (32 - shift));
@@ -43,5 +49,6 @@ static inline uint32_t jhash_1word(uint32_t a, uint32_t initval)
 {
     return jhash_3words(a, 0, 0, initval);
 }
+*/
 
 #endif

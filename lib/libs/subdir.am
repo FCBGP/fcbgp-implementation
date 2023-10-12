@@ -22,5 +22,6 @@ include lib/libs/ncslib/subdir.am
 include lib/libs/ncs6lib/subdir.am
 include lib/libs/cmdlib/subdir.am
 include lib/libs/mpselib/subdir.am
+include lib/libs/htablelib/subdir.am
 
 
