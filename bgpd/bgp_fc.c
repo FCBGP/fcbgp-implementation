@@ -519,7 +519,7 @@ fc_base64_decode(const char *b64msg, unsigned char **msg, size_t *length)
 }
 
     static int
-fc_sha256_encode(const char *const msg, unsigned char *digest,
+fc_sha256_encode(const char *const msg, int msglen, unsigned char *digest,
         unsigned int *digest_len)
 {
     int i = 0, ret = 1;
@@ -553,7 +553,7 @@ fc_sha256_encode(const char *const msg, unsigned char *digest,
      * Pass the message to be digested. This can be passed in over multiple
      * EVP_DigestUpdate calls if necessary
      */
-    if (!EVP_DigestUpdate(mdctx, msg, strlen(msg)))
+    if (!EVP_DigestUpdate(mdctx, msg, msglen))
     {
         goto error;
     }
@@ -618,7 +618,7 @@ fc_read_eckey_from_file(int is_pub_key, EC_KEY **pkey)
 }
 
     int
-fc_ecdsa_sign(EC_KEY *prikey, const char *const msg,
+fc_ecdsa_sign(EC_KEY *prikey, const char *const msg, int msglen,
         unsigned char **sigbuff, unsigned int *siglen)
 {
     unsigned char digest[EVP_MAX_MD_SIZE] = {0};
@@ -626,7 +626,7 @@ fc_ecdsa_sign(EC_KEY *prikey, const char *const msg,
     unsigned int keylen = 0;
     int ret = 0;
 
-    fc_sha256_encode(msg, digest, &digestlen);
+    fc_sha256_encode(msg, msglen, digest, &digestlen);
     keylen = ECDSA_size(prikey);
     *sigbuff = OPENSSL_malloc(keylen);
     ret = ECDSA_sign(0, digest, digestlen, *sigbuff, siglen, prikey);
@@ -642,14 +642,14 @@ fc_ecdsa_sign(EC_KEY *prikey, const char *const msg,
 }
 
     int
-fc_ecdsa_verify(EC_KEY *pubkey, const char *const msg,
+fc_ecdsa_verify(EC_KEY *pubkey, const char *const msg, int msglen,
         const unsigned char *sigbuff, unsigned int siglen)
 {
     unsigned char digest[EVP_MAX_MD_SIZE] = {0};
     unsigned int digestlen = 0;
     int ret = 0;
 
-    fc_sha256_encode(msg, digest, &digestlen);
+    fc_sha256_encode(msg, msglen, digest, &digestlen);
     ret = ECDSA_verify(0, digest, digestlen, sigbuff, siglen, pubkey);
     /*
        if (ret == 1)
@@ -1000,7 +1000,7 @@ fc_bm_verify_fc(FC_msg_bm_t *bm)
             memcpy(msg+msglen, &bm->dst_ip[j].prefix_length, 1);
             msglen += 1;
         }
-        ret = fc_ecdsa_verify(g_fc_server.pubkey, msg,
+        ret = fc_ecdsa_verify(g_fc_server.pubkey, msg, msglen,
                 bm->fclist[i].sig, bm->fclist[i].siglen);
         switch (ret)
         {
@@ -1141,7 +1141,8 @@ fc_server_bm_handler(char *buffer, int bufferlen, int msg_type)
     if (msg_type == FC_MSG_BGPD)
     {
         // add signature for sending to peers
-        fc_ecdsa_sign(g_fc_server.prikey, msg, &sigbuff, &sigbufflen);
+        fc_ecdsa_sign(g_fc_server.prikey, msg, cur,
+                &sigbuff, &sigbufflen);
         memcpy(buff+cur+FC_SKI_LENGTH, sigbuff, sigbufflen);
         bm.siglen = sigbufflen;
 
@@ -1153,7 +1154,7 @@ fc_server_bm_handler(char *buffer, int bufferlen, int msg_type)
     {
         // verify and remove signature
         memcpy(bm.signature, buff+cur+FC_SKI_LENGTH, bm.siglen);
-        ret = fc_ecdsa_verify(g_fc_server.pubkey, msg,
+        ret = fc_ecdsa_verify(g_fc_server.pubkey, msg, cur,
                 bm.signature, bm.siglen);
         switch (ret)
         {

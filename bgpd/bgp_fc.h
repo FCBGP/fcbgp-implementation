@@ -212,10 +212,10 @@ extern ncs_ctx_t *fc_bgpd_ctx;
 /* SIG */
 extern int fc_init_crypto_env(FC_server_t *fcserver);
 extern int fc_read_eckey_from_file(int is_pub_key, EC_KEY **pkey);
-extern int fc_base64_encode(const unsigned char *msg, size_t length,
-        char * b64msg);
+extern int fc_base64_encode(const unsigned char *msg, int msglen,
+        size_t length, char * b64msg);
 extern int fc_base64_decode(const char *b64msg, unsigned char **msg,
-        size_t *length);
+        int msglen, size_t *length);
 extern int fc_ecdsa_sign(EC_KEY *prikey, const char *const msg,
         unsigned char **sigbuff, unsigned int *siglen);
 extern int fc_ecdsa_verify(EC_KEY *pubkey, const char *const msg,
