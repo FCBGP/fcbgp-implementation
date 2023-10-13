@@ -406,7 +406,11 @@ extern bgp_size_t bgp_packet_attribute(
 	struct bpacket_attr_vec_arr *vecarr, struct prefix *p, afi_t afi,
 	safi_t safi, struct peer *from, struct prefix_rd *prd,
 	mpls_label_t *label, uint32_t num_labels, bool addpath_capable,
-	uint32_t addpath_tx_id, struct bgp_path_info *bpi);
+	uint32_t addpath_tx_id, struct bgp_path_info *bpi
+#ifdef USE_FC
+    , struct prefix *prefix_for_fc
+#endif
+    );
 extern void bgp_dump_routes_attr(struct stream *s, struct bgp_path_info *bpi,
 				 const struct prefix *p);
 extern bool attrhash_cmp(const void *arg1, const void *arg2);

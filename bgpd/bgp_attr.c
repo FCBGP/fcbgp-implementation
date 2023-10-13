@@ -4308,7 +4308,11 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
 				struct peer *from, struct prefix_rd *prd,
 				mpls_label_t *label, uint32_t num_labels,
 				bool addpath_capable, uint32_t addpath_tx_id,
-				struct bgp_path_info *bpi)
+				struct bgp_path_info *bpi
+#ifdef USE_FC
+                , struct prefix *prefix_for_fc
+#endif
+                )
 {
 	size_t cp;
 	size_t aspath_sizep;
@@ -4326,7 +4330,8 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
 
 	if (p
 	    && !((afi == AFI_IP && safi == SAFI_UNICAST)
-		 && !peer_cap_enhe(peer, afi, safi))) {
+		 && !peer_cap_enhe(peer, afi, safi))
+        ) {
 		size_t mpattrlen_pos = 0;
 
 		mpattrlen_pos = bgp_packet_mpattr_start(s, peer, afi, safi,
@@ -4564,67 +4569,110 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
 
 #ifdef USE_FC
     /* FC_BGP */
-    int i = 0;
-
-#if 0
-    typedef struct FC_s {
-        u32 previous_asn;
-        u32 current_asn;
-        u32 nexthop_asn;
-        u8 ski[20];
-        u8 algo_id;
-        u8 flags;
-        u16 siglen;
-        u8 sig[80]; // DER format default 64B => ~72B
-    } FC_t;
-#endif
-    FC_t fc = { 0 };
-    size_t fclist_sizep = 0;
-    size_t length = 0;
-    FCList_t *fclist = NULL;
-    /*
-     * sig content
-     *  local asn
-     *  remote asn
-     *  prefix = ipaddr, prefix-length
-     * */
-    u32 sig1 = htonl(0x01234567);
-    u32 sig2 = htonl(0x89abcdef);
-
-    // 1. gen current fc
-    fc.previous_asn = 0;
-    fc.current_asn = htonl(peer->local_as);
-    fc.nexthop_asn = htonl(peer->as);
-    memset(fc.ski, 0, sizeof(fc.ski));
-    fc.algo_id = 0x01;
-    fc.flags = 0x00;
-    fc.siglen = htons(sizeof(fc.sig));
-    for (i=0; i<8; ++i)
+    if (prefix_for_fc)
     {
-        memcpy(&(fc.sig[sizeof(u64)*i]), &sig1, sizeof(u32));
-        memcpy(&(fc.sig[sizeof(u64)*i + sizeof(u32)]),
-                &sig2, sizeof(u32));
+        int i = 0;
+        FC_t fc = { 0 };
+        size_t fclist_sizep = 0;
+        size_t length = 0;
+        FCList_t *fclist = NULL;
+        /*
+         * sig content
+         *  local asn
+         *  remote asn
+         *  prefix = ipaddr, prefix-length
+         * */
+        // 1. gen current fc
+        // if (attr && attr->aspath && attr->aspath->segments) {
+        //  fc.previous_asn = attr->aspath->segments->as;
+        if (from && peer && from->as != peer->as) {
+            fc.previous_asn = from->as;
+        } else {
+            fc.previous_asn = 0;
+        }
+        zlog_debug("fc.previous_asn: %lu", fc.previous_asn);
+        fc.current_asn = peer->local_as;
+        fc.nexthop_asn = peer->as;
+        memset(fc.ski, 0, sizeof(fc.ski));
+        fc.algo_id = 0x01;
+        fc.flags = 0x00;
+        fc.siglen = sizeof(fc.sig);
+
+        char msg[BUFSIZ] = {0};
+        int msglen = 0;
+        EC_KEY *prikey = NULL;
+        unsigned char *sigbuff = NULL;
+        unsigned int sigbufflen = 0;
+        int j = 0, ret = 0;
+        memcpy(msg+msglen, &fc.previous_asn, sizeof(u32));
+        msglen += sizeof(u32);
+        memcpy(msg+msglen, &fc.current_asn, sizeof(u32));
+        msglen += sizeof(u32);
+        memcpy(msg+msglen, &fc.nexthop_asn, sizeof(u32));
+        msglen += sizeof(u32);
+
+
+        fc_read_eckey_from_file(0, &prikey);
+
+        for (j=0; j<1; j++)
+        {
+            if (prefix_for_fc->family == AFI_IP) // ipv4
+            {
+                // TODO
+                memcpy(msg+msglen, &(prefix_for_fc->u.prefix4),
+                        sizeof(struct in_addr));
+                msglen += sizeof(struct in_addr);
+            }
+            else { // ipv6
+                memcpy(msg+msglen, &(prefix_for_fc->u.prefix6), sizeof(struct in6_addr));
+                msglen += sizeof(struct in6_addr);
+            }
+        }
+
+        ret = fc_ecdsa_sign(prikey, msg, msglen, &sigbuff, &sigbufflen);
+        fc.siglen = sigbufflen;
+        // 2. concat
+        stream_putc(s, BGP_ATTR_FLAG_OPTIONAL | BGP_ATTR_FLAG_TRANS
+                | BGP_ATTR_FLAG_EXTLEN);
+        stream_putc(s, BGP_ATTR_FC);
+        fclist_sizep = stream_get_endp(s);
+        stream_putw(s, 0);
+        char buff[BUFSIZ] = {0};
+        int bufflen = 0;
+        int fcfixlen = sizeof(u32)+sizeof(u32)+sizeof(u32)
+            + FC_SKI_LENGTH +sizeof(u8) + sizeof(u8) + sizeof(u16);
+
+        fclist = attr->fclist;
+        if (fclist)
+        {
+            zlog_debug("fclist->size: %d", fclist->size);
+            stream_put(s, fclist->fcs, fclist->length);
+            length = fclist->length;
+            for (j=0; j<fclist->size; ++j)
+            {
+                memcpy(buff+bufflen, &fclist->fcs[i], fcfixlen);
+                bufflen += fcfixlen;
+                memcpy(buff+bufflen, fclist->fcs[i].sig, fclist->fcs[i].siglen);
+                bufflen += fclist->fcs[i].siglen;
+            }
+        }
+        // previouse fclist
+        stream_put(s, buff, bufflen);
+        // current fc
+        fc.previous_asn =htonl(fc.previous_asn);
+        fc.current_asn = htonl(fc.current_asn);
+        fc.nexthop_asn = htonl(fc.nexthop_asn);
+        fc.siglen = htons(fc.siglen);
+        stream_put(s, &fc, fcfixlen);
+        bufflen += fcfixlen;
+        stream_put(s, sigbuff, sigbufflen);
+        bufflen += sigbufflen;
+        OPENSSL_free(sigbuff);
+        // 3. put FC attr length
+        stream_putw_at(s, fclist_sizep, bufflen);
+        zlog_debug("length:%lu, fifixlen:%lu, sigbufflen: %lu",
+                length,fcfixlen,sigbufflen);
     }
-    memcpy(&(fc.sig[sizeof(u64)*i]), &sig1, sizeof(u32));
-    memcpy(&(fc.sig[sizeof(u64)*i + sizeof(u32)]),
-            &sig2, sizeof(u32));
-    // 2. concat
-    stream_putc(s, BGP_ATTR_FLAG_OPTIONAL | BGP_ATTR_FLAG_TRANS
-            | BGP_ATTR_FLAG_EXTLEN);
-    stream_putc(s, BGP_ATTR_FC);
-    fclist_sizep = stream_get_endp(s);
-    stream_putw(s, 0);
-    fclist = attr->fclist;
-    if (fclist)
-    {
-        zlog_debug("fclist->size: %d", fclist->size);
-        stream_put(s, fclist->fcs, fclist->length);
-        length = fclist->length;
-    }
-    stream_put(s, &fc, sizeof(fc));
-    // 3. put FC attr length
-    stream_putw_at(s, fclist_sizep, length + sizeof(fc));
-    zlog_debug("length + sizeof(fc): %lu", length+sizeof(fc));
 #endif // USE_FC
 
 	/* Route Reflector. */

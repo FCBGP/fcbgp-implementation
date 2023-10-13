@@ -39,6 +39,7 @@
 #include <openssl/pem.h>
 #include <openssl/x509.h>
 
+#include "jhash.h"
 #include "cJSON.h"
 #include "libdiag.h"
 #include "libjhash.h"

@@ -48,7 +48,7 @@ static inline void *htbl_node_create(htbl_ctx_t *ctx)
 
         hobj->idx = -1;
         hobj->hval = -1;
-        atomic_init(&hobj->refcnt);
+        myatomic_init(&hobj->refcnt);
         INIT_HLIST_NODE(&hobj->node_hlist);
         return hobj;
     }

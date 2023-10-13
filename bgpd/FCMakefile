@@ -1,12 +1,13 @@
 LIBSDIR = $(shell ls libs | grep -v Makefile)
 LIBS_DIR = $(foreach i,$(LIBSDIR),libs/$(i))
 INCS_DIR = $(foreach i,$(LIBS_DIR),-I$(i))
-SRCs  = bgp_fc.c libs/diaglib/libdiag.c libs/baselib/libstring.c
-SRCs += libs/cJSONlib/cJSON.c libs/ncslib/libncs.c
-SRCs += libs/htablelib/libhtable.c libs/baselib/liblist.c
+SRCs  = bgp_fc.c ../lib/libs/diaglib/libdiag.c ../lib/libs/baselib/libstring.c
+SRCs += ../lib/libs/cJSONlib/cJSON.c ../lib/libs/ncslib/libncs.c
+SRCs += ../lib/libs/htablelib/libhtable.c ../lib/libs/baselib/liblist.c
+SRCs += ../lib/jhash.c
 
 CFLAGS += -DTEST_MAIN
-CFLAGS += -g -Wall $(INCS_DIR) -I. -I../ -I../..
+CFLAGS += -g -Wall $(INCS_DIR) -I. -I../ -I../.. -I../lib
 LFLAGS += -lcrypto -lsqlite3 -lm
 
 server:

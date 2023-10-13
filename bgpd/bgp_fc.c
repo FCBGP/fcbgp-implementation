@@ -362,12 +362,12 @@ fc_db_open(sqlite3 **db, const char *dbname)
 {
     if (sqlite3_open(dbname, db) != SQLITE_OK)
     {
-        DIAG_ERROR("Can't open database: %s\n", sqlite3_errmsg(*db));
+        printf("Can't open database: %s\n", sqlite3_errmsg(*db));
         exit(0);
     }
     else
     {
-        DIAG_DEBUG("Opened database successfully\n");
+        printf("Opened database successfully\n");
     }
 
     return 0;
@@ -398,12 +398,12 @@ fc_db_exec(sqlite3 *db, const char *sql,
     rc = sqlite3_exec(db, sql, cb, data, &zErrMsg);
     if (rc != SQLITE_OK)
     {
-        DIAG_ERROR("SQL error: %s\n", zErrMsg);
+        printf("SQL error: %s\n", zErrMsg);
         sqlite3_free(zErrMsg);
     }
     else
     {
-        DIAG_DEBUG("Operation done successfully\n");
+        printf("Operation done successfully\n");
     }
 
     return 0;
@@ -425,7 +425,7 @@ fc_init_db(sqlite3 **db)
     fc_db_open(db, FC_DB_NAME);
     bzero(sql, BUFSIZ);
     sprintf(sql, "DROP TABLE IF EXISTS fcs;");
-    DIAG_DEBUG("sql: %s\n", sql);
+    printf("sql: %s\n", sql);
     fc_db_exec(*db, sql, NULL, NULL);
 
     bzero(sql, BUFSIZ);
@@ -446,7 +446,7 @@ fc_init_db(sqlite3 **db)
             "ski CHAR(20) NOT NULL,"
             "signature CHAR(1024) NOT NULL)"
            );
-    DIAG_DEBUG("sql: %s\n", sql);
+    printf("sql: %s\n", sql);
     fc_db_exec(*db, sql, NULL, NULL);
     // bzero(sql, 1024);
     // sprintf(sql, "DELETE FROM relation WHERE asn = %u", asn);
@@ -509,7 +509,7 @@ fc_base64_decode(const char *b64msg, unsigned char **msg, size_t *length)
     *length = BIO_read(bio, *msg, strlen(b64msg));
     if (*length != decode_len)
     {
-        DIAG_ERROR("error b64 decode length\n");
+        printf("error b64 decode length\n");
         return -1;
     }
 
@@ -571,10 +571,10 @@ fc_sha256_encode(const char *const msg, int msglen, unsigned char *digest,
         goto error;
     }
 
-    DIAG_DEBUG("Digest_len is : %u, Digest is: ", *digest_len);
+    printf("Digest_len is : %u, Digest is: ", *digest_len);
     for (i = 0; i < *digest_len; i++)
-        DIAG_DEBUG("%02x", digest[i]);
-    DIAG_DEBUG("\n");
+        printf("%02x", digest[i]);
+    printf("\n");
 
 error:
     /* Clean up all the resources we allocated */
@@ -591,8 +591,8 @@ error:
     int
 fc_read_eckey_from_file(int is_pub_key, EC_KEY **pkey)
 {
-    const char *public_key_fname = "assets/eccpri256.pem";
-    const char *private_key_fname = "assets/eccpri256.key";
+    const char *public_key_fname = "/etc/frr/eccpri256.pem";
+    const char *private_key_fname = "/etc/frr/eccpri256.key";
     FILE *fp = NULL;
 
     if (is_pub_key)
@@ -725,7 +725,7 @@ fc_server_create()
 
         if ((fc_bgpd_ctx = ncs_create("bgpd", TCP_PROTO)) == NULL)
         {
-            DIAG_ERROR("create bgpd ncs failed\n");
+            printf("create bgpd ncs failed\n");
             exit(-ENOMEM);
         }
 
@@ -838,11 +838,11 @@ fc_db_write_bm(const FC_msg_bm_t *bm)
     } else if (bm->ipversion == IPV6)
     {
         socklen = sizeof(struct sockaddr_in6);
-        DIAG_ERROR("THIS IS NOT supported: %d!\n", bm->ipversion);
+        printf("THIS IS NOT supported: %d!\n", bm->ipversion);
         return 0;
     } else
     {
-        DIAG_ERROR("THIS IS NOT supported: %d!\n", bm->ipversion);
+        printf("THIS IS NOT supported: %d!\n", bm->ipversion);
         return -1;
     }
 
@@ -864,7 +864,7 @@ fc_db_write_bm(const FC_msg_bm_t *bm)
         snprintf(buff_src_ip+cur, FC_BUFF_SIZE, "/%d,",
                 bm->src_ip[i].prefix_length);
         cur += strlen(buff_src_ip+cur);
-        DIAG_DEBUG("src: %s\n", buff_src_ip);
+        printf("src: %s\n", buff_src_ip);
     }
 
     // fc_base64_encode(buff, cur, buff_src_ip);
@@ -885,7 +885,7 @@ fc_db_write_bm(const FC_msg_bm_t *bm)
         cur += strlen(buff_dst_ip+cur);
         snprintf(buff_dst_ip+cur, FC_BUFF_SIZE, "/%d,", bm->dst_ip[i].prefix_length);
         cur += strlen(buff_dst_ip+cur);
-        DIAG_DEBUG("dst: %s\n", buff_dst_ip);
+        printf("dst: %s\n", buff_dst_ip);
     }
     // fc_base64_encode(buff, cur, buff_dst_ip);
 
@@ -918,14 +918,14 @@ fc_db_write_bm(const FC_msg_bm_t *bm)
         }
         snprintf(buff_fclist+cur, FC_BUFF_SIZE, ",");
         cur += 1;
-        DIAG_DEBUG("curlen: %d, fclist: %s\n", cur, buff_fclist);
+        printf("curlen: %d, fclist: %s\n", cur, buff_fclist);
     }
     // fc_base64_encode(buff, cur, buff_fclist);
 
     /*
-       DIAG_DEBUG("buff-srcip: %s\n", buff_src_ip);
-       DIAG_DEBUG("buff-dstip: %s\n", buff_dst_ip);
-       DIAG_DEBUG("buff-fclist: %s\n", buff_fclist);
+       printf("buff-srcip: %s\n", buff_src_ip);
+       printf("buff-dstip: %s\n", buff_dst_ip);
+       printf("buff-fclist: %s\n", buff_fclist);
        */
 
     // ski
@@ -1044,11 +1044,11 @@ fc_server_bm_handler(char *buffer, int bufferlen, int msg_type)
     } else if (buff[0] == IPV6) // ipv6
     {
         ip_len = IP6_LENGTH;
-        DIAG_ERROR("Not supported now: %d\n", buff[0]);
+        printf("Not supported now: %d\n", buff[0]);
         return 0;
     } else
     {
-        DIAG_ERROR("Not supported now: %d\n", buff[0]);
+        printf("Not supported now: %d\n", buff[0]);
     }
 
     memcpy(&bm.ipversion, buff, sizeof(u8));
@@ -1196,7 +1196,7 @@ fc_server_handler(ncs_ctx_t *ctx)
     {
         memset(buff, 0, BUFSIZ);
         len = ncs_server_recv(ctx, buff, BUFSIZ);
-        DIAG_DEBUG("len = %d, received from %s:%d %s:%d %s:%s\n",
+        printf("len = %d, received from %s:%d %s:%d %s:%s\n",
                 len, ctx->remote_addr, ctx->remote_port,
                 ctx->local_addr, ctx->local_port,
                 ctx->server_peeraddr, ctx->client_peeraddr);
@@ -1205,7 +1205,7 @@ fc_server_handler(ncs_ctx_t *ctx)
             switch (buff[0])
             {
             case 1: // pubkey
-                DIAG_ERROR("Not support pubkey\n");
+                printf("Not support pubkey\n");
                 // TODO length
                 fc_server_pubkey_handler(buff, len);
                 return 0;
@@ -1218,7 +1218,7 @@ fc_server_handler(ncs_ctx_t *ctx)
                 fc_server_bm_handler(buff, len, FC_MSG_BC);
                 break;
             default:
-                DIAG_ERROR("Not support %d\n", buff[0]);
+                printf("Not support %d\n", buff[0]);
                 return -1;
             }
         }
