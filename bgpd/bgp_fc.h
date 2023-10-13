@@ -46,6 +46,8 @@
 #include "libhtable.h"
 #include "libncs.h"
 
+#include "bgpd/bgpd.h"
+
 typedef uint8_t  u8;
 typedef uint16_t  u16;
 typedef uint32_t  u32;
@@ -106,8 +108,18 @@ typedef struct FCList_s
 {
     int length; // length of FCs
     int size; // number of FC in fcs
+    struct prefix prefix;
     FC_t fcs[FC_MAX_SIZE];
 } FCList_t;
+
+typedef struct FC_node_fclist_s
+{
+    htbl_node_t hnode; // htbl node must be the first one
+    int length;
+    int size;
+    struct prefix prefix;
+    FC_t fcs[FC_MAX_SIZE];
+} FC_node_fclist_t;
 
 /* ds-asn-ips */
 typedef struct FC_acs_s
@@ -143,6 +155,17 @@ typedef struct FC_node_as_s
     u32 asn;
     FC_asn_ip_t ap;
 } FC_node_as_t;
+
+extern htbl_ops_t g_htbl_ops = {
+    .node_create_func = fc_as_node_create,
+    .node_destroy_func = fc_as_node_destroy,
+    .node_display_func = fc_as_node_display,
+    .node_hash_func = fc_as_node_hash,
+    .meta_hash_func = fc_as_meta_hash,
+    .meta_cmp_func = fc_as_meta_cmp,
+    .meta_save_func = fc_as_meta_save,
+};
+
 
 // for hashtable node
 typedef struct FC_ht_node_as_s

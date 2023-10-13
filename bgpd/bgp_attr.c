@@ -4642,7 +4642,10 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
         int fcfixlen = sizeof(u32)+sizeof(u32)+sizeof(u32)
             + FC_SKI_LENGTH +sizeof(u8) + sizeof(u8) + sizeof(u16);
 
-        fclist = attr->fclist;
+        if (from)
+        {
+            fclist = from->attr->fclist;
+        }
         if (fclist)
         {
             zlog_debug("fclist->size: %d", fclist->size);
