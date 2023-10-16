@@ -134,6 +134,19 @@ typedef struct FC_ht_node_prefix_s
     FC_node_t *fcs;
 } FC_ht_node_prefix_t;
 
+typedef struct FC_ht_meta_asprefix_s
+{
+    u32 asn;
+    htbl_ctx_t htbl;
+} FC_ht_meta_asprefix_t;
+
+typedef struct FC_ht_node_asprefix_s
+{
+    htbl_node_t hnode;
+    u32 asn;
+    htbl_ctx_t htbl;
+} FC_ht_node_asprefix_t;
+
 /* ds-asn-ips */
 typedef struct FC_acs_s
 {
@@ -253,9 +266,10 @@ extern int  fc_read_asn_ips(void);
 extern void fc_print_asn_ips(void);
 
 /* LIBHTABLE */
-extern htbl_ctx_t g_fc_htbl_prefix;
 extern htbl_ops_t g_fc_htbl_as_ops;
 extern htbl_ops_t g_fc_htbl_prefix_ops;
+extern htbl_ops_t g_fc_htbl_asprefix_ops;
+extern htbl_ctx_t g_fc_htbl_asprefix;
 extern int fc_hashtable_create(htbl_ctx_t *ht, htbl_ops_t *ops);
 extern int fc_hashtable_destroy(htbl_ctx_t *ht);
 

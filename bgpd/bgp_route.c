@@ -5992,8 +5992,13 @@ bool bgp_addpath_encode_rx(struct peer *peer, afi_t afi, safi_t safi)
 
 /* Parse NLRI stream.  Withdraw NLRI is recognized by NULL attr
    value. */
+#ifndef USE_FC
 int bgp_nlri_parse_ip(struct peer *peer, struct attr *attr,
 		      struct bgp_nlri *packet)
+#else
+int bgp_nlri_parse_ip(struct peer *peer, struct attr *attr,
+		      struct bgp_nlri *packet, struct prefix *ipprefix)
+#endif
 {
 	uint8_t *pnt;
 	uint8_t *lim;
@@ -6120,9 +6125,7 @@ int bgp_nlri_parse_ip(struct peer *peer, struct attr *attr,
 				     NULL, 0, NULL);
 
 #ifdef USE_FC
-        int ret = 0;
-        memcpy(&peer->fclist->ipprefix, &p, sizeof(struct prefix));
-        htbl_meta_insert(peer->fc_htbl_prefix, peer->fclist, &ret);
+        memcpy(ipprefix, &p, sizeof(struct prefix));
 #endif
 		/* Do not send BGP notification twice when maximum-prefix count
 		 * overflow. */

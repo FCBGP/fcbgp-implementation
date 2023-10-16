@@ -711,7 +711,12 @@ extern void bgp_path_info_unset_flag(struct bgp_dest *dest,
 extern void bgp_path_info_path_with_addpath_rx_str(struct bgp_path_info *pi,
 						   char *buf, size_t buf_len);
 
+#ifndef USE_FC
 extern int bgp_nlri_parse_ip(struct peer *, struct attr *, struct bgp_nlri *);
+#else
+extern int bgp_nlri_parse_ip(struct peer *, struct attr *, struct bgp_nlri *,
+        struct prefix *ipprefix);
+#endif
 
 extern bool bgp_maximum_prefix_overflow(struct peer *, afi_t, safi_t, int);
 

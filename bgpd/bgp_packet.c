@@ -330,14 +330,24 @@ static void bgp_update_explicit_eors(struct peer *peer)
  * mp_withdraw, if set, is used to nullify attr structure on most of the
  * calling safi function and for evpn, passed as parameter
  */
+#ifndef USE_FC
 int bgp_nlri_parse(struct peer *peer, struct attr *attr,
 		   struct bgp_nlri *packet, bool mp_withdraw)
+#else
+int bgp_nlri_parse(struct peer *peer, struct attr *attr,
+		   struct bgp_nlri *packet, bool mp_withdraw, struct prefix *ipprefix)
+#endif
 {
 	switch (packet->safi) {
 	case SAFI_UNICAST:
 	case SAFI_MULTICAST:
+#ifndef USE_FC
 		return bgp_nlri_parse_ip(peer, mp_withdraw ? NULL : attr,
 					 packet);
+#else
+		return bgp_nlri_parse_ip(peer, mp_withdraw ? NULL : attr,
+					 packet, ipprefix);
+#endif
 	case SAFI_LABELED_UNICAST:
 		return bgp_nlri_parse_label(peer, mp_withdraw ? NULL : attr,
 					    packet);
@@ -1828,12 +1838,8 @@ static void bgp_refresh_stalepath_timer_expire(struct event *thread)
 static int bgp_update_receive(struct peer *peer, bgp_size_t size)
 {
 #ifdef USE_FC
-    if ( !peer->fc_htbl_prefix)
-    {
-        fc_hashtable_create(peer->fc_htbl_prefix, &g_fc_htbl_prefix_ops);
-    }
-    free(peer->fclist);
-    peer->fclist = malloc(sizeof(FCList_t));
+    FCList_t *fclist = malloc(sizeof(FCList_t));
+    memset(fclist, 0, sizeof(FCList_t));
 #endif
 	int ret, nlri_ret;
 	uint8_t *end;
@@ -1952,7 +1958,11 @@ static int bgp_update_receive(struct peer *peer, bgp_size_t size)
 	if (attribute_len) {
 		attr_parse_ret = bgp_attr_parse(peer, &attr, attribute_len,
 						&nlris[NLRI_MP_UPDATE],
-						&nlris[NLRI_MP_WITHDRAW]);
+						&nlris[NLRI_MP_WITHDRAW]
+#ifdef USE_FC
+                        , fclist
+#endif
+                        );
 		if (attr_parse_ret == BGP_ATTR_PARSE_ERROR) {
 			bgp_attr_unintern_sub(&attr);
 			return BGP_Stop;
@@ -2029,13 +2039,41 @@ static int bgp_update_receive(struct peer *peer, bgp_size_t size)
 		switch (i) {
 		case NLRI_UPDATE:
 		case NLRI_MP_UPDATE:
+#ifndef USE_FC
 			nlri_ret = bgp_nlri_parse(peer, NLRI_ATTR_ARG,
 						  &nlris[i], 0);
+#else
+            int ret = 0;
+            FC_ht_node_prefix_t *node = NULL;
+            FC_ht_meta_asprefix_t meta_asprefix = {0};
+            FC_ht_node_asprefix_t *node_asprefix = NULL;
+
+			nlri_ret = bgp_nlri_parse(peer, NLRI_ATTR_ARG,
+						  &nlris[i], 0, &fclist->ipprefix);
+            // insert
+            meta_asprefix.asn = peer->as;
+            node_asprefix = htbl_meta_find(&g_fc_htbl_asprefix, &meta_asprefix);
+            if (!node_asprefix) // if not exist, then create
+            {
+                fc_hashtable_create(&meta_asprefix.htbl, &g_fc_htbl_asprefix_ops);
+                node_asprefix = htbl_meta_insert(&g_fc_htbl_asprefix, &meta_asprefix, &ret);
+            }
+            node = htbl_meta_insert(&node_asprefix->htbl, fclist, &ret);
+            if (!node)
+            {// TODO
+            }
+#endif
 			break;
 		case NLRI_WITHDRAW:
 		case NLRI_MP_WITHDRAW:
+#ifndef USE_FC
 			nlri_ret = bgp_nlri_parse(peer, NLRI_ATTR_ARG,
 						  &nlris[i], 1);
+#else
+			nlri_ret = bgp_nlri_parse(peer, NLRI_ATTR_ARG,
+						  &nlris[i], 1, &fclist->ipprefix);
+            // TODO: delete
+#endif
 			break;
 		default:
 			nlri_ret = BGP_NLRI_PARSE_ERROR;

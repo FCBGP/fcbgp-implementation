@@ -1708,13 +1708,14 @@ static enum bgp_attr_parse_ret bgp_attr_aspath_check(struct peer *const peer,
 
 #ifdef USE_FC
 /* Parse FC information. */
-static int bgp_attr_fc(struct bgp_attr_parser_args *args)
+static int bgp_attr_fc(struct bgp_attr_parser_args *args, FCList_t *fclist)
 {
 	struct peer *const peer = args->peer;
 	struct attr *const attr = args->attr;
 	const bgp_size_t length = args->length;
-    int curpos = 0;
+    int curpos = 0, ret = 0;
     char buff[BUFSIZ] = {0};
+
     FC_node_t *fcnode = NULL, *prevnode = NULL;
 
     /* Set aspath attribute flag. */
@@ -1722,13 +1723,14 @@ static int bgp_attr_fc(struct bgp_attr_parser_args *args)
 
     /* 1. parse FC */
     stream_get(buff, BGP_INPUT(peer), length);
+    fclist->size = 0;
+    fclist->length = length;
 
-    peer->fclist->length = length;
-    peer->fclist->size = 0;
-    if (peer->fclist->length > 0)
+    if (length > 0)
     {
-        peer->fclist->fcs = malloc(sizeof(FC_node_t));
-        prevnode = fcnode = peer->fclist->fcs;
+        fclist->fcs = malloc(sizeof(FC_node_t));
+        memset(fclist->fcs, 0, sizeof(FC_node_t));
+        prevnode = fcnode = fclist->fcs;
     }
 
     while (curpos < length)
@@ -1763,15 +1765,14 @@ static int bgp_attr_fc(struct bgp_attr_parser_args *args)
         // every fc's length
         fcnode->length = FC_FIX_LENGTH + fcnode->fc.siglen;
 
-        peer->fclist->size ++;
+        fclist->size ++;
 
         if (curpos < length)
         {
+            prevnode = fcnode;
             fcnode = malloc(sizeof(FC_node_t));
             memset(fcnode, 0, sizeof(FC_node_t));
-            fcnode->next = NULL;
             prevnode->next = fcnode;
-            prevnode = fcnode;
         }
     }
 
@@ -3482,7 +3483,11 @@ static int bgp_attr_check(struct peer *peer, struct attr *attr)
 enum bgp_attr_parse_ret bgp_attr_parse(struct peer *peer, struct attr *attr,
 				       bgp_size_t size,
 				       struct bgp_nlri *mp_update,
-				       struct bgp_nlri *mp_withdraw)
+				       struct bgp_nlri *mp_withdraw
+#ifdef USE_FC
+                       , FCList_t *fclist
+#endif
+                       )
 {
 	enum bgp_attr_parse_ret ret;
 	uint8_t flag = 0;
@@ -3637,11 +3642,6 @@ enum bgp_attr_parse_ret bgp_attr_parse(struct peer *peer, struct attr *attr,
 			.total = attr_endp - startp,
 		};
 
-#ifdef USE_FC
-    peer->fclist = malloc(sizeof(FCList_t));
-    memset(&peer->fclist, 0, sizeof(FCList_t));
-#endif
-
 		/* If any recognized attribute has Attribute Flags that conflict
 		   with the Attribute Type Code, then the Error Subcode is set
 		   to
@@ -3690,7 +3690,7 @@ enum bgp_attr_parse_ret bgp_attr_parse(struct peer *peer, struct attr *attr,
 			break;
 #ifdef USE_FC
         case BGP_ATTR_FC:
-            ret = bgp_attr_fc(&attr_args);
+            ret = bgp_attr_fc(&attr_args, fclist);
             break;
 #endif // USE_FC
 
@@ -4590,6 +4590,8 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
         unsigned int sigbufflen = 0;
         EC_KEY *prikey = NULL;
         FC_ht_node_prefix_t *fclist = NULL;
+        FC_ht_meta_asprefix_t meta_asprefix = {0};
+        FC_ht_node_asprefix_t *node_asprefix = NULL;
         FC_t fc = { 0 };
         FC_node_t *fcnode = NULL;
         FCList_t meta = {0};
@@ -4645,10 +4647,13 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
         stream_putc(s, BGP_ATTR_FC);
         fclist_sizep = stream_get_endp(s);
         stream_putw(s, 0);
-        if (from)
+
+        meta_asprefix.asn = from->as;
+        node_asprefix = htbl_meta_find(&g_fc_htbl_asprefix, &meta_asprefix);
+        if (node_asprefix)
         {
-            memcpy(&meta.ipprefix, &prefix_for_fc, sizeof(prefix_for_fc));
-            fclist = htbl_meta_find(from->fc_htbl_prefix, &meta);
+            memcpy(&meta.ipprefix, prefix_for_fc, sizeof(struct prefix));
+            fclist = htbl_meta_find(&node_asprefix->htbl, &meta);
         }
         // fill previous fclist
         if (fclist)
@@ -4658,10 +4663,12 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
             fcnode = fclist->fcs;
             while (fcnode)
             {
+                /*
                 fcnode->fc.previous_asn = htonl(fcnode->fc.previous_asn);
                 fcnode->fc.current_asn = htonl(fcnode->fc.current_asn);
                 fcnode->fc.nexthop_asn = htonl(fcnode->fc.nexthop_asn);
                 fcnode->fc.siglen = htons(fcnode->fc.siglen);
+                */
                 memcpy(fcbuff+fcbufflen, &fcnode->fc, fcnode->length);
                 fcnum ++;
                 fcbufflen += fcnode->length;

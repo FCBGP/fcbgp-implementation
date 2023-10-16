@@ -58,8 +58,13 @@ extern void bgp_capability_send(struct peer *peer, afi_t afi, safi_t safi,
 
 extern int bgp_capability_receive(struct peer *peer, bgp_size_t length);
 
+#ifndef USE_FC
 extern int bgp_nlri_parse(struct peer *peer, struct attr *attr,
 			  struct bgp_nlri *nlri, bool mp_withdraw);
+#else
+extern int bgp_nlri_parse(struct peer *peer, struct attr *attr,
+			  struct bgp_nlri *nlri, bool mp_withdraw, struct prefix *ipprefix);
+#endif
 
 extern void bgp_update_restarted_peers(struct peer *peer);
 extern void bgp_update_implicit_eors(struct peer *peer);

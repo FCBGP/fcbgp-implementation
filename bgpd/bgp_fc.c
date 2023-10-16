@@ -414,6 +414,83 @@ htbl_ops_t g_fc_htbl_prefix_ops = {
     .meta_save_func = fc_prefix_meta_save,
 };
 
+    static void *
+fc_asprefix_node_create(void)
+{
+    FC_ht_node_asprefix_t *node = malloc(sizeof(FC_ht_node_asprefix_t));
+    memset(node, 0, sizeof(FC_ht_node_asprefix_t));
+    return node;
+}
+
+    static int
+fc_asprefix_node_destroy(void *node)
+{
+    FC_ht_node_asprefix_t *node_as = (FC_ht_node_asprefix_t *)node;
+    free(node_as);
+    return 0;
+}
+
+    static int
+fc_asprefix_node_display(void *node)
+{// TODO
+    return 0;
+}
+
+    static int
+fc_asprefix_hash(u32 asn)
+{
+    int ret = 0;
+    ret = jhash_1word(asn, 0xdeadbeef);
+    return ret;
+}
+
+    static int
+fc_asprefix_node_hash(void *node)
+{
+    FC_ht_node_asprefix_t *node_asprefix = (FC_ht_node_asprefix_t *) node;
+    return fc_asprefix_hash(node_asprefix->asn);
+}
+
+    static int
+fc_asprefix_meta_hash(void *meta)
+{
+    FC_node_as_t *meta_asprefix = (FC_node_as_t *)meta;
+    return fc_asprefix_hash(meta_asprefix->asn);
+}
+
+    static int
+fc_asprefix_meta_cmp(void *base, void *meta)
+{
+    FC_ht_node_asprefix_t *node_asprefix = (FC_ht_node_asprefix_t *)base;
+    FC_ht_meta_asprefix_t *meta_asprefix = (FC_ht_meta_asprefix_t *)meta;
+
+    return node_asprefix->asn != meta_asprefix->asn;
+}
+
+    static int
+fc_asprefix_meta_save(void *base, void *meta)
+{
+    FC_ht_node_asprefix_t *node_asprefix = (FC_ht_node_asprefix_t *)base;
+    FC_ht_meta_asprefix_t *meta_asprefix = (FC_ht_meta_asprefix_t *)meta;
+
+    node_asprefix->asn = meta_asprefix->asn;
+    memcpy(&node_asprefix->htbl, &meta_asprefix->htbl, sizeof(htbl_ctx_t));
+
+    return 0;
+}
+
+htbl_ops_t g_fc_htbl_asprefix_ops = {
+    .node_create_func = fc_asprefix_node_create,
+    .node_destroy_func = fc_asprefix_node_destroy,
+    .node_display_func = fc_asprefix_node_display,
+    .node_hash_func = fc_asprefix_node_hash,
+    .meta_hash_func = fc_asprefix_meta_hash,
+    .meta_cmp_func = fc_asprefix_meta_cmp,
+    .meta_save_func = fc_asprefix_meta_save,
+};
+
+htbl_ctx_t g_fc_htbl_asprefix = {0};
+
 // 这里需要注意到是，htbl_ops需要是在ht之后不能销毁的
 // 所以只能使用g_htbl_ops这种用法了
 int fc_hashtable_create(htbl_ctx_t *ht, htbl_ops_t *ops)

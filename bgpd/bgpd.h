@@ -1785,11 +1785,6 @@ struct peer {
 #define BGP_MAX_SOFT_VERSION 64
 	char *soft_version;
 
-#ifdef USE_FC
-    htbl_ctx_t *fc_htbl_prefix;
-    FCList_t *fclist;
-#endif
-
 	QOBJ_FIELDS;
 };
 DECLARE_QOBJ_TYPE(peer);
