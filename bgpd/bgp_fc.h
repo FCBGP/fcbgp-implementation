@@ -7,7 +7,6 @@
 #ifndef BGP_FC_H
 #define BGP_FC_H
 
-#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -39,14 +38,13 @@
 #include <openssl/pem.h>
 #include <openssl/x509.h>
 
-#include "jhash.h"
+#include "lib/prefix.h"
+#include "lib/jhash.h"
+#include "lib/zlog.h"
+
 #include "cJSON.h"
-#include "libdiag.h"
-#include "libjhash.h"
 #include "libhtable.h"
 #include "libncs.h"
-
-#include "bgpd/bgpd.h"
 
 typedef uint8_t  u8;
 typedef uint16_t  u16;
@@ -60,21 +58,29 @@ typedef uint64_t  u64;
 #define TCP_PROTO                       0x06
 
 #define FC_BUFF_SIZE                    2048
+#define FCSRV_HTBL_BUCKETS_SIZE         1023
 #define FCSRV_MAX_LINK_AS               256
 #define FCSRV_MAX_SRC_PREFIX            256
 
 
 #define FC_SKI_LENGTH                   20
+// sizeof(u32)*3+FC_SKI_LENGTH+sizeof(u8)*2+sizeof(u16)
+#define FC_FIX_LENGTH                   36
 #define FC_MAX_SIZE                     256
 
 #define FC_HDR_GENERAL_LENGTH           4
 
-#define FC_MSG_BASE                     1000
-#define FC_MSG_SKI                      (FC_MSG_BASE + 1)
-#define FC_MSG_BGPD                     (FC_MSG_BASE + 2)
-#define FC_MSG_BC                       (FC_MSG_BASE + 3)
+#define FC_MSG_SKI                      1
+#define FC_MSG_BGPD                     2
+#define FC_MSG_BC                       3
 
-#define FC_DB_NAME                      "assets/fc.db"
+#define FC_NODE_TYPE_ONPATH             1
+#define FC_NODE_TYPE_OFFPATH            2
+
+#define FC_ACTION_ADD_UPDATE            1
+#define FC_ACTION_DEL_WITHDRAW          2
+
+#define FC_DB_NAME                      "/etc/frr/fc.db"
 
 #define FC_ASSERT_RET(ret)                                     \
     do {                                                    \
@@ -104,22 +110,29 @@ typedef struct FC_s
     u8 sig[80]; // DER format default 64B => ~72B
 } FC_t;
 
+typedef struct FC_node_s
+{
+    FC_t fc;
+    int length; // FC length
+    struct FC_node_s *next;
+} FC_node_t;
+
 typedef struct FCList_s
 {
-    int length; // length of FCs
     int size; // number of FC in fcs
-    struct prefix prefix;
-    FC_t fcs[FC_MAX_SIZE];
+    int length; // total length of fcs
+    struct prefix ipprefix;
+    FC_node_t *fcs;
 } FCList_t;
 
-typedef struct FC_node_fclist_s
+typedef struct FC_ht_node_prefix_s
 {
     htbl_node_t hnode; // htbl node must be the first one
     int length;
     int size;
-    struct prefix prefix;
-    FC_t fcs[FC_MAX_SIZE];
-} FC_node_fclist_t;
+    struct prefix ipprefix;
+    FC_node_t *fcs;
+} FC_ht_node_prefix_t;
 
 /* ds-asn-ips */
 typedef struct FC_acs_s
@@ -156,17 +169,6 @@ typedef struct FC_node_as_s
     FC_asn_ip_t ap;
 } FC_node_as_t;
 
-extern htbl_ops_t g_htbl_ops = {
-    .node_create_func = fc_as_node_create,
-    .node_destroy_func = fc_as_node_destroy,
-    .node_display_func = fc_as_node_display,
-    .node_hash_func = fc_as_node_hash,
-    .meta_hash_func = fc_as_meta_hash,
-    .meta_cmp_func = fc_as_meta_cmp,
-    .meta_save_func = fc_as_meta_save,
-};
-
-
 // for hashtable node
 typedef struct FC_ht_node_as_s
 {
@@ -181,7 +183,7 @@ typedef struct FC_msg_hdr_st
     u8 type; // 1 for pubkey, 2 for bm
     u16 length;
     u8 reserved;
-} __attribute__((packed)) FC_msg_hdr_t;
+} FC_msg_hdr_t;
 
 typedef struct FC_msg_bm_st
 {
@@ -200,7 +202,7 @@ typedef struct FC_msg_bm_st
     FC_t fclist[FCSRV_MAX_LINK_AS];
     u8 ski[FC_SKI_LENGTH];
     u8 signature[80];
-} __attribute__((packed)) FC_msg_bm_t;
+} FC_msg_bm_t;
 
 typedef struct FC_msg_bm_new_s
 {
@@ -210,7 +212,7 @@ typedef struct FC_msg_bm_new_s
     FC_t new_fclist[FCSRV_MAX_LINK_AS];
     u8 new_ski[FC_SKI_LENGTH];
     u8 new_signature[80];
-} __attribute__((packed)) FC_msg_bm_new_t;
+} FC_msg_bm_new_t;
 
 typedef struct FC_server_s
 {
@@ -223,7 +225,8 @@ typedef struct FC_server_s
        char ipv6[INET6_ADDRSTRLEN];
        */
     sqlite3 *db;
-    htbl_ctx_t ht;
+    htbl_ctx_t ht_as;
+    htbl_ctx_t ht_prefix;
     char fname[BUFSIZ];
     FC_node_as_t aps[FCSRV_MAX_LINK_AS];
     EC_KEY *pubkey;
@@ -246,11 +249,14 @@ extern int fc_ecdsa_verify(EC_KEY *pubkey, const char *const msg, int msglen,
         const unsigned char *sigbuff, unsigned int siglen);
 
 /* JSON */
-extern int  fc_read_asn_ips();
-extern void fc_print_asn_ips();
+extern int  fc_read_asn_ips(void);
+extern void fc_print_asn_ips(void);
 
 /* LIBHTABLE */
-extern int fc_hashtable_create(htbl_ctx_t *ht);
+extern htbl_ctx_t g_fc_htbl_prefix;
+extern htbl_ops_t g_fc_htbl_as_ops;
+extern htbl_ops_t g_fc_htbl_prefix_ops;
+extern int fc_hashtable_create(htbl_ctx_t *ht, htbl_ops_t *ops);
 extern int fc_hashtable_destroy(htbl_ctx_t *ht);
 
 /* SERVER */
@@ -259,9 +265,9 @@ extern int fc_hashtable_destroy(htbl_ctx_t *ht);
  * #define FC_BGPD_PORT 23160
  * #define FC_BROADCAST_PORT 23161
  * */
-extern int fc_server_create();
-extern int fc_server_destroy();
-extern void fc_server_signal_handler(int sig_num);
+extern int bgp_fc_main(long asn);
+extern int fc_server_create(void);
+extern void fc_server_destroy(void);
 extern int fc_server_handler(ncs_ctx_t *ctx);
 extern int fc_server_pubkey_handler(const char *buff, int bufflen);
 extern int fc_server_bm_handler(char *buffer, int bufferlen, int msg_type);
@@ -285,8 +291,8 @@ extern int fc_db_exec(sqlite3 *db, const char *sql,
  * */
 /*
 extern int fc_prefix_to_ip_hton_format(afi_t afi, char *buff, int bufflen);
-extern int fc_send_packet_to_fcserver(char *buff, int bufflen);
 */
+extern int fc_send_packet_to_fcserver(char *buff, int bufflen);
 
 #endif // BGP_FC_H
 

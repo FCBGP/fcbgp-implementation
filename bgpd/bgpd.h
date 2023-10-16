@@ -38,6 +38,10 @@
 #define USE_FC
 #endif
 
+#ifdef USE_FC
+    #include "bgp_fc.h"
+#endif
+
 #define BGP_MAX_HOSTNAME 64	/* Linux max, is larger than most other sys */
 #define BGP_PEER_MAX_HASH_SIZE 16384
 
@@ -1780,6 +1784,11 @@ struct peer {
 	/* BGP Software Version Capability */
 #define BGP_MAX_SOFT_VERSION 64
 	char *soft_version;
+
+#ifdef USE_FC
+    htbl_ctx_t *fc_htbl_prefix;
+    FCList_t *fclist;
+#endif
 
 	QOBJ_FIELDS;
 };

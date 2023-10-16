@@ -124,6 +124,7 @@ noinst_HEADERS += \
 	bgpd/bgp_evpn_mh.h \
 	bgpd/bgp_evpn_private.h \
 	bgpd/bgp_evpn_vty.h \
+    bgpd/bgp_fc.h \
 	bgpd/bgp_filter.h \
 	bgpd/bgp_flowspec.h \
 	bgpd/bgp_flowspec_private.h \
@@ -182,15 +183,14 @@ noinst_HEADERS += \
 	bgpd/rfapi/vnc_export_bgp_p.h \
 	bgpd/rfapi/vnc_import_bgp_p.h \
 	bgpd/bgp_vnc_types.h \
-    bgpd/bgp_fc.h \
 	# end
 
 bgpd_bgpd_SOURCES = bgpd/bgp_main.c
 bgpd_bgp_btoa_SOURCES = bgpd/bgp_btoa.c
 
 # RFPLDADD is set in bgpd/rfp-example/librfp/subdir.am
-bgpd_bgpd_LDADD = bgpd/libbgp.a $(RFPLDADD) lib/libfrr.la $(LIBYANG_LIBS) $(LIBCAP) $(LIBM) $(UST_LIBS) lib/libdiag.la -lssl -lcrypto -lsqlite3 lib/libbase.la lib/libcache.la lib/libcJSON.la lib/libcmd.la lib/libdiag.la lib/libdispatch.la lib/libfrrcares.la lib/libfrr.la lib/libfrrsnmp.la lib/libfrrzmq.la lib/libhtable.la lib/liblistener.la lib/libmbs.la lib/libmd5.la lib/libmpse.la lib/libmsgpack.la lib/libncs6.la lib/libncs.la lib/libnio.la lib/librep.la lib/libreqapi.la lib/libreq.la lib/libsha256.la lib/libstream.la lib/libsysmgr.la
-bgpd_bgp_btoa_LDADD = bgpd/libbgp.a $(RFPLDADD) lib/libfrr.la $(LIBYANG_LIBS) $(LIBCAP) $(LIBM) $(UST_LIBS) -lssl -lcrypto -lsqlite3 lib/libbase.la lib/libcache.la lib/libcJSON.la lib/libcmd.la lib/libdiag.la lib/libdispatch.la lib/libfrrcares.la lib/libfrr.la lib/libfrrsnmp.la lib/libfrrzmq.la lib/libhtable.la lib/liblistener.la lib/libmbs.la lib/libmd5.la lib/libmpse.la lib/libmsgpack.la lib/libncs6.la lib/libncs.la lib/libnio.la lib/librep.la lib/libreqapi.la lib/libreq.la lib/libsha256.la lib/libstream.la lib/libsysmgr.la
+bgpd_bgpd_LDADD = bgpd/libbgp.a $(RFPLDADD) lib/libfrr.la $(LIBYANG_LIBS) $(LIBCAP) $(LIBM) $(UST_LIBS) lib/libdiag.la -L/usr/local/lib/ -lssl -lcrypto -lsqlite3 lib/libbase.la lib/libcache.la lib/libcJSON.la lib/libcmd.la lib/libdiag.la lib/libdispatch.la lib/libfrrcares.la lib/libfrr.la lib/libfrrsnmp.la lib/libfrrzmq.la lib/libhtable.la lib/liblistener.la lib/libmbs.la lib/libmd5.la lib/libmpse.la lib/libmsgpack.la lib/libncs6.la lib/libncs.la lib/libnio.la lib/librep.la lib/libreqapi.la lib/libreq.la lib/libsha256.la lib/libstream.la lib/libsysmgr.la
+bgpd_bgp_btoa_LDADD = bgpd/libbgp.a $(RFPLDADD) lib/libfrr.la $(LIBYANG_LIBS) $(LIBCAP) $(LIBM) $(UST_LIBS) -L/usr/local/lib/ -lssl -lcrypto -lsqlite3 lib/libbase.la lib/libcache.la lib/libcJSON.la lib/libcmd.la lib/libdiag.la lib/libdispatch.la lib/libfrrcares.la lib/libfrr.la lib/libfrrsnmp.la lib/libfrrzmq.la lib/libhtable.la lib/liblistener.la lib/libmbs.la lib/libmd5.la lib/libmpse.la lib/libmsgpack.la lib/libncs6.la lib/libncs.la lib/libnio.la lib/librep.la lib/libreqapi.la lib/libreq.la lib/libsha256.la lib/libstream.la lib/libsysmgr.la
 bgpd_bgpd_snmp_la_SOURCES = bgpd/bgp_snmp_bgp4.c bgpd/bgp_snmp_bgp4v2.c bgpd/bgp_snmp.c bgpd/bgp_mplsvpn_snmp.c
 bgpd_bgpd_snmp_la_CFLAGS = $(AM_CFLAGS) $(SNMP_CFLAGS) -std=gnu11
 bgpd_bgpd_snmp_la_LDFLAGS = $(MODULE_LDFLAGS)

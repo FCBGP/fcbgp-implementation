@@ -223,6 +223,7 @@ void bgp_option_norib_set_runtime(void)
 
 	for (ALL_LIST_ELEMENTS_RO(bm->bgp, node, bgp)) {
 		FOREACH_AFI_SAFI (afi, safi) {
+            zlog_info("as: %s", bgp->as_pretty);
 			/*
 			 * Stop a crash, more work is needed
 			 * here to properly add/remove these types of

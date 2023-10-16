@@ -5,7 +5,6 @@
  * Description:
  ********************************************************************************/
 
-// #include "bgpd/bgpd.h"
 #include "bgpd/bgp_fc.h"
 
 ncs_ctx_t *fc_bgpd_ctx = NULL;
@@ -74,7 +73,7 @@ cleanup:
 fc_cjson_print(const cJSON* root)
 {
     char *output = cJSON_Print(root);
-    printf("%s\n", output);
+    zlog_debug("%s", output);
     free(output);
 }
 
@@ -95,7 +94,7 @@ fc_cjson_root_ptr(const char *fname)
 }
 
     int
-fc_read_asn_ips()
+fc_read_asn_ips(void)
 {
     cJSON *root = NULL, *asn_list = NULL;
     cJSON *elem = NULL, *asn = NULL,  *acs = NULL;
@@ -106,35 +105,20 @@ fc_read_asn_ips()
     int size = 0, i = 0, j = 0, addr_num = 0, ret = 0;
 
     root = fc_cjson_root_ptr(g_fc_server.fname);
-    assert(root);
     asn_list = cJSON_GetObjectItem(root, "asn_list");
-    assert(asn_list);
     size = cJSON_GetArraySize(asn_list);
     g_fc_server.asns_num = size;
 
     for (i=0; i<size; ++i)
     {
         elem = cJSON_GetArrayItem(asn_list, i);
-        // fc_cjson_print(elem);
+        fc_cjson_print(elem);
         asn = cJSON_GetObjectItem(elem, "asn");
         acs = cJSON_GetObjectItem(elem, "acs");
         ip4s = cJSON_GetObjectItem(elem, "ip4s");
         ip6s = cJSON_GetObjectItem(elem, "ip6s");
         ipv4 = cJSON_GetObjectItem(acs, "ipv4");
         ipv6 = cJSON_GetObjectItem(acs, "ipv6");
-
-        /*
-           printf("asn: %d, g_fc_server.local_asn: %d\n",
-           asn->valueint, g_fc_server.local_asn);
-
-           if (asn->valueint == g_fc_server.local_asn)
-           {
-           memcpy(g_fc_server.ipv4, ipv4->valuestring,
-           strlen(ipv4->valuestring));
-           memcpy(g_fc_server.ipv6, ipv6->valuestring,
-           strlen(ipv6->valuestring));
-           }
-           */
 
         meta.asn = asn->valueint;
         memcpy(meta.ap.acs.ipv4, ipv4->valuestring,
@@ -162,10 +146,10 @@ fc_read_asn_ips()
         }
         meta.ap.prefix.ip6s_num = addr_num;
         g_fc_server.asns[i] = meta.asn;
-        node = htbl_meta_insert(&g_fc_server.ht, &meta, &ret);
+        node = htbl_meta_insert(&g_fc_server.ht_as, &meta, &ret);
         if (!node)
         {
-            fprintf(stderr, "insert failed\n");
+            zlog_debug("insert failed");
             return -1;
         }
     }
@@ -176,39 +160,39 @@ fc_read_asn_ips()
 }
 
     void
-fc_print_asn_ips()
+fc_print_asn_ips(void)
 {
-    printf("=====================================================\n");
+    zlog_debug("=====================================================");
     int i=0, j=0;
     FC_node_as_t meta;
     FC_ht_node_as_t *node;
     char ipstr[INET6_ADDRSTRLEN] = {0};
-    htbl_ctx_t *ht = &g_fc_server.ht;
+    htbl_ctx_t *ht = &g_fc_server.ht_as;
 
-    printf("asns_num: %d\n", g_fc_server.asns_num);
+    zlog_debug("asns_num: %d", g_fc_server.asns_num);
     for (i=0; i<g_fc_server.asns_num; ++i)
     {
         meta.asn = g_fc_server.asns[i];
         node = htbl_meta_find(ht, &meta);
 
         if (node) {
-            printf("asn: %d\n", node->asn);
-            printf("  acs:\n");
-            printf("    ipv4: %s\n", node->ap.acs.ipv4);
-            printf("    ipv6: %s\n", node->ap.acs.ipv6);
-            printf("  prefix:\n");
+            zlog_debug("asn: %d", node->asn);
+            zlog_debug("  %s", "acs:");
+            zlog_debug("    ipv4: %s", node->ap.acs.ipv4);
+            zlog_debug("    ipv6: %s", node->ap.acs.ipv6);
+            zlog_debug("  %s", "prefix:");
             for (j=0; j<node->ap.prefix.ip4s_num; ++j)
             {
                 inet_ntop(AF_INET, &node->ap.prefix.ip4s[j].ip,
                         ipstr, (socklen_t)sizeof(struct sockaddr_in));
-                printf("    ipv4: %s/%d\n",
+                zlog_debug("    ipv4: %s/%d",
                         ipstr, node->ap.prefix.ip4s[j].prefix_length);
             }
             for (j=0; j<node->ap.prefix.ip6s_num; ++j)
             {
                 inet_ntop(AF_INET6, &node->ap.prefix.ip6s[j].ip,
                         ipstr, (socklen_t)sizeof(struct sockaddr_in));
-                printf("    ipv6: %s/%d\n",
+                zlog_debug("    ipv6: %s/%d",
                         ipstr, node->ap.prefix.ip6s[j].prefix_length);
             }
 
@@ -223,77 +207,78 @@ fc_print_asn_ips()
            }
            */
     }
-    printf("=====================================================\n");
+    zlog_debug("=====================================================");
 }
 
 /* HASHTABLE UTILS */
-void *
+    static void *
 fc_as_node_create(void)
 {
     FC_ht_node_as_t *node = malloc(sizeof(FC_ht_node_as_t));
     return node;
 }
 
-int
+    static int
 fc_as_node_destroy(void *node)
 {
-    free(node);
+    FC_ht_node_as_t *node_as = (FC_ht_node_as_t *)node;
+    free(node_as);
     return 0;
 }
 
-int
+    static int
 fc_as_node_display(void *node)
 {
     char ipstr[INET6_ADDRSTRLEN] = {0};
     int i = 0;
     FC_ht_node_as_t *node_as = (FC_ht_node_as_t *) node;
 
-    printf("asn: %d\n", node_as->asn);
-    printf("  acs:\n");
-    printf("    ipv4: %s\n", node_as->ap.acs.ipv4);
-    printf("    ipv6: %s\n", node_as->ap.acs.ipv6);
-    printf("  prefix:\n");
+    zlog_debug("asn: %d", node_as->asn);
+    zlog_debug("  %s", "acs:");
+    zlog_debug("    ipv4: %s", node_as->ap.acs.ipv4);
+    zlog_debug("    ipv6: %s", node_as->ap.acs.ipv6);
+    zlog_debug("  %s", "prefix:");
     for (i=0; i<node_as->ap.prefix.ip4s_num; ++i)
     {
         inet_ntop(AF_INET, &node_as->ap.prefix.ip4s[i].ip,
                 ipstr, (socklen_t)sizeof(ipstr));
-        printf("    ipv4: %s/%d\n",
+        zlog_debug("    ipv4: %s/%d",
                 ipstr, node_as->ap.prefix.ip4s[i].prefix_length);
     }
     for (i=0; i<node_as->ap.prefix.ip6s_num; ++i)
     {
         inet_ntop(AF_INET6, &node_as->ap.prefix.ip6s[i].ip,
                 ipstr, (socklen_t)sizeof(ipstr));
-        printf("    ipv6: %s/%d\n",
+        zlog_debug("    ipv6: %s/%d",
                 ipstr, node_as->ap.prefix.ip6s[i].prefix_length);
     }
 
     return 0;
 }
 
-static int
+    static u32
 fc_as_hash(u32 asn)
 {
-    int ret = jhash_1word(asn, 0x19841128);
-    // printf("ret : %d\n", ret);
+    u32 ret = jhash_1word(asn, 0xdeadbeef);
+    zlog_debug("ret : %d", ret);
     return ret;
 }
 
-int
+    static int
 fc_as_node_hash(void *node)
 {
     FC_ht_node_as_t *node_as = (FC_ht_node_as_t *) node;
     return fc_as_hash(node_as->asn);
 }
 
-int
+    static int
 fc_as_meta_hash(void *meta)
 {
     FC_node_as_t *meta_as = (FC_node_as_t *)meta;
     return fc_as_hash(meta_as->asn);
 }
 
-int
+    static int
 fc_as_meta_cmp(void *base, void *meta)
 {
     FC_ht_node_as_t *node_as = (FC_ht_node_as_t *)base;
@@ -302,7 +287,7 @@ fc_as_meta_cmp(void *base, void *meta)
     return !!(node_as->asn != meta_as->asn);
 }
 
-int
+    static int
 fc_as_meta_save(void *base, void *meta)
 {
     FC_ht_node_as_t *node_as = (FC_ht_node_as_t *)base;
@@ -314,7 +299,7 @@ fc_as_meta_save(void *base, void *meta)
     return 0;
 }
 
-static htbl_ops_t g_htbl_ops = {
+htbl_ops_t g_fc_htbl_as_ops = {
     .node_create_func = fc_as_node_create,
     .node_destroy_func = fc_as_node_destroy,
     .node_display_func = fc_as_node_display,
@@ -324,18 +309,123 @@ static htbl_ops_t g_htbl_ops = {
     .meta_save_func = fc_as_meta_save,
 };
 
+    static void *
+fc_prefix_node_create(void)
+{
+    FC_ht_node_prefix_t *node = malloc(sizeof(FC_ht_node_prefix_t));
+    node->fcs = malloc(sizeof(FC_t) * FC_MAX_SIZE);
+    return node;
+}
+
+    static int
+fc_prefix_node_destroy(void *node)
+{
+    FC_ht_node_prefix_t *node_prefix = (FC_ht_node_prefix_t *)node;
+    free(node_prefix->fcs);
+    free(node_prefix);
+
+    return 0;
+}
+
+    static int
+fc_prefix_hash(struct prefix *prefix)
+{
+    int i = 0;
+    int ret = 0;
+
+    ret = jhash_2words(prefix->family, prefix->prefixlen, 0xdeadbeef);
+
+    for (i=0; i<4; ++i)
+        ret = jhash_2words(ret, prefix->u.val32[i], 0xdeadbeef);
+
+    return ret;
+}
+
+    static int
+fc_prefix_node_hash(void *node)
+{
+    FC_ht_node_prefix_t *node_prefix = (FC_ht_node_prefix_t *) node;
+    return fc_prefix_hash(&node_prefix->ipprefix);
+}
+
+    static int
+fc_prefix_meta_hash(void *meta)
+{
+    FCList_t *meta_prefix = (FCList_t *)meta;
+    return fc_prefix_hash(&meta_prefix->ipprefix);
+}
+
+    static int
+fc_prefix_meta_cmp(void *base, void *meta)
+{
+    FC_ht_node_prefix_t *node_prefix = (FC_ht_node_prefix_t *)base;
+    FCList_t *meta_prefix = (FCList_t *)meta;
+
+    int ret = 0; // 0 for equal and 1 for inequal
+    int i = 0;
+
+    if (node_prefix->ipprefix.family == meta_prefix->ipprefix.family)
+    {
+        if (node_prefix->ipprefix.prefixlen == meta_prefix->ipprefix.prefixlen)
+        {
+            for (i=0; i<4; ++i)
+            {
+                if (node_prefix->ipprefix.u.val32[i]
+                        != meta_prefix->ipprefix.u.val32[i])
+                {
+                    ret = 1;
+                    break;
+                }
+            }
+            return ret;
+        }
+    }
+
+    return ret;
+}
+
+    static int
+fc_prefix_meta_save(void *base, void *meta)
+{
+    FC_ht_node_prefix_t *node_prefix = (FC_ht_node_prefix_t *)base;
+    FCList_t *meta_prefix = (FCList_t *)meta;
+
+    node_prefix->size = meta_prefix->size;
+    node_prefix->length = meta_prefix->length;
+    node_prefix->fcs = meta_prefix->fcs;
+    memcpy(&node_prefix->ipprefix, &meta_prefix->ipprefix, sizeof(struct prefix));
+
+    return 0;
+}
+
+    static int
+fc_prefix_node_display(void *node)
+{
+    return 0;
+}
+
+htbl_ops_t g_fc_htbl_prefix_ops = {
+    .node_create_func = fc_prefix_node_create,
+    .node_destroy_func = fc_prefix_node_destroy,
+    .node_display_func = fc_prefix_node_display,
+    .node_hash_func = fc_prefix_node_hash,
+    .meta_hash_func = fc_prefix_meta_hash,
+    .meta_cmp_func = fc_prefix_meta_cmp,
+    .meta_save_func = fc_prefix_meta_save,
+};
+
 // 这里需要注意到是，htbl_ops需要是在ht之后不能销毁的
 // 所以只能使用g_htbl_ops这种用法了
-int fc_hashtable_create(htbl_ctx_t *ht)
+int fc_hashtable_create(htbl_ctx_t *ht, htbl_ops_t *ops)
 {
     int ret = 0;
-    ht->bucketcnt = FCSRV_MAX_LINK_AS;
-    ht->ops = &g_htbl_ops;
+    ht->bucketcnt = FCSRV_HTBL_BUCKETS_SIZE;
+    ht->ops = ops;
 
     ret = htbl_init(ht);
     FC_ASSERT_RET(ret);
     /*
-       printf("htbl_init return %d ptr size %d spinlock size %d atomic size %d hlist size %d rwlock size %d hnode size %d node size %d\n",
+       zlog_debug("htbl_init return %d ptr size %d spinlock size %d atomic size %d hlist size %d rwlock size %d hnode size %d node size %d",
        ret, (int)sizeof(void *), (int)sizeof(spinlock_t), (int)sizeof(atomic_t),
        (int)sizeof(htbl_hlist_t), (int)sizeof(rwlock_t),
        (int)sizeof(htbl_node_t), (int)sizeof(FC_ht_node_as_t));
@@ -344,7 +434,7 @@ int fc_hashtable_create(htbl_ctx_t *ht)
     return 0;
 }
 
-int
+    int
 fc_hashtable_destroy(htbl_ctx_t *ht)
 {
     if (ht)
@@ -357,30 +447,30 @@ fc_hashtable_destroy(htbl_ctx_t *ht)
 
 /* SQLITE3 DATABASE UTILS */
 /* Open database */
-int
+    int
 fc_db_open(sqlite3 **db, const char *dbname)
 {
     if (sqlite3_open(dbname, db) != SQLITE_OK)
     {
-        printf("Can't open database: %s\n", sqlite3_errmsg(*db));
+        zlog_debug("Can't open database: %s", sqlite3_errmsg(*db));
         exit(0);
     }
     else
     {
-        printf("Opened database successfully\n");
+        zlog_debug("Opened database successfully");
     }
 
     return 0;
 }
 
-int
+    int
 fc_db_store_bm_handler(void *data, int argc, char **argv,
         char **az_col_name)
 {
     return 0;
 }
 
-int
+    int
 fc_db_select_bm_handler(void *data, int argc, char **argv,
         char **az_col_name)
 {
@@ -388,7 +478,7 @@ fc_db_select_bm_handler(void *data, int argc, char **argv,
 }
 
 /* Execute SQL statement */
-int
+    int
 fc_db_exec(sqlite3 *db, const char *sql,
         int (*cb)(void *data, int argc, char **argv, char **az_col_name),
         void *data)
@@ -398,26 +488,26 @@ fc_db_exec(sqlite3 *db, const char *sql,
     rc = sqlite3_exec(db, sql, cb, data, &zErrMsg);
     if (rc != SQLITE_OK)
     {
-        printf("SQL error: %s\n", zErrMsg);
+        zlog_debug("SQL error: %s", zErrMsg);
         sqlite3_free(zErrMsg);
     }
     else
     {
-        printf("Operation done successfully\n");
+        zlog_debug("Operation done successfully");
     }
 
     return 0;
 }
 
 /* Close DB */
-int
+    int
 fc_db_close(sqlite3 *db)
 {
     sqlite3_close(db);
     return 0;
 }
 
-void
+    void
 fc_init_db(sqlite3 **db)
 {
     char sql[BUFSIZ];
@@ -425,7 +515,7 @@ fc_init_db(sqlite3 **db)
     fc_db_open(db, FC_DB_NAME);
     bzero(sql, BUFSIZ);
     sprintf(sql, "DROP TABLE IF EXISTS fcs;");
-    printf("sql: %s\n", sql);
+    zlog_debug("sql: %s", sql);
     fc_db_exec(*db, sql, NULL, NULL);
 
     bzero(sql, BUFSIZ);
@@ -446,7 +536,7 @@ fc_init_db(sqlite3 **db)
             "ski CHAR(20) NOT NULL,"
             "signature CHAR(1024) NOT NULL)"
            );
-    printf("sql: %s\n", sql);
+    zlog_debug("sql: %s", sql);
     fc_db_exec(*db, sql, NULL, NULL);
     // bzero(sql, 1024);
     // sprintf(sql, "DELETE FROM relation WHERE asn = %u", asn);
@@ -472,13 +562,13 @@ fc_base64_encode(const unsigned char *msg, size_t length, char *b64msg)
     BIO_free_all(bio);
 
     memcpy(b64msg, (*buff).data, strlen((*buff).data));
-    printf("msg: %s\nb64msg: %s\ndata: %s\n",
+    zlog_debug("msg: %s, b64msg: %s, data: %s",
             msg, b64msg, (*buff).data);
 
-    return 0;
+        return 0;
 }
 
-    static size_t inline
+    static inline size_t
 fc_calc_decode_len(const char *b64msg)
 {
     size_t len = strlen(b64msg);
@@ -496,7 +586,7 @@ fc_calc_decode_len(const char *b64msg)
 fc_base64_decode(const char *b64msg, unsigned char **msg, size_t *length)
 {
     BIO *bio, *b64;
-    int decode_len = fc_calc_decode_len(b64msg);
+    size_t decode_len = fc_calc_decode_len(b64msg);
 
     *msg = (unsigned char *) malloc(decode_len + 1);
     (*msg)[decode_len] = '\0';
@@ -509,7 +599,7 @@ fc_base64_decode(const char *b64msg, unsigned char **msg, size_t *length)
     *length = BIO_read(bio, *msg, strlen(b64msg));
     if (*length != decode_len)
     {
-        printf("error b64 decode length\n");
+        zlog_debug("error b64 decode length");
         return -1;
     }
 
@@ -571,10 +661,11 @@ fc_sha256_encode(const char *const msg, int msglen, unsigned char *digest,
         goto error;
     }
 
-    printf("Digest_len is : %u, Digest is: ", *digest_len);
-    for (i = 0; i < *digest_len; i++)
-        printf("%02x", digest[i]);
-    printf("\n");
+    zlog_debug("Digest_len is : %u, Digest is: ", *digest_len);
+    for (i = 0; i < (int)*digest_len; i++)
+    {
+        zlog_debug("%02x", digest[i]);
+    }
 
 error:
     /* Clean up all the resources we allocated */
@@ -630,13 +721,8 @@ fc_ecdsa_sign(EC_KEY *prikey, const char *const msg, int msglen,
     keylen = ECDSA_size(prikey);
     *sigbuff = OPENSSL_malloc(keylen);
     ret = ECDSA_sign(0, digest, digestlen, *sigbuff, siglen, prikey);
-
-    printf("sig len: %u\nsignature: ", *siglen);
-    for (int i=0; i<*siglen; ++i)
-    {
-        printf("%02X", (*sigbuff)[i]);
-    }
-    printf("\n");
+    if (ret ==0)
+    {}
 
     return 0;
 }
@@ -651,19 +737,17 @@ fc_ecdsa_verify(EC_KEY *pubkey, const char *const msg, int msglen,
 
     fc_sha256_encode(msg, msglen, digest, &digestlen);
     ret = ECDSA_verify(0, digest, digestlen, sigbuff, siglen, pubkey);
-    /*
-       if (ret == 1)
-       {
-       printf("verify ok\n");
-       }
-       else if (ret == 0)
-       {
-       printf("verify failed\n");
-       } else
-       {
-       printf("error\n");
-       }
-       */
+    if (ret == 1)
+    {
+        zlog_debug("verify ok");
+    }
+    else if (ret == 0)
+    {
+        zlog_debug("verify failed");
+    } else
+    {
+        zlog_debug("error");
+    }
 
     return ret;
 }
@@ -679,58 +763,45 @@ fc_init_crypto_env(FC_server_t *fcserver)
 
 /* FC SERVER UTILS */
     void
-fc_server_signal_handler(int sig_num)
+fc_server_destroy(void)
 {
-    if (sig_num == SIGINT)
+    if (fc_bgpd_ctx)
     {
-        if (fc_bgpd_ctx)
-        {
-            ncs_manager_stop(fc_bgpd_ctx);
-            ncs_destroy(fc_bgpd_ctx);
-            fc_bgpd_ctx = NULL;
-        }
-        /*
-           if (bc_ctx)
-           {
-           ncs_manager_stop(bc_ctx);
-           ncs_destroy(bc_ctx);
-           bc_ctx = NULL;
-           }
-           */
-        fc_server_destroy();
-        printf("bye bye!\n");
-        exit(0);
+        ncs_manager_stop(fc_bgpd_ctx);
+        ncs_destroy(fc_bgpd_ctx);
+        fc_bgpd_ctx = NULL;
     }
+    fc_db_close(g_fc_server.db);
+    fc_hashtable_destroy(&g_fc_server.ht_as);
+    fc_hashtable_destroy(&g_fc_server.ht_prefix);
+    zlog_debug("bye bye!");
 }
 
     int
-fc_server_create()
+fc_server_create(void)
 {
     FC_node_as_t meta;
     FC_ht_node_as_t *node;
+    char *localaddr = strdup("0.0.0.0");
+    char *fcsrv_name = strdup("bgpd");
 
     fc_init_db(&g_fc_server.db);
 
     meta.asn = g_fc_server.local_asn;
-    node = htbl_meta_find(&g_fc_server.ht, &meta);
+    node = htbl_meta_find(&g_fc_server.ht_as, &meta);
 
     if (node)
     {
-        printf("asn: %d\n", node->asn);
-        printf("  acs:\n");
-        printf("    ipv4: %s\n", node->ap.acs.ipv4);
-        printf("    ipv6: %s\n", node->ap.acs.ipv6);
+        // FC_acs_t *acs = &node->ap.acs;
 
-        FC_acs_t *acs = &node->ap.acs;
-
-        if ((fc_bgpd_ctx = ncs_create("bgpd", TCP_PROTO)) == NULL)
+        if ((fc_bgpd_ctx = ncs_create(fcsrv_name, TCP_PROTO)) == NULL)
         {
-            printf("create bgpd ncs failed\n");
+            zlog_debug("create bgpd ncs failed");
             exit(-ENOMEM);
         }
 
         // ncs_setup(fc_bgpd_ctx, acs->ipv4, FC_PORT, NULL, 0);
-        ncs_setup(fc_bgpd_ctx, "0.0.0.0", FC_PORT, NULL, 0);
+        ncs_setup(fc_bgpd_ctx, localaddr, FC_PORT, NULL, 0);
         ncs_timeout(fc_bgpd_ctx, 10, -1);
         ncs_setkeepalive(fc_bgpd_ctx, 10);
         ncs_server_enable(fc_bgpd_ctx);
@@ -738,18 +809,7 @@ fc_server_create()
         ncs_manager_start(fc_bgpd_ctx);
     }
 
-    return 0;
-}
-
-    int
-fc_server_destroy()
-{
-    printf("Close db\n");
-    fc_db_close(g_fc_server.db);
-    printf("Destroy Hashtable\n");
-    fc_hashtable_destroy(&g_fc_server.ht);
-    printf("Close diag\n");
-    diag_fini();
+    zlog_debug("fc_server is ready!!!");
 
     return 0;
 }
@@ -781,7 +841,7 @@ fc_bm_sent_to_peer(const char *addr, const FC_msg_bm_t *bm,
     while (len != bufferlen)
     {
         len = len + send(sockfd, buffer+len, bufferlen-len, 0);
-        printf("len = %d, bufferlen = %d\n", len, bufferlen);
+        zlog_debug("len = %d, bufferlen = %d", len, bufferlen);
     }
 
     close(sockfd);
@@ -800,11 +860,11 @@ fc_bm_broadcast_to_peer(const FC_msg_bm_t *bm, char *buffer,
     {
         // TODO wether asn is in aspath
         meta.asn = bm->fclist[i].current_asn;
-        FC_ht_node_as_t *node = htbl_meta_find(&g_fc_server.ht,
+        FC_ht_node_as_t *node = htbl_meta_find(&g_fc_server.ht_as,
                 &meta);
         if (node)
         {
-            printf("sent to %d\n", node->asn);
+            zlog_debug("sent to %d", node->asn);
             if (g_fc_server.local_asn != node->asn)
             {
                 fc_bm_sent_to_peer(node->ap.acs.ipv4,
@@ -838,11 +898,11 @@ fc_db_write_bm(const FC_msg_bm_t *bm)
     } else if (bm->ipversion == IPV6)
     {
         socklen = sizeof(struct sockaddr_in6);
-        printf("THIS IS NOT supported: %d!\n", bm->ipversion);
+        zlog_debug("THIS IS NOT supported: %d!", bm->ipversion);
         return 0;
     } else
     {
-        printf("THIS IS NOT supported: %d!\n", bm->ipversion);
+        zlog_debug("THIS IS NOT supported: %d!", bm->ipversion);
         return -1;
     }
 
@@ -864,7 +924,7 @@ fc_db_write_bm(const FC_msg_bm_t *bm)
         snprintf(buff_src_ip+cur, FC_BUFF_SIZE, "/%d,",
                 bm->src_ip[i].prefix_length);
         cur += strlen(buff_src_ip+cur);
-        printf("src: %s\n", buff_src_ip);
+        zlog_debug("src: %s", buff_src_ip);
     }
 
     // fc_base64_encode(buff, cur, buff_src_ip);
@@ -885,7 +945,7 @@ fc_db_write_bm(const FC_msg_bm_t *bm)
         cur += strlen(buff_dst_ip+cur);
         snprintf(buff_dst_ip+cur, FC_BUFF_SIZE, "/%d,", bm->dst_ip[i].prefix_length);
         cur += strlen(buff_dst_ip+cur);
-        printf("dst: %s\n", buff_dst_ip);
+        zlog_debug("dst: %s", buff_dst_ip);
     }
     // fc_base64_encode(buff, cur, buff_dst_ip);
 
@@ -918,14 +978,14 @@ fc_db_write_bm(const FC_msg_bm_t *bm)
         }
         snprintf(buff_fclist+cur, FC_BUFF_SIZE, ",");
         cur += 1;
-        printf("curlen: %d, fclist: %s\n", cur, buff_fclist);
+        zlog_debug("curlen: %d, fclist: %s", cur, buff_fclist);
     }
     // fc_base64_encode(buff, cur, buff_fclist);
 
     /*
-       printf("buff-srcip: %s\n", buff_src_ip);
-       printf("buff-dstip: %s\n", buff_dst_ip);
-       printf("buff-fclist: %s\n", buff_fclist);
+       zlog_debug("buff-srcip: %s", buff_src_ip);
+       zlog_debug("buff-dstip: %s", buff_dst_ip);
+       zlog_debug("buff-fclist: %s", buff_fclist);
        */
 
     // ski
@@ -942,7 +1002,7 @@ fc_db_write_bm(const FC_msg_bm_t *bm)
         snprintf(buff_signature+j*2, FC_BUFF_SIZE, "%02X",
                 bm->signature[j]);
     }
-    printf("signature: %s\n", buff_signature);
+    zlog_debug("signature: %s", buff_signature);
     snprintf(sql, BUFSIZ,
             "INSERT INTO fcs VALUES(%u, %u, %u, %u, %u, %u, %u, %u, %u, "
             "%u, '%s', '%s', '%s', '%s', '%s')",
@@ -950,7 +1010,7 @@ fc_db_write_bm(const FC_msg_bm_t *bm)
             bm->src_ip_num, bm->dst_ip_num, bm->siglen, bm->local_asn,
             bm->version, bm->subversion, buff_src_ip, buff_dst_ip,
             buff_fclist, buff_ski, buff_signature);
-    printf("SQL: %s\n", sql);
+    zlog_debug("SQL: %s", sql);
     fc_db_exec(g_fc_server.db, sql, fc_db_store_bm_handler, NULL);
 
     return 0;
@@ -1005,13 +1065,13 @@ fc_bm_verify_fc(FC_msg_bm_t *bm)
         switch (ret)
         {
         case 1:
-            printf("verify fc ok\n");
+            zlog_debug("verify fc ok");
             break;
         case 0:
-            printf("verify fc failed\n");
+            zlog_debug("verify fc failed");
             break;
         default:
-            printf("verify fc error\n");
+            zlog_debug("verify fc error");
             break;
         }
     }
@@ -1044,11 +1104,11 @@ fc_server_bm_handler(char *buffer, int bufferlen, int msg_type)
     } else if (buff[0] == IPV6) // ipv6
     {
         ip_len = IP6_LENGTH;
-        printf("Not supported now: %d\n", buff[0]);
+        zlog_debug("Not supported now: %d", buff[0]);
         return 0;
     } else
     {
-        printf("Not supported now: %d\n", buff[0]);
+        zlog_debug("Not supported now: %d", buff[0]);
     }
 
     memcpy(&bm.ipversion, buff, sizeof(u8));
@@ -1075,12 +1135,12 @@ fc_server_bm_handler(char *buffer, int bufferlen, int msg_type)
     {
         if (bm.ipversion == IPV4)
         {
-            struct sockaddr_in* addr = &bm.src_ip[i].ip;
+            struct sockaddr_in* addr = (struct sockaddr_in*) &bm.src_ip[i].ip;
             memcpy(&(addr->sin_addr),
                     buff+cur, sizeof(struct in_addr));
         } else
         {
-            struct sockaddr_in6* addr = &bm.src_ip[i].ip;
+            struct sockaddr_in6* addr = (struct sockaddr_in6*) &bm.src_ip[i].ip;
             memcpy(&(addr->sin6_addr),
                     buff+cur, sizeof(struct in6_addr));
         }
@@ -1093,12 +1153,12 @@ fc_server_bm_handler(char *buffer, int bufferlen, int msg_type)
     {
         if (bm.ipversion == IPV4)
         {
-            struct sockaddr_in* addr = &bm.dst_ip[i].ip;
+            struct sockaddr_in* addr = (struct sockaddr_in*) &bm.dst_ip[i].ip;
             memcpy(&(addr->sin_addr),
                     buff+cur, sizeof(struct in_addr));
         } else
         {
-            struct sockaddr_in6* addr = &bm.dst_ip[i].ip;
+            struct sockaddr_in6* addr = (struct sockaddr_in6*) &bm.dst_ip[i].ip;
             memcpy(&(addr->sin6_addr),
                     buff+cur, sizeof(struct in6_addr));
         }
@@ -1159,13 +1219,13 @@ fc_server_bm_handler(char *buffer, int bufferlen, int msg_type)
         switch (ret)
         {
         case 1:
-            printf("verify sig ok\n");
+            zlog_debug("verify sig ok");
             break;
         case 0:
-            printf("verify sig failed\n");
+            zlog_debug("verify sig failed");
             break;
         default:
-            printf("verify sig error\n");
+            zlog_debug("verify sig error");
             break;
         }
     }
@@ -1177,7 +1237,7 @@ fc_server_bm_handler(char *buffer, int bufferlen, int msg_type)
 
     if (msg_type == FC_MSG_BGPD)
     {
-        printf("broadcast to peers\n");
+        zlog_debug("broadcast to peers");
         buff_new_msg[0] = 3;  // bc msg
         fc_bm_broadcast_to_peer(&bm, buff_new_msg,
                 FC_HDR_GENERAL_LENGTH+cur+FC_SKI_LENGTH+bm.siglen);
@@ -1196,16 +1256,15 @@ fc_server_handler(ncs_ctx_t *ctx)
     {
         memset(buff, 0, BUFSIZ);
         len = ncs_server_recv(ctx, buff, BUFSIZ);
-        printf("len = %d, received from %s:%d %s:%d %s:%s\n",
+        zlog_debug("len = %d, received from %s:%d %s:%d",
                 len, ctx->remote_addr, ctx->remote_port,
-                ctx->local_addr, ctx->local_port,
-                ctx->server_peeraddr, ctx->client_peeraddr);
+                ctx->local_addr, ctx->local_port);
         if (len > 0)
         {
             switch (buff[0])
             {
             case 1: // pubkey
-                printf("Not support pubkey\n");
+                zlog_debug("Not support pubkey");
                 // TODO length
                 fc_server_pubkey_handler(buff, len);
                 return 0;
@@ -1218,7 +1277,7 @@ fc_server_handler(ncs_ctx_t *ctx)
                 fc_server_bm_handler(buff, len, FC_MSG_BC);
                 break;
             default:
-                printf("Not support %d\n", buff[0]);
+                zlog_debug("Not support %d", buff[0]);
                 return -1;
             }
         }
@@ -1229,139 +1288,57 @@ fc_server_handler(ncs_ctx_t *ctx)
     return 0;
 }
 
-    static void inline
-fc_help()
+    static inline void
+fc_help(void)
 {
-    printf("\t-h                            print this message.\n");
-    printf("\t-a                            specify local as number.\n");
-    printf("\t-f <asnlist.json location>    specify the location of asnlist.json\n");
+    zlog_debug("  -h                            print this message.");
+    zlog_debug("  -a                            specify local as number.");
+    zlog_debug("  -f <asnlist.json location>    specify the location of asnlist.json");
 }
-
-    static int inline
-fc_parse_args(int argc, char *argv[])
-{
-    int ch = '\0';
-    int specified_local_asn = 0;
-    while ((ch = getopt(argc, argv, "hf:a:")) != -1)
-    {
-        switch (ch)
-        {
-        case 'h':
-            fc_help();
-            exit(EXIT_SUCCESS);
-        case 'f':
-            size_t fname_len = strlen(optarg);
-            memcpy(g_fc_server.fname, optarg, fname_len);
-            g_fc_server.fname[fname_len] = '\0';
-            break;
-        case 'a':
-            g_fc_server.local_asn = (u32) atol(optarg);
-            specified_local_asn = 1;
-            break;
-
-        default:
-            printf("unknow option: %c\n", ch);
-            fc_help();
-            break;
-        }
-    }
-
-    if (!g_fc_server.fname || strlen(g_fc_server.fname) == 0)
-    {
-        // fprintf(stderr, "MUST use -f to specify the asnlist.json\n");
-        // exit(-1);
-        char *pfname = "assets/asnlist.json";
-        memcpy(g_fc_server.fname, pfname, strlen(pfname));
-    }
-
-    if (!specified_local_asn)
-    {
-        fprintf(stderr, "MUST use -a to specify the local as number.\n");
-        exit(-1);
-    }
-
-    return 0;
-}
-
-int fc_main(int argc, char *argv[])
-{
-    fc_parse_args(argc, argv);
-    diag_init("fc");
-    fc_hashtable_create(&g_fc_server.ht);
-
-    // ??SRC-IPASN-f??asnlist.jsonλ
-    //     ??????bin/server??????
-    fc_read_asn_ips();
-    fc_print_asn_ips();
-    // htbl_display(&g_fc_server.ht);
-
-    fc_init_crypto_env(&g_fc_server);
-
-    signal(SIGINT, fc_server_signal_handler);
-
-    fc_server_create();
-
-    while (1)
-    {
-        sleep(1);
-    }
-
-    // fcserver
-    fc_server_destroy();
-
-    return 0;
-}
-
-#ifdef TEST_MAIN
-int main(int argc, char **args)
-{
-    fc_main(argc, args);
-
-    return 0;
-}
-#endif
-
 
 /* BGPD TO FCSERVER */
 
 // afi_t in zebra.h
 /*
+   int
+   bgpfc_prefix_to_ip_hton_format(struct bgp_nlri *packet,
+   char *buff, int *bufflen, int buffsize)
+   {
+   afi_t afi = packet->afi;
+   uint8_t *pnt = NULL, *lim = NULL;
+   int psize;
+
+   pnt = packet->nlri;
+   lim = pnt + packet->length;
+ *bufflen = 0;
+
+ for (; pnt < lim && buffsize > *bufflen; pnt += psize)
+ {
+ psize = PSIZE(p.prefixlen);
+ memcpy(buff + *bufflen, pnt+1, psize);
+ if (afi == AFI_IP) // ipv4
+ {
+ *bufflen += 4;
+ } else if (afi == AFI_IP6) // ipv6
+ {
+ *bufflen += 16;
+ }
+ buff[*bufflen] = *pnt; // prefixlength
+ *bufflen += 1;
+ }
+
+ return *bufflen;
+ }
+ */
     int
-bgpfc_prefix_to_ip_hton_format(struct bgp_nlri *packet,
-        char *buff, int *bufflen, int buffsize)
-{
-    afi_t afi = packet->afi;
-    uint8_t *pnt = NULL, *lim = NULL;
-    int psize;
-
-    pnt = packet->nlri;
-    lim = pnt + packet->length;
-    *bufflen = 0;
-
-    for (; pnt < lim && buffsize > *bufflen; pnt += psize)
-    {
-        psize = PSIZE(p.prefixlen);
-        memcpy(buff + *bufflen, pnt+1, psize);
-        if (afi == AFI_IP) // ipv4
-        {
-            *bufflen += 4;
-        } else if (afi == AFI_IP6) // ipv6
-        {
-            *bufflen += 16;
-        }
-        buff[*bufflen] = *pnt; // prefixlength
-        *bufflen += 1;
-    }
-
-    return *bufflen;
-}
-
-    int
-bgpfc_send_packet_to_fcserver(char *buff, int bufflen)
+fc_send_packet_to_fcserver(char *buff, int bufflen)
 {
     struct sockaddr_in sockaddr;
     int ret = 0;
     int len = 0;
+    int sockfd = 0;
+
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
     sockaddr.sin_family = AF_INET;
     sockaddr.sin_port = htons(23160);
@@ -1370,7 +1347,7 @@ bgpfc_send_packet_to_fcserver(char *buff, int bufflen)
     ret = connect(sockfd, (struct sockaddr *)&sockaddr, sizeof(sockaddr));
     if (ret < 0)
     {
-        fprintf(stderr, "connect() error\n");
+        zlog_debug("connect() error");
         perror("connect()");
         return -1;
     }
@@ -1378,11 +1355,30 @@ bgpfc_send_packet_to_fcserver(char *buff, int bufflen)
     while (len != bufflen)
     {
         len = len + send(sockfd, buff+len, bufflen-len, 0);
-        printf("len = %d, total-length = %d\n", len, bufflen);
+        zlog_debug("len = %d, total-length = %d", len, bufflen);
     }
 
     close(sockfd);
 
     return 0;
 }
-*/
+
+int bgp_fc_main(long asn)
+{
+    const char *pfname = "/etc/frr/asnlist.json";
+    memcpy(g_fc_server.fname, pfname, strlen(pfname));
+    g_fc_server.local_asn = (u32) asn;
+
+    fc_hashtable_create(&g_fc_server.ht_as, &g_fc_htbl_as_ops);
+    fc_hashtable_create(&g_fc_server.ht_prefix, &g_fc_htbl_prefix_ops);
+
+    fc_read_asn_ips();
+    fc_print_asn_ips();
+    // htbl_display(&g_fc_server.ht_as);
+
+    fc_init_crypto_env(&g_fc_server);
+
+    fc_server_create();
+
+    return 0;
+}

@@ -6119,6 +6119,11 @@ int bgp_nlri_parse_ip(struct peer *peer, struct attr *attr,
 				     ZEBRA_ROUTE_BGP, BGP_ROUTE_NORMAL, NULL,
 				     NULL, 0, NULL);
 
+#ifdef USE_FC
+        int ret = 0;
+        memcpy(&peer->fclist->ipprefix, &p, sizeof(struct prefix));
+        htbl_meta_insert(peer->fc_htbl_prefix, peer->fclist, &ret);
+#endif
 		/* Do not send BGP notification twice when maximum-prefix count
 		 * overflow. */
 		if (CHECK_FLAG(peer->sflags, PEER_STATUS_PREFIX_OVERFLOW))

@@ -1827,6 +1827,14 @@ static void bgp_refresh_stalepath_timer_expire(struct event *thread)
  */
 static int bgp_update_receive(struct peer *peer, bgp_size_t size)
 {
+#ifdef USE_FC
+    if ( !peer->fc_htbl_prefix)
+    {
+        fc_hashtable_create(peer->fc_htbl_prefix, &g_fc_htbl_prefix_ops);
+    }
+    free(peer->fclist);
+    peer->fclist = malloc(sizeof(FCList_t));
+#endif
 	int ret, nlri_ret;
 	uint8_t *end;
 	struct stream *s;
@@ -1942,15 +1950,9 @@ static int bgp_update_receive(struct peer *peer, bgp_size_t size)
 
 	/* Parse attribute when it exists. */
 	if (attribute_len) {
-#ifndef USE_FC
 		attr_parse_ret = bgp_attr_parse(peer, &attr, attribute_len,
 						&nlris[NLRI_MP_UPDATE],
 						&nlris[NLRI_MP_WITHDRAW]);
-#else
-		attr_parse_ret = bgp_attr_parse(peer, &attr, attribute_len,
-						&nlris[NLRI_MP_UPDATE],
-						&nlris[NLRI_MP_WITHDRAW], NULL);
-#endif
 		if (attr_parse_ret == BGP_ATTR_PARSE_ERROR) {
 			bgp_attr_unintern_sub(&attr);
 			return BGP_Stop;

@@ -186,11 +186,6 @@ struct attr {
 	/* Large Communities attribute. */
 	struct lcommunity *lcommunity;
 
-#ifdef USE_FC
-    /* FC List */
-    FCList_t *fclist;
-#endif
-
 	/* Route-Reflector Cluster attribute */
 	struct cluster_list *cluster1;
 
@@ -382,14 +377,8 @@ struct bpacket_attr_vec_arr;
 extern void bgp_attr_init(void);
 extern void bgp_attr_finish(void);
 extern enum bgp_attr_parse_ret
-#ifdef USE_FC
-bgp_attr_parse(struct peer *peer, struct attr *attr, bgp_size_t size,
-	       struct bgp_nlri *mp_update, struct bgp_nlri *mp_withdraw,
-           FCList_t *fclist);
-#else
 bgp_attr_parse(struct peer *peer, struct attr *attr, bgp_size_t size,
 	       struct bgp_nlri *mp_update, struct bgp_nlri *mp_withdraw);
-#endif
 extern struct attr *bgp_attr_intern(struct attr *attr);
 extern void bgp_attr_unintern_sub(struct attr *attr);
 extern void bgp_attr_unintern(struct attr **pattr);
@@ -408,7 +397,7 @@ extern bgp_size_t bgp_packet_attribute(
 	mpls_label_t *label, uint32_t num_labels, bool addpath_capable,
 	uint32_t addpath_tx_id, struct bgp_path_info *bpi
 #ifdef USE_FC
-    , struct prefix *prefix_for_fc
+    , const struct prefix *prefix_for_fc
 #endif
     );
 extern void bgp_dump_routes_attr(struct stream *s, struct bgp_path_info *bpi,
