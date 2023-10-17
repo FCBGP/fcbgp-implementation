@@ -978,7 +978,7 @@ fc_db_write_bm(const FC_msg_bm_t *bm)
         }
         snprintf(buff_fclist+cur, FC_BUFF_SIZE, ",");
         cur += 1;
-        printf("i: %d, curlen: %d, fclist: %s\n", i, cur, buff_fclist);
+        // printf("i: %d, curlen: %d, fclist: %s\n", i, cur, buff_fclist);
     }
     // fc_base64_encode(buff, cur, buff_fclist);
 

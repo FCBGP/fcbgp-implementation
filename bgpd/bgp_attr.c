@@ -4692,38 +4692,58 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
                 u32 asn = 0;
                 u16 siglen= 0;
                 asn = htonl(fcnode->fc.previous_asn);
-                memcpy(fcbuff+fcbufflen, &fcnode->fc.previous_asn, sizeof(u32));
+                memcpy(fcbuff+fcbufflen, &asn, sizeof(u32));
                 fcbufflen += sizeof(u32);
+                stream_putl(s, fcnode->fc.previous_asn);
+
                 asn = htonl(fcnode->fc.current_asn);
-                memcpy(fcbuff+fcbufflen, &fcnode->fc.current_asn, sizeof(u32));
+                memcpy(fcbuff+fcbufflen, &asn, sizeof(u32));
                 fcbufflen += sizeof(u32);
+                stream_putl(s, fcnode->fc.current_asn);
+
                 asn = htonl(fcnode->fc.nexthop_asn);
-                memcpy(fcbuff+fcbufflen, &fcnode->fc.nexthop_asn, sizeof(u32));
+                memcpy(fcbuff+fcbufflen, &asn, sizeof(u32));
                 fcbufflen += sizeof(u32);
+                stream_putl(s, fcnode->fc.nexthop_asn);
+
                 memcpy(fcbuff+fcbufflen, fcnode->fc.ski, FC_SKI_LENGTH);
                 fcbufflen += FC_SKI_LENGTH;
+                stream_put(s, fcnode->fc.ski, FC_SKI_LENGTH);
+
                 fcbuff[fcbufflen++] = fcnode->fc.algo_id;
+                stream_putc(s, fcnode->fc.algo_id);
                 fcbuff[fcbufflen++] = fcnode->fc.flags;
+                stream_putc(s, fcnode->fc.flags);
+
                 siglen = htons(fcnode->fc.siglen);
                 memcpy(fcbuff+fcbufflen, &siglen, sizeof(u16));
                 fcbufflen += sizeof(u16);
+                stream_putw(s, fcnode->fc.siglen);
+
                 memcpy(fcbuff+fcbufflen, fcnode->fc.sig, fcnode->fc.siglen);
+                stream_put(s, fcnode->fc.sig, fcnode->fc.siglen);
+
                 fcnum ++;
                 fcbufflen += fcnode->fc.siglen;
                 fcnode = fcnode->next;
             }
         }
-        // previouse fclist
-        stream_put(s, fcbuff, fcbufflen);
         // current fc
+        stream_putl(s, fc.previous_asn);
+        stream_putl(s, fc.current_asn);
+        stream_putl(s, fc.nexthop_asn);
+        stream_put(s, fc.ski, FC_SKI_LENGTH);
+        stream_putc(s, fc.algo_id);
+        stream_putc(s, fc.flags);
+        stream_putw(s, fc.siglen);
+        stream_put(s, sigbuff, sigbufflen);
+
         fc.previous_asn =htonl(fc.previous_asn);
         fc.current_asn = htonl(fc.current_asn);
         fc.nexthop_asn = htonl(fc.nexthop_asn);
         fc.siglen = htons(fc.siglen);
-        stream_put(s, &fc, FC_FIX_LENGTH);
         memcpy(fcbuff+fcbufflen, &fc, FC_FIX_LENGTH);
         fcbufflen += FC_FIX_LENGTH;
-        stream_put(s, sigbuff, sigbufflen);
         memcpy(fcbuff+fcbufflen, sigbuff, sigbufflen);
         fcbufflen += sigbufflen;
         fcnum ++;
