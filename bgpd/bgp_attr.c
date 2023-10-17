@@ -42,10 +42,6 @@
 #include "bgp_flowspec_private.h"
 #include "bgp_mac.h"
 
-#ifdef USE_FC
-#include "bgp_fc.h"
-#endif
-
 /* Attribute strings for logging. */
 static const struct message attr_str[] = {
 	{BGP_ATTR_ORIGIN, "ORIGIN"},
@@ -1731,48 +1727,48 @@ static int bgp_attr_fc(struct bgp_attr_parser_args *args, FCList_t *fclist)
         fclist->fcs = malloc(sizeof(FC_node_t));
         memset(fclist->fcs, 0, sizeof(FC_node_t));
         prevnode = fcnode = fclist->fcs;
-    }
 
-    while (curpos < length)
-    {
-        memcpy(&fcnode->fc.previous_asn, &buff[curpos], sizeof(u32));
-        curpos += sizeof(u32);
-        fcnode->fc.previous_asn = ntohl(fcnode->fc.previous_asn);
-
-        memcpy(&fcnode->fc.current_asn, &buff[curpos], sizeof(u32));
-        curpos += sizeof(u32);
-        fcnode->fc.current_asn = ntohl(fcnode->fc.current_asn);
-
-        memcpy(&fcnode->fc.nexthop_asn, &buff[curpos], sizeof(u32));
-        curpos += sizeof(u32);
-        fcnode->fc.nexthop_asn = ntohl(fcnode->fc.nexthop_asn);
-
-        memcpy(&fcnode->fc.ski, &buff[curpos], FC_SKI_LENGTH);
-        curpos += FC_SKI_LENGTH;
-
-        fcnode->fc.algo_id = buff[curpos];
-        curpos += sizeof(u8);
-
-        fcnode->fc.flags = buff[curpos];
-        curpos += sizeof(u8);
-
-        memcpy(&fcnode->fc.siglen, &buff[curpos], sizeof(u16));
-        curpos += sizeof(u16);
-        fcnode->fc.siglen = ntohs(fcnode->fc.siglen);
-        memcpy(fcnode->fc.sig, &buff[curpos], fcnode->fc.siglen);
-        curpos += fcnode->fc.siglen;
-
-        // every fc's length
-        fcnode->length = FC_FIX_LENGTH + fcnode->fc.siglen;
-
-        fclist->size ++;
-
-        if (curpos < length)
+        while (curpos < length)
         {
-            prevnode = fcnode;
-            fcnode = malloc(sizeof(FC_node_t));
-            memset(fcnode, 0, sizeof(FC_node_t));
-            prevnode->next = fcnode;
+            memcpy(&fcnode->fc.previous_asn, &buff[curpos], sizeof(u32));
+            curpos += sizeof(u32);
+            fcnode->fc.previous_asn = ntohl(fcnode->fc.previous_asn);
+
+            memcpy(&fcnode->fc.current_asn, &buff[curpos], sizeof(u32));
+            curpos += sizeof(u32);
+            fcnode->fc.current_asn = ntohl(fcnode->fc.current_asn);
+
+            memcpy(&fcnode->fc.nexthop_asn, &buff[curpos], sizeof(u32));
+            curpos += sizeof(u32);
+            fcnode->fc.nexthop_asn = ntohl(fcnode->fc.nexthop_asn);
+
+            memcpy(&fcnode->fc.ski, &buff[curpos], FC_SKI_LENGTH);
+            curpos += FC_SKI_LENGTH;
+
+            fcnode->fc.algo_id = buff[curpos];
+            curpos += sizeof(u8);
+
+            fcnode->fc.flags = buff[curpos];
+            curpos += sizeof(u8);
+
+            memcpy(&fcnode->fc.siglen, &buff[curpos], sizeof(u16));
+            curpos += sizeof(u16);
+            fcnode->fc.siglen = ntohs(fcnode->fc.siglen);
+            memcpy(fcnode->fc.sig, &buff[curpos], fcnode->fc.siglen);
+            curpos += fcnode->fc.siglen;
+
+            // every fc's length
+            fcnode->length = FC_FIX_LENGTH + fcnode->fc.siglen;
+
+            fclist->size ++;
+
+            if (curpos < length)
+            {
+                prevnode = fcnode;
+                fcnode = malloc(sizeof(FC_node_t));
+                memset(fcnode, 0, sizeof(FC_node_t));
+                prevnode->next = fcnode;
+            }
         }
     }
 
@@ -4658,17 +4654,14 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
         // fill previous fclist
         if (fclist)
         {
-            stream_put(s, fclist->fcs, fclist->length);
             length = fclist->length;
             fcnode = fclist->fcs;
             while (fcnode)
             {
-                /*
                 fcnode->fc.previous_asn = htonl(fcnode->fc.previous_asn);
                 fcnode->fc.current_asn = htonl(fcnode->fc.current_asn);
                 fcnode->fc.nexthop_asn = htonl(fcnode->fc.nexthop_asn);
                 fcnode->fc.siglen = htons(fcnode->fc.siglen);
-                */
                 memcpy(fcbuff+fcbufflen, &fcnode->fc, fcnode->length);
                 fcnum ++;
                 fcbufflen += fcnode->length;
@@ -4691,8 +4684,8 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
         fcnum ++;
         // 3. put FC attr length
         stream_putw_at(s, fclist_sizep, fcbufflen);
-        zlog_debug("fclist_length:%lu, fifixlen:%u, sigbufflen: %u",
-                length,FC_FIX_LENGTH,sigbufflen);
+        zlog_debug("fclist_length:%lu, sigbufflen: %u, fcbufflen: %d",
+                length,sigbufflen, fcbufflen);
         // 4. send to local bgpd server
         u8 num8 = 2;
         memcpy(bmbuff+bmbufflen, &num8, sizeof(u8));

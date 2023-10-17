@@ -2043,19 +2043,20 @@ static int bgp_update_receive(struct peer *peer, bgp_size_t size)
 			nlri_ret = bgp_nlri_parse(peer, NLRI_ATTR_ARG,
 						  &nlris[i], 0);
 #else
+			nlri_ret = bgp_nlri_parse(peer, NLRI_ATTR_ARG,
+						  &nlris[i], 0, &fclist->ipprefix);
+
             int ret = 0;
             FC_ht_node_prefix_t *node = NULL;
             FC_ht_meta_asprefix_t meta_asprefix = {0};
             FC_ht_node_asprefix_t *node_asprefix = NULL;
 
-			nlri_ret = bgp_nlri_parse(peer, NLRI_ATTR_ARG,
-						  &nlris[i], 0, &fclist->ipprefix);
             // insert
             meta_asprefix.asn = peer->as;
             node_asprefix = htbl_meta_find(&g_fc_htbl_asprefix, &meta_asprefix);
             if (!node_asprefix) // if not exist, then create
             {
-                fc_hashtable_create(&meta_asprefix.htbl, &g_fc_htbl_asprefix_ops);
+                fc_hashtable_create(&meta_asprefix.htbl, &g_fc_htbl_prefix_ops);
                 node_asprefix = htbl_meta_insert(&g_fc_htbl_asprefix, &meta_asprefix, &ret);
             }
             node = htbl_meta_insert(&node_asprefix->htbl, fclist, &ret);

@@ -860,6 +860,7 @@ fc_bm_sent_to_peer(const char *addr, const FC_msg_bm_t *bm,
 fc_bm_broadcast_to_peer(const FC_msg_bm_t *bm, char *buffer,
         int bufferlen)
 {
+    printf("broadcast to peers start\n");
     int i = 0;
     FC_node_as_t meta;
 
@@ -880,6 +881,7 @@ fc_bm_broadcast_to_peer(const FC_msg_bm_t *bm, char *buffer,
         }
     }
 
+    printf("broadcast to peers done\n");
     return 0;
 }
 
@@ -1244,7 +1246,6 @@ fc_server_bm_handler(char *buffer, int bufferlen, int msg_type)
 
     if (msg_type == FC_MSG_BGPD)
     {
-        printf("broadcast to peers\n");
         buff_new_msg[0] = 3;  // bc msg
         fc_bm_broadcast_to_peer(&bm, buff_new_msg,
                 FC_HDR_GENERAL_LENGTH+cur+FC_SKI_LENGTH+bm.siglen);
