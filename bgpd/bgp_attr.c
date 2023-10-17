@@ -4582,6 +4582,9 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
         char *msg = malloc(FC_BUFF_SIZE); // fc ecdsa signed content
         char *fcbuff = malloc(FC_BUFF_SIZE); // FC packet binary format
         char *bmbuff = malloc(FC_BUFF_SIZE);  // BM packet binary format
+        memset(msg, 0, FC_BUFF_SIZE);
+        memset(fcbuff, 0, FC_BUFF_SIZE);
+        memset(bmbuff, 0, FC_BUFF_SIZE);
         unsigned char *sigbuff = NULL;
         unsigned int sigbufflen = 0;
         EC_KEY *prikey = NULL;
@@ -4605,6 +4608,8 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
         fc.flags = 0x00;
         fc.siglen = sizeof(fc.sig);
 
+        fc_read_eckey_from_file(0, &prikey);
+
         memcpy(msg+msglen, &fc.previous_asn, sizeof(u32));
         msglen += sizeof(u32);
         memcpy(msg+msglen, &fc.current_asn, sizeof(u32));
@@ -4612,26 +4617,25 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
         memcpy(msg+msglen, &fc.nexthop_asn, sizeof(u32));
         msglen += sizeof(u32);
 
-        fc_read_eckey_from_file(0, &prikey);
-
         for (j=0; j<1; j++)
         {
             if (afi == AFI_IP) // ipv4
             {
                 // TODO
                 memcpy(msg+msglen, &(prefix_for_fc->u.prefix4),
-                        sizeof(struct in_addr));
+                        prefix_for_fc->prefixlen);
                 msglen += sizeof(struct in_addr);
             }
             else if (afi == AFI_IP6) { // ipv6
                 memcpy(msg+msglen, &(prefix_for_fc->u.prefix6),
-                        sizeof(struct in6_addr));
+                        prefix_for_fc->prefixlen);
                 msglen += sizeof(struct in6_addr);
             }
         }
         prefixlen = (u8) prefix_for_fc->prefixlen;
         zlog_debug("prefixlen: %u", prefixlen);
         memcpy(msg+msglen, &prefixlen, sizeof(u8));
+        msglen += sizeof(u8);
 
         ret = fc_ecdsa_sign(prikey, msg, msglen, &sigbuff, &sigbufflen);
         if (ret > 0) // TODO
@@ -4654,17 +4658,58 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
         // fill previous fclist
         if (fclist)
         {
+            char prefixstr[46] = {0};
+            char fcsigmsg[FC_BUFF_SIZE];
+            int fcsigmsglen = 0;
+
+            inet_ntop(AF_INET, &fclist->ipprefix.u.prefix4,
+                    prefixstr, sizeof(fclist->ipprefix.u.prefix4));
+
             length = fclist->length;
             fcnode = fclist->fcs;
-            while (fcnode)
+            zlog_debug("=>fcs length: %d, size: %d, prefix: %s/%d",
+                    fclist->length, fclist->size, prefixstr,
+                    fclist->ipprefix.prefixlen);
+            while (fcnode && fclist->size > fcnum)
             {
-                fcnode->fc.previous_asn = htonl(fcnode->fc.previous_asn);
-                fcnode->fc.current_asn = htonl(fcnode->fc.current_asn);
-                fcnode->fc.nexthop_asn = htonl(fcnode->fc.nexthop_asn);
-                fcnode->fc.siglen = htons(fcnode->fc.siglen);
-                memcpy(fcbuff+fcbufflen, &fcnode->fc, fcnode->length);
+                fcsigmsglen = 0;
+                memset(fcsigmsg, 0, FC_BUFF_SIZE);
+
+                for (int i=0; i<fcnode->fc.siglen && i < FC_BUFF_SIZE; i ++)
+                {
+                    snprintf(fcsigmsg+fcsigmsglen, FC_BUFF_SIZE,
+                            "%02X", fcnode->fc.sig[i]);
+                    fcsigmsglen += 2;
+                }
+
+                zlog_debug("==>fc length: %d, asn: %08X-%08X-%08X, "
+                        "siglen: %d, sig: %s",
+                        fcnode->length, fcnode->fc.previous_asn,
+                        fcnode->fc.current_asn, fcnode->fc.nexthop_asn,
+                        fcnode->fc.siglen, fcsigmsg);
+
+                // TODO
+                u32 asn = 0;
+                u16 siglen= 0;
+                asn = htonl(fcnode->fc.previous_asn);
+                memcpy(fcbuff+fcbufflen, &fcnode->fc.previous_asn, sizeof(u32));
+                fcbufflen += sizeof(u32);
+                asn = htonl(fcnode->fc.current_asn);
+                memcpy(fcbuff+fcbufflen, &fcnode->fc.current_asn, sizeof(u32));
+                fcbufflen += sizeof(u32);
+                asn = htonl(fcnode->fc.nexthop_asn);
+                memcpy(fcbuff+fcbufflen, &fcnode->fc.nexthop_asn, sizeof(u32));
+                fcbufflen += sizeof(u32);
+                memcpy(fcbuff+fcbufflen, fcnode->fc.ski, FC_SKI_LENGTH);
+                fcbufflen += FC_SKI_LENGTH;
+                fcbuff[fcbufflen++] = fcnode->fc.algo_id;
+                fcbuff[fcbufflen++] = fcnode->fc.flags;
+                siglen = htons(fcnode->fc.siglen);
+                memcpy(fcbuff+fcbufflen, &siglen, sizeof(u16));
+                fcbufflen += sizeof(u16);
+                memcpy(fcbuff+fcbufflen, fcnode->fc.sig, fcnode->fc.siglen);
                 fcnum ++;
-                fcbufflen += fcnode->length;
+                fcbufflen += fcnode->fc.siglen;
                 fcnode = fcnode->next;
             }
         }

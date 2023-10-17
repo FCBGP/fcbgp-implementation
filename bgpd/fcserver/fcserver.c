@@ -662,12 +662,14 @@ fc_sha256_encode(const char *const msg, int msglen, unsigned char *digest,
         goto error;
     }
 
+    /*
     printf("Digest_len is : %u, Digest is: ", *digest_len);
     for (i = 0; i < (int)*digest_len; i++)
     {
         printf("%02x", digest[i]);
     }
     printf("\n");
+    */
 
 error:
     /* Clean up all the resources we allocated */
@@ -739,17 +741,6 @@ fc_ecdsa_verify(EC_KEY *pubkey, const char *const msg, int msglen,
 
     fc_sha256_encode(msg, msglen, digest, &digestlen);
     ret = ECDSA_verify(0, digest, digestlen, sigbuff, siglen, pubkey);
-    if (ret == 1)
-    {
-        printf("verify ok\n");
-    }
-    else if (ret == 0)
-    {
-        printf("verify failed\n");
-    } else
-    {
-        printf("error\n");
-    }
 
     return ret;
 }
@@ -872,9 +863,9 @@ fc_bm_broadcast_to_peer(const FC_msg_bm_t *bm, char *buffer,
                 &meta);
         if (node)
         {
-            printf("sent to %d\n", node->asn);
             if (g_fc_server.local_asn != node->asn)
             {
+                printf("sent to %d\n", node->asn);
                 fc_bm_sent_to_peer(node->ap.acs.ipv4,
                         bm, buffer, bufferlen);
             }
@@ -987,7 +978,7 @@ fc_db_write_bm(const FC_msg_bm_t *bm)
         }
         snprintf(buff_fclist+cur, FC_BUFF_SIZE, ",");
         cur += 1;
-        printf("curlen: %d, fclist: %s\n", cur, buff_fclist);
+        printf("i: %d, curlen: %d, fclist: %s\n", i, cur, buff_fclist);
     }
     // fc_base64_encode(buff, cur, buff_fclist);
 
@@ -1074,13 +1065,13 @@ fc_bm_verify_fc(FC_msg_bm_t *bm)
         switch (ret)
         {
         case 1:
-            printf("verify fc ok\n");
+            printf("verify fc %d ok\n", i);
             break;
         case 0:
-            printf("verify fc failed\n");
+            printf("verify fc %d failed\n", i);
             break;
         default:
-            printf("verify fc error\n");
+            printf("verify fc %d error\n", i);
             break;
         }
     }
@@ -1194,6 +1185,10 @@ fc_server_bm_handler(char *buffer, int bufferlen, int msg_type)
         bm.fclist[i].siglen = ntohs(bm.fclist[i].siglen);
         memcpy(bm.fclist[i].sig, buff+cur, bm.fclist[i].siglen);
         cur += bm.fclist[i].siglen;
+
+        printf("asn: %d, %d, %d, siglen: %d\n", bm.fclist[i].previous_asn,
+                bm.fclist[i].current_asn, bm.fclist[i].nexthop_asn,
+                bm.fclist[i].siglen);
     }
 
     // TODO verify fc
@@ -1257,39 +1252,45 @@ fc_server_bm_handler(char *buffer, int bufferlen, int msg_type)
     int
 fc_server_handler(ncs_ctx_t *ctx)
 {
-    int len = 0;
+    int bufflen = 0;
+    int recvlen = 0;
     char buff[BUFSIZ];
 
-    do
+    memset(buff, 0, BUFSIZ);
+    recvlen = ncs_server_recv(ctx, buff, BUFSIZ);
+    memcpy(&bufflen, &buff[1], sizeof(u8));
+    bufflen = ntohs(bufflen);
+    while (bufflen > recvlen)
     {
-        memset(buff, 0, BUFSIZ);
-        len = ncs_server_recv(ctx, buff, BUFSIZ);
-        printf("len = %d, received from %s:%d %s:%d\n",
-                len, ctx->remote_addr, ctx->remote_port,
-                ctx->local_addr, ctx->local_port);
-        if (len > 0)
+        recvlen += ncs_server_recv(ctx, buff+recvlen,
+                bufflen-recvlen);
+    }
+
+    printf("recvlen = %d, received from %s:%d %s:%d\n",
+            recvlen, ctx->remote_addr, ctx->remote_port,
+            ctx->local_addr, ctx->local_port);
+    if (recvlen > 0)
+    {
+        switch (buff[0])
         {
-            switch (buff[0])
-            {
-            case 1: // pubkey
-                printf("Not support pubkey\n");
-                // TODO length
-                fc_server_pubkey_handler(buff, len);
-                return 0;
-            case 2: // bm
-                // TODO length
-                fc_server_bm_handler(buff, len, FC_MSG_BGPD);
-                break;
-            case 3: // broadcast msg
-                // TODO length
-                fc_server_bm_handler(buff, len, FC_MSG_BC);
-                break;
-            default:
-                printf("Not support %d\n", buff[0]);
-                return -1;
-            }
+        case 1: // pubkey
+            printf("Not support pubkey\n");
+            // TODO length
+            fc_server_pubkey_handler(buff, recvlen);
+            return 0;
+        case 2: // bm
+            // TODO length
+            fc_server_bm_handler(buff, recvlen, FC_MSG_BGPD);
+            break;
+        case 3: // broadcast msg
+            // TODO length
+            fc_server_bm_handler(buff, recvlen, FC_MSG_BC);
+            break;
+        default:
+            printf("Not support %d\n", buff[0]);
+            return -1;
         }
-    } while (0);
+    }
 
     ncs_client_stop(ctx);
 
