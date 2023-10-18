@@ -8,7 +8,6 @@
 #include "libdiag.h"
 #include "fcserver.h"
 
-ncs_ctx_t *fc_bgpd_ctx = NULL;
 FC_server_t g_fc_server = {0};
 
 /* JSON UTILS */
@@ -158,57 +157,6 @@ fc_read_asn_ips(void)
     cJSON_Delete(root);
 
     return 0;
-}
-
-    void
-fc_print_asn_ips(void)
-{
-    printf("=====================================================\n");
-    int i=0, j=0;
-    FC_node_as_t meta;
-    FC_ht_node_as_t *node;
-    char ipstr[INET6_ADDRSTRLEN] = {0};
-    htbl_ctx_t *ht = &g_fc_server.ht_as;
-
-    printf("asns_num: %d\n", g_fc_server.asns_num);
-    for (i=0; i<g_fc_server.asns_num; ++i)
-    {
-        meta.asn = g_fc_server.asns[i];
-        node = htbl_meta_find(ht, &meta);
-
-        if (node) {
-            printf("asn: %d\n", node->asn);
-            printf("  %s\n", "acs:");
-            printf("    ipv4: %s\n", node->ap.acs.ipv4);
-            printf("    ipv6: %s\n", node->ap.acs.ipv6);
-            printf("  %s\n", "prefix:");
-            for (j=0; j<node->ap.prefix.ip4s_num; ++j)
-            {
-                inet_ntop(AF_INET, &node->ap.prefix.ip4s[j].ip,
-                        ipstr, (socklen_t)sizeof(struct sockaddr_in));
-                printf("    ipv4: %s/%d\n",
-                        ipstr, node->ap.prefix.ip4s[j].prefix_length);
-            }
-            for (j=0; j<node->ap.prefix.ip6s_num; ++j)
-            {
-                inet_ntop(AF_INET6, &node->ap.prefix.ip6s[j].ip,
-                        ipstr, (socklen_t)sizeof(struct sockaddr_in));
-                printf("    ipv6: %s/%d\n",
-                        ipstr, node->ap.prefix.ip6s[j].prefix_length);
-            }
-
-            // htbl_node_drop(ht, node);
-        }
-
-        /*
-           if (node)
-           {
-           htbl_node_delete(ht, node);
-           node = NULL;
-           }
-           */
-    }
-    printf("=====================================================\n");
 }
 
 /* HASHTABLE UTILS */
@@ -566,7 +514,7 @@ fc_base64_encode(const unsigned char *msg, size_t length, char *b64msg)
     printf("msg: %s, b64msg: %s, data: %s\n",
             msg, b64msg, (*buff).data);
 
-        return 0;
+    return 0;
 }
 
     static inline size_t
@@ -613,7 +561,7 @@ fc_base64_decode(const char *b64msg, unsigned char **msg, size_t *length)
 fc_sha256_encode(const char *const msg, int msglen, unsigned char *digest,
         unsigned int *digest_len)
 {
-    int i = 0, ret = 1;
+    int ret = 1;
     EVP_MD *md = NULL;
     EVP_MD_CTX *mdctx = NULL;
 
@@ -663,13 +611,13 @@ fc_sha256_encode(const char *const msg, int msglen, unsigned char *digest,
     }
 
     /*
-    printf("Digest_len is : %u, Digest is: ", *digest_len);
-    for (i = 0; i < (int)*digest_len; i++)
-    {
-        printf("%02x", digest[i]);
-    }
-    printf("\n");
-    */
+       printf("Digest_len is : %u, Digest is: ", *digest_len);
+       for (i = 0; i < (int)*digest_len; i++)
+       {
+       printf("%02x", digest[i]);
+       }
+       printf("\n");
+       */
 
 error:
     /* Clean up all the resources we allocated */
@@ -762,11 +710,11 @@ fc_server_destroy(int signum)
     {
         printf("recevied SIGINT\n");
         diag_fini();
-        if (fc_bgpd_ctx)
+        if (g_fc_server.fc_bgpd_ctx)
         {
-            ncs_manager_stop(fc_bgpd_ctx);
-            ncs_destroy(fc_bgpd_ctx);
-            fc_bgpd_ctx = NULL;
+            ncs_manager_stop(g_fc_server.fc_bgpd_ctx);
+            ncs_destroy(g_fc_server.fc_bgpd_ctx);
+            g_fc_server.fc_bgpd_ctx = NULL;
         }
         fc_db_close(g_fc_server.db);
         fc_hashtable_destroy(&g_fc_server.ht_as);
@@ -791,23 +739,23 @@ fc_server_create(void)
     {
         // FC_acs_t *acs = &node->ap.acs;
 
-        if ((fc_bgpd_ctx = ncs_create(g_fc_server.prog_name, TCP_PROTO))
+        if ((g_fc_server.fc_bgpd_ctx = ncs_create(g_fc_server.prog_name, TCP_PROTO))
                 == NULL)
         {
             printf("create bgpd ncs failed\n");
             exit(-ENOMEM);
         }
 
-        // ncs_setup(fc_bgpd_ctx, acs->ipv4, FC_PORT, NULL, 0);
-        ncs_setup(fc_bgpd_ctx, g_fc_server.prog_addr, FC_PORT, NULL, 0);
-        ncs_timeout(fc_bgpd_ctx, 10, -1);
-        ncs_setkeepalive(fc_bgpd_ctx, 10);
-        ncs_server_enable(fc_bgpd_ctx);
-        ncs_server_register(fc_bgpd_ctx, fc_server_handler);
-        ncs_manager_start(fc_bgpd_ctx);
+        // ncs_setup(g_fc_server.fc_bgpd_ctx, acs->ipv4, FC_PORT, NULL, 0);
+        ncs_setup(g_fc_server.fc_bgpd_ctx, g_fc_server.prog_addr, FC_PORT, NULL, 0);
+        ncs_timeout(g_fc_server.fc_bgpd_ctx, 10, -1);
+        ncs_setkeepalive(g_fc_server.fc_bgpd_ctx, 10);
+        ncs_server_enable(g_fc_server.fc_bgpd_ctx);
+        ncs_server_register(g_fc_server.fc_bgpd_ctx, fc_server_handler);
+        ncs_manager_start(g_fc_server.fc_bgpd_ctx);
     }
 
-    printf("fc_server is ready!!!\n");
+    printf("fc_server : %d is ready!!!\n", g_fc_server.local_asn);
 
     return 0;
 }
@@ -884,7 +832,7 @@ fc_db_write_bm(const FC_msg_bm_t *bm)
     char buff_src_ip[FC_BUFF_SIZE] = {0};
     char buff_dst_ip[FC_BUFF_SIZE] = {0};
     char buff_fclist[FC_BUFF_SIZE] = {0};
-    char buff_ski[100] = {0};
+    char buff_ski[FC_BUFF_SIZE256] = {0};
     char buff_signature[FC_BUFF_SIZE] = {0};
     // char buff[BUFSIZ] = {0};
     int cur = 0, i = 0;
@@ -925,6 +873,7 @@ fc_db_write_bm(const FC_msg_bm_t *bm)
                 bm->src_ip[i].prefix_length);
         cur += strlen(buff_src_ip+cur);
         printf("src: %s\n", buff_src_ip);
+        FC_MEM_CHECK(cur >= FC_BUFF_SIZE);
     }
 
     // fc_base64_encode(buff, cur, buff_src_ip);
@@ -943,9 +892,11 @@ fc_db_write_bm(const FC_msg_bm_t *bm)
             inet_ntop(AF_INET, &sin6->sin6_addr, buff_dst_ip+cur, socklen);
         }
         cur += strlen(buff_dst_ip+cur);
-        snprintf(buff_dst_ip+cur, FC_BUFF_SIZE, "/%d,", bm->dst_ip[i].prefix_length);
+        snprintf(buff_dst_ip+cur, FC_BUFF_SIZE,
+                "/%d,", bm->dst_ip[i].prefix_length);
         cur += strlen(buff_dst_ip+cur);
         printf("dst: %s\n", buff_dst_ip);
+        FC_MEM_CHECK(cur >= FC_BUFF_SIZE);
     }
     // fc_base64_encode(buff, cur, buff_dst_ip);
 
@@ -979,6 +930,7 @@ fc_db_write_bm(const FC_msg_bm_t *bm)
         snprintf(buff_fclist+cur, FC_BUFF_SIZE, ",");
         cur += 1;
         // printf("i: %d, curlen: %d, fclist: %s\n", i, cur, buff_fclist);
+        FC_MEM_CHECK(cur >= FC_BUFF_SIZE);
     }
     // fc_base64_encode(buff, cur, buff_fclist);
 
@@ -992,15 +944,19 @@ fc_db_write_bm(const FC_msg_bm_t *bm)
     cur = 0;
     for (int j=0; j<20; ++j)
     {
-        snprintf(buff_ski+cur, FC_BUFF_SIZE, "%02X",
+        snprintf(buff_ski+cur, FC_BUFF_SIZE256, "%02X",
                 bm->fclist[i].ski[j]);
         cur += 2;
+        FC_MEM_CHECK(cur >= FC_BUFF_SIZE256);
     }
     // signature
+    cur = 0;
     for (int j = 0; j < bm->siglen; ++j)
     {
-        snprintf(buff_signature+j*2, FC_BUFF_SIZE, "%02X",
+        snprintf(buff_signature+cur, FC_BUFF_SIZE, "%02X",
                 bm->signature[j]);
+        cur += 2;
+        FC_MEM_CHECK(cur >= FC_BUFF_SIZE);
     }
     printf("signature: %s\n", buff_signature);
     snprintf(sql, BUFSIZ,
@@ -1091,7 +1047,6 @@ fc_server_bm_handler(char *buffer, int bufferlen, int msg_type)
     u32 i = 0;
     FC_msg_bm_t bm = {0};
     int cur = 0;
-    int cur_siglen_pos = 0;
     int ret = 0;
     int ip_len = 0;
     char msg[BUFSIZ] = {0};
@@ -1111,18 +1066,7 @@ fc_server_bm_handler(char *buffer, int bufferlen, int msg_type)
         printf("Not supported now: %d\n", buff[0]);
     }
 
-    memcpy(&bm.ipversion, buff, sizeof(u8));
-    cur += sizeof(u8); // ipversion
-    cur += sizeof(u8); // type
-    cur += sizeof(u8); // action
-    cur += sizeof(u8); // fc_num
-    cur += sizeof(u8); // src_ip_num
-    cur += sizeof(u8); // dst_ip_num
-    cur_siglen_pos = cur;
-    cur += sizeof(u16); // siglen
-    cur += sizeof(u32); // local_asn
-    cur += sizeof(u32); // version
-    cur += sizeof(u32); // subversion
+    cur += FC_HDR_BM_FIX_LENGTH;
     memcpy(&bm, buff, cur);
 
     bm.siglen = ntohs(bm.siglen);
@@ -1167,18 +1111,10 @@ fc_server_bm_handler(char *buffer, int bufferlen, int msg_type)
     }
 
     // fclist
-    int fc_fixlen = sizeof(u32) // prev asn
-        +sizeof(u32) // curr asn
-        +sizeof(u32) // next asn
-        +sizeof(u8)*20 // ski
-        +sizeof(u8)  // algo_id
-        +sizeof(u8)  // flags
-        +sizeof(u16); // siglen
-
     for (i=0; i<bm.fc_num; ++i)
     {
-        memcpy(&bm.fclist[i], buff+cur, fc_fixlen);
-        cur += fc_fixlen;
+        memcpy(&bm.fclist[i], buff+cur, FC_HDR_FC_FIX_LENGTH);
+        cur += FC_HDR_FC_FIX_LENGTH;
         bm.fclist[i].previous_asn = ntohl(bm.fclist[i].previous_asn);
         bm.fclist[i].current_asn = ntohl(bm.fclist[i].current_asn);
         bm.fclist[i].nexthop_asn = ntohl(bm.fclist[i].nexthop_asn);
@@ -1191,7 +1127,6 @@ fc_server_bm_handler(char *buffer, int bufferlen, int msg_type)
                 bm.fclist[i].siglen);
     }
 
-    // TODO verify fc
     ret = fc_bm_verify_fc(&bm);
     FC_ASSERT_RET(ret);
 
@@ -1200,6 +1135,7 @@ fc_server_bm_handler(char *buffer, int bufferlen, int msg_type)
     memset(bm.ski, 0, FC_SKI_LENGTH);
 
     // signature to be signed and verified
+    // THIS is in network byte order
     memcpy(msg, buff, cur);
 
     if (msg_type == FC_MSG_BGPD)
@@ -1209,14 +1145,19 @@ fc_server_bm_handler(char *buffer, int bufferlen, int msg_type)
                 &sigbuff, &sigbufflen);
         memcpy(buff+cur+FC_SKI_LENGTH, sigbuff, sigbufflen);
         bm.siglen = sigbufflen;
-
         sigbufflen = htons(sigbufflen);
-        memcpy(&buff[cur_siglen_pos], &sigbufflen, sizeof(bm.siglen));
+        memcpy(&buff[FC_HDR_BM_SIGLEN_POS], &sigbufflen, sizeof(bm.siglen));
         memcpy(bm.signature, sigbuff, bm.siglen);
         OPENSSL_free(sigbuff);
-    } else
+        // broadcast to onpath nodes
+        buff_new_msg[0] = 3;  // bc msg
+        fc_bm_broadcast_to_peer(&bm, buff_new_msg,
+                FC_HDR_GENERAL_LENGTH+cur+FC_SKI_LENGTH+bm.siglen);
+    } else if (msg_type == FC_MSG_BC)
     {
         // verify and remove signature
+        // SIGLEN MUST be 0 when verify SIGNATURE
+        memset(&msg[FC_HDR_BM_SIGLEN_POS], 0, sizeof(16));
         memcpy(bm.signature, buff+cur+FC_SKI_LENGTH, bm.siglen);
         ret = fc_ecdsa_verify(g_fc_server.pubkey, msg, cur,
                 bm.signature, bm.siglen);
@@ -1238,13 +1179,6 @@ fc_server_bm_handler(char *buffer, int bufferlen, int msg_type)
     // gen_acl(&bm);
 
     fc_db_write_bm(&bm);
-
-    if (msg_type == FC_MSG_BGPD)
-    {
-        buff_new_msg[0] = 3;  // bc msg
-        fc_bm_broadcast_to_peer(&bm, buff_new_msg,
-                FC_HDR_GENERAL_LENGTH+cur+FC_SKI_LENGTH+bm.siglen);
-    }
 
     return 0;
 }
@@ -1300,77 +1234,12 @@ fc_server_handler(ncs_ctx_t *ctx)
     static inline void
 fc_help(void)
 {
-    printf("  -h                            print this message.\n");
-    printf("  -a                            specify local as number.\n");
-    printf("  -f <asnlist.json location>    specify the location of asnlist.json\n");
+    printf("  -h                   print this message.\n");
+    printf("  -a <local-asn>       specify local as number.\n");
+    printf("  -f <asnlist.json>    specify the location of asnlist.json\n");
 }
 
-/* BGPD TO FCSERVER */
-
-// afi_t in zebra.h
-/*
-   int
-   bgpfc_prefix_to_ip_hton_format(struct bgp_nlri *packet,
-   char *buff, int *bufflen, int buffsize)
-   {
-   afi_t afi = packet->afi;
-   uint8_t *pnt = NULL, *lim = NULL;
-   int psize;
-
-   pnt = packet->nlri;
-   lim = pnt + packet->length;
- *bufflen = 0;
-
- for (; pnt < lim && buffsize > *bufflen; pnt += psize)
- {
- psize = PSIZE(p.prefixlen);
- memcpy(buff + *bufflen, pnt+1, psize);
- if (afi == AFI_IP) // ipv4
- {
- *bufflen += 4;
- } else if (afi == AFI_IP6) // ipv6
- {
- *bufflen += 16;
- }
- buff[*bufflen] = *pnt; // prefixlength
- *bufflen += 1;
- }
-
- return *bufflen;
- }
-
- int
- bgpfc_send_packet_to_fcserver(char *buff, int bufflen)
- {
- struct sockaddr_in sockaddr;
- int ret = 0;
- int len = 0;
-
- sockaddr.sin_family = AF_INET;
- sockaddr.sin_port = htons(23160);
- inet_pton(AF_INET, "127.0.0.1", &sockaddr.sin_addr);
-
- ret = connect(sockfd, (struct sockaddr *)&sockaddr, sizeof(sockaddr));
- if (ret < 0)
- {
-printf("connect() error");
-perror("connect()");
-return -1;
-}
-
-while (len != bufflen)
-{
-len = len + send(sockfd, buff+len, bufflen-len, 0);
-printf("len = %d, total-length = %d", len, bufflen);
-}
-
-close(sockfd);
-
-return 0;
-}
-*/
-
-static void
+    static void
 fc_parse_args(int argc, char **argv)
 {
     int opt = 0;
@@ -1411,7 +1280,8 @@ fc_parse_args(int argc, char **argv)
     }
 }
 
-int fc_main()
+    int
+fc_main()
 {
     g_fc_server.prog_name = "bgpd";
     g_fc_server.prog_addr = "0.0.0.0";
@@ -1419,11 +1289,9 @@ int fc_main()
     diag_init(g_fc_server.prog_name);
 
     fc_hashtable_create(&g_fc_server.ht_as, &g_fc_htbl_as_ops);
-    // fc_hashtable_create(&g_fc_server.ht_prefix, &g_fc_htbl_prefix_ops);
 
     fc_read_asn_ips();
-    fc_print_asn_ips();
-    // htbl_display(&g_fc_server.ht_as);
+    htbl_display(&g_fc_server.ht_as);
 
     fc_init_crypto_env(&g_fc_server);
 
@@ -1439,7 +1307,8 @@ int fc_main()
     return 0;
 }
 
-int main(int argc, char **argv)
+    int
+main(int argc, char **argv)
 {
     fc_parse_args(argc, argv);
     fc_main();

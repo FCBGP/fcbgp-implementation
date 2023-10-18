@@ -55,7 +55,8 @@ typedef uint64_t  u64;
 #define IP6_LENGTH                      16
 #define TCP_PROTO                       0x06
 
-#define FC_BUFF_SIZE                    2048
+#define FC_BUFF_SIZE                    1024
+#define FC_BUFF_SIZE256                 256
 #define FCSRV_HTBL_BUCKETS_SIZE         1023
 #define FCSRV_MAX_LINK_AS               256
 #define FCSRV_MAX_SRC_PREFIX            256
@@ -65,6 +66,9 @@ typedef uint64_t  u64;
 #define FC_MAX_SIZE                     256
 
 #define FC_HDR_GENERAL_LENGTH           4
+#define FC_HDR_FC_FIX_LENGTH            36
+#define FC_HDR_BM_FIX_LENGTH            20
+#define FC_HDR_BM_SIGLEN_POS            6
 
 #define FC_MSG_BASE                     1000
 #define FC_MSG_SKI                      (FC_MSG_BASE + 1)
@@ -73,7 +77,7 @@ typedef uint64_t  u64;
 
 #define FC_DB_NAME                      "/etc/frr/fc.db"
 
-#define FC_ASSERT_RET(ret)                                     \
+#define FC_ASSERT_RET(ret)                                  \
     do {                                                    \
         if (ret != 0) {                                     \
             fprintf(stderr, "%s:%d error: ret is not 0\n",  \
@@ -81,13 +85,23 @@ typedef uint64_t  u64;
         }                                                   \
     } while (0)                                             \
 
-#define FC_ASSERT_RETP(retp)                                       \
+#define FC_ASSERT_RETP(retp)                                    \
     do {                                                        \
         if (pret == 0) {                                        \
             fprintf(stderr, "%s:%d error: pointer is NULL\n",   \
                     __func__, __LINE__);                        \
         }                                                       \
     } while (0)
+
+#define FC_MEM_CHECK(expr)                                      \
+    do {                                                        \
+        if (expr) {                                             \
+            fprintf(stderr, "[%s:%d] ERROR: memory leak\n",     \
+                    __func__, __LINE__);                        \
+        }                                                       \
+    } while (0)
+
+
 
 struct prefix {
     uint8_t family;
@@ -229,6 +243,7 @@ typedef struct FC_server_s
     sqlite3 *db;
     htbl_ctx_t ht_as;
     htbl_ctx_t ht_prefix;
+    ncs_ctx_t *fc_bgpd_ctx;
     char fname[BUFSIZ];
     FC_node_as_t aps[FCSRV_MAX_LINK_AS];
     EC_KEY *pubkey;
@@ -236,7 +251,6 @@ typedef struct FC_server_s
 } FC_server_t;
 
 extern FC_server_t g_fc_server;
-extern ncs_ctx_t *fc_bgpd_ctx;
 
 /* SIG */
 extern int fc_init_crypto_env(FC_server_t *fcserver);
@@ -252,7 +266,6 @@ extern int fc_ecdsa_verify(EC_KEY *pubkey, const char *const msg, int msglen,
 
 /* JSON */
 extern int  fc_read_asn_ips(void);
-extern void fc_print_asn_ips(void);
 
 /* LIBHTABLE */
 extern htbl_ops_t g_fc_htbl_as_ops;
