@@ -26,7 +26,6 @@
 #include <pthread.h>
 #include <unistd.h>
 
-#include <sqlite3.h>
 #include <openssl/bio.h>
 #include <openssl/buffer.h>
 #include <openssl/core_names.h>
@@ -42,9 +41,7 @@
 #include "lib/jhash.h"
 #include "lib/zlog.h"
 
-#include "cJSON.h"
 #include "libhtable.h"
-#include "libncs.h"
 
 typedef uint8_t  u8;
 typedef uint16_t  u16;
@@ -227,30 +224,7 @@ typedef struct FC_msg_bm_new_s
     u8 new_signature[80];
 } FC_msg_bm_new_t;
 
-typedef struct FC_server_s
-{
-    // as-ip totoal num, of course it's as's number
-    u8 asns_num;
-    u32 asns[FCSRV_MAX_LINK_AS];
-    u32 local_asn;
-    /*
-       char ipv4[INET_ADDRSTRLEN];
-       char ipv6[INET6_ADDRSTRLEN];
-       */
-    sqlite3 *db;
-    htbl_ctx_t ht_as;
-    htbl_ctx_t ht_prefix;
-    char fname[BUFSIZ];
-    FC_node_as_t aps[FCSRV_MAX_LINK_AS];
-    EC_KEY *pubkey;
-    EC_KEY *prikey;
-} FC_server_t;
-
-extern FC_server_t g_fc_server;
-extern ncs_ctx_t *fc_bgpd_ctx;
-
 /* SIG */
-extern int fc_init_crypto_env(FC_server_t *fcserver);
 extern int fc_read_eckey_from_file(int is_pub_key, EC_KEY **pkey);
 extern int fc_base64_encode(const unsigned char *msg,
         size_t length, char * b64msg);
@@ -261,12 +235,7 @@ extern int fc_ecdsa_sign(EC_KEY *prikey, const char *const msg, int msglen,
 extern int fc_ecdsa_verify(EC_KEY *pubkey, const char *const msg, int msglen,
         const unsigned char *sigbuff, unsigned int siglen);
 
-/* JSON */
-extern int  fc_read_asn_ips(void);
-extern void fc_print_asn_ips(void);
-
 /* LIBHTABLE */
-extern htbl_ops_t g_fc_htbl_as_ops;
 extern htbl_ops_t g_fc_htbl_prefix_ops;
 extern htbl_ops_t g_fc_htbl_asprefix_ops;
 extern htbl_ctx_t g_fc_htbl_asprefix;
@@ -275,38 +244,7 @@ extern int fc_hashtable_destroy(htbl_ctx_t *ht);
 
 /* SERVER */
 #define FC_PORT 23160
-/*
- * #define FC_BGPD_PORT 23160
- * #define FC_BROADCAST_PORT 23161
- * */
 extern int bgp_fc_main(long asn);
-extern int fc_server_create(void);
-extern void fc_server_destroy(void);
-extern int fc_server_handler(ncs_ctx_t *ctx);
-extern int fc_server_pubkey_handler(const char *buff, int bufflen);
-extern int fc_server_bm_handler(char *buffer, int bufferlen, int msg_type);
-
-/* DB UTILS */
-extern int fc_db_open(sqlite3 **db, const char *dbname);
-extern int fc_db_close(sqlite3 *db);
-extern void fc_init_db(sqlite3 **db);
-extern int fc_db_store_bm_handler(void *data, int argc, char **argv,
-        char **az_col_name);
-extern int fc_db_select_bm_handler(void *data, int argc, char **argv,
-        char **az_col_name);
-extern int fc_db_write_bm(const FC_msg_bm_t *bm);
-extern int fc_db_exec(sqlite3 *db, const char *sql,
-        int (*cb)(void *data, int argc, char **argv, char **az_col_name),
-        void *data);
-
-
-/*
- * hton: ip
- * */
-/*
-extern int fc_prefix_to_ip_hton_format(afi_t afi, char *buff, int bufflen);
-*/
 extern int fc_send_packet_to_fcserver(char *buff, int bufflen);
 
 #endif // BGP_FC_H
-
