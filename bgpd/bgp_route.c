@@ -6671,6 +6671,11 @@ static int bgp_static_set(struct vty *vty, const char *negate,
 
 	apply_mask(&p);
 
+#ifdef USE_FC
+    // copy to bm as the master
+    zlog_debug("ip_str: %s", ip_str);
+    memcpy(&bgp->ipsrcs[bgp->ipsrcs_size++], &p, sizeof(struct prefix));
+#endif
 	if (negate) {
 
 		/* Set BGP static route configuration. */

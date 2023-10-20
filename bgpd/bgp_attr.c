@@ -1709,7 +1709,7 @@ static int bgp_attr_fc(struct bgp_attr_parser_args *args, FCList_t *fclist)
 	struct peer *const peer = args->peer;
 	struct attr *const attr = args->attr;
 	const bgp_size_t length = args->length;
-    int curpos = 0, ret = 0;
+    int curpos = 0;
     char buff[BUFSIZ] = {0};
 
     FC_node_t *fcnode = NULL, *prevnode = NULL;
@@ -4776,6 +4776,8 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
         bmbufflen += sizeof(u8);
         bmbuff[bmbufflen] = fcnum; // fc_num
         bmbufflen += sizeof(u8);
+
+        int fc_bm_srcipnum_pos = bmbufflen;
         bmbuff[bmbufflen] = 0; // src_ip_num
         bmbufflen += sizeof(u8);
         bmbuff[bmbufflen] = 1; // dst_ip_num
@@ -4789,6 +4791,38 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
         bmbufflen += sizeof(u32);
         memset(bmbuff+bmbufflen, 0, sizeof(u32)); // subversion
         bmbufflen += sizeof(u32);
+        // srcip
+        // find current bgp
+        struct listnode *currnode = NULL;
+        struct bgp *currbgp = NULL;
+
+        currnode = bm->bgp->head;
+        while (currnode != NULL)
+        {
+            currbgp = (struct bgp*)currnode->data;
+            if (currbgp->as == peer->local_as)
+            {
+                break;
+            }
+            currnode = currnode->next;
+        }
+
+        if (currbgp)
+        {
+            for (j=0; j<currbgp->ipsrcs_size; ++j)
+            {
+                memcpy(bmbuff+bmbufflen, currbgp->ipsrcs[j].u.val,
+                        currbgp->ipsrcs[j].prefixlen);
+                if (afi == AFI_IP)
+                    bmbufflen += IP4_LENGTH;
+                else if (afi == AFI_IP6)
+                    bmbufflen += IP6_LENGTH;
+                bmbuff[bmbufflen] = (u8)currbgp->ipsrcs[j].prefixlen;
+                bmbufflen += sizeof(u8);
+            }
+            bmbuff[fc_bm_srcipnum_pos] = j;
+        }
+
         // dstip, no srcip x.x.x.x/x but in bit fmt
         memcpy(bmbuff+bmbufflen, prefix_for_fc->u.val,
                 prefix_for_fc->prefixlen);
