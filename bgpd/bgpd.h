@@ -102,6 +102,8 @@ extern struct frr_pthread *bgp_pth_ka;
 
 /* BGP master for system wide configurations and variables.  */
 struct bgp_master {
+#ifdef USE_FC
+#endif
 	/* BGP instance list.  */
 	struct list *bgp;
 
@@ -341,6 +343,10 @@ struct as_confed {
 
 /* BGP instance structure.  */
 struct bgp {
+#ifdef USE_FC
+    int ipsrcs_size;
+    struct prefix ipsrcs[FC_MAX_SIZE];
+#endif
 	/* AS number of this BGP instance.  */
 	as_t as;
 	char *as_pretty;
