@@ -795,14 +795,61 @@ fc_bm_sent_to_peer(const char *addr, const FC_msg_bm_t *bm,
     return 0;
 }
 
+    static inline int
+fc_asn_is_offpath(u32 asn, const FC_msg_bm_t *bm)
+{
+    int i = 0;
+
+    for (i=0; i<bm->fc_num; ++i)
+    {
+        if (asn == bm->fclist[i].current_asn)
+        {
+            return 0;
+        }
+    }
+
+    return 1;
+}
+
     static int
 fc_bm_broadcast_to_peer(const FC_msg_bm_t *bm, char *buffer,
         int bufferlen)
 {
     printf("broadcast to peers start\n");
     int i = 0;
-    FC_node_as_t meta;
+    u32 asn = 0;
+    FC_node_as_t meta = {0};
 
+    for (i=0; i<g_fc_server.asns_num; ++i)
+    {
+        asn = g_fc_server.asns[i];
+        if (g_fc_server.local_asn == asn)
+        {
+            continue;
+        }
+
+        meta.asn = asn;
+        FC_ht_node_as_t *node = htbl_meta_find(&g_fc_server.ht_as, &meta);
+
+        if (node)
+        {
+            // offpath
+            if (fc_asn_is_offpath(asn, bm))
+            {
+                printf("sent to offpath node: %d\n", node->asn);
+                fc_bm_sent_to_peer(node->ap.acs.ipv4,
+                        bm, buffer, bufferlen);
+            }
+            // onpath
+            else
+            {
+                printf("sent to onpath node: %d\n", node->asn);
+                fc_bm_sent_to_peer(node->ap.acs.ipv4,
+                        bm, buffer, bufferlen);
+            }
+        }
+    }
+    /*
     for (i=0; i<bm->fc_num; ++i)
     {
         // TODO wether asn is in aspath
@@ -819,6 +866,7 @@ fc_bm_broadcast_to_peer(const FC_msg_bm_t *bm, char *buffer,
             }
         }
     }
+    */
 
     printf("broadcast to peers done\n");
     return 0;
@@ -872,9 +920,9 @@ fc_db_write_bm(const FC_msg_bm_t *bm)
         snprintf(buff_src_ip+cur, FC_BUFF_SIZE, "/%d,",
                 bm->src_ip[i].prefix_length);
         cur += strlen(buff_src_ip+cur);
-        printf("src: %s\n", buff_src_ip);
         FC_MEM_CHECK(cur >= FC_BUFF_SIZE);
     }
+    printf("src-ip: %s\n", buff_src_ip);
 
     // fc_base64_encode(buff, cur, buff_src_ip);
 
@@ -895,9 +943,9 @@ fc_db_write_bm(const FC_msg_bm_t *bm)
         snprintf(buff_dst_ip+cur, FC_BUFF_SIZE,
                 "/%d,", bm->dst_ip[i].prefix_length);
         cur += strlen(buff_dst_ip+cur);
-        printf("dst: %s\n", buff_dst_ip);
         FC_MEM_CHECK(cur >= FC_BUFF_SIZE);
     }
+    printf("dst-ip: %s\n", buff_dst_ip);
     // fc_base64_encode(buff, cur, buff_dst_ip);
 
     // base64 encode fclist
@@ -1064,6 +1112,7 @@ fc_server_bm_handler(char *buffer, int bufferlen, int msg_type)
     } else
     {
         printf("Not supported now: %d\n", buff[0]);
+        return -1;
     }
 
     cur += FC_HDR_BM_FIX_LENGTH;
@@ -1122,9 +1171,15 @@ fc_server_bm_handler(char *buffer, int bufferlen, int msg_type)
         memcpy(bm.fclist[i].sig, buff+cur, bm.fclist[i].siglen);
         cur += bm.fclist[i].siglen;
 
-        printf("asn: %d, %d, %d, siglen: %d\n", bm.fclist[i].previous_asn,
+        printf("3 asn: %d, %d, %d, siglen: %d\n", bm.fclist[i].previous_asn,
                 bm.fclist[i].current_asn, bm.fclist[i].nexthop_asn,
                 bm.fclist[i].siglen);
+
+        if (bm.fclist[i].nexthop_asn == bm.fclist[i].previous_asn)
+        {
+            printf("not needed fclist\n");
+            return -1;
+        }
     }
 
     ret = fc_bm_verify_fc(&bm);
@@ -1150,7 +1205,7 @@ fc_server_bm_handler(char *buffer, int bufferlen, int msg_type)
         memcpy(bm.signature, sigbuff, bm.siglen);
         OPENSSL_free(sigbuff);
         // broadcast to onpath nodes
-        buff_new_msg[0] = 3;  // bc msg
+        buff_new_msg[1] = FC_MSG_BC;  // type: bc msg
         fc_bm_broadcast_to_peer(&bm, buff_new_msg,
                 FC_HDR_GENERAL_LENGTH+cur+FC_SKI_LENGTH+bm.siglen);
     } else if (msg_type == FC_MSG_BC)
@@ -1192,20 +1247,21 @@ fc_server_handler(ncs_ctx_t *ctx)
 
     memset(buff, 0, BUFSIZ);
     recvlen = ncs_server_recv(ctx, buff, BUFSIZ);
-    memcpy(&bufflen, &buff[1], sizeof(u8));
+    memcpy(&bufflen, &buff[2], sizeof(u16));
     bufflen = ntohs(bufflen);
+
+    printf("bufflen: %d, recvlen: %d\n", bufflen, recvlen);
+    /*
     while (bufflen > recvlen)
     {
         recvlen += ncs_server_recv(ctx, buff+recvlen,
                 bufflen-recvlen);
     }
+    */
 
-    printf("recvlen = %d, received from %s:%d %s:%d\n",
-            recvlen, ctx->remote_addr, ctx->remote_port,
-            ctx->local_addr, ctx->local_port);
-    if (recvlen > 0)
+    if (buff[0] == FC_VERSION)
     {
-        switch (buff[0])
+        switch (buff[1])
         {
         case 1: // pubkey
             printf("Not support pubkey\n");
@@ -1224,7 +1280,15 @@ fc_server_handler(ncs_ctx_t *ctx)
             printf("Not support %d\n", buff[0]);
             return -1;
         }
+    } else {
+        printf("recvlen: %d\n", recvlen);
+        if (recvlen > 1)
+        {
+            printf("FC HDR VERSION: %d\n", buff[0]);
+        }
     }
+
+    printf("#################################################\n\n");
 
     ncs_client_stop(ctx);
 
@@ -1283,7 +1347,7 @@ fc_parse_args(int argc, char **argv)
     int
 fc_main()
 {
-    g_fc_server.prog_name = "bgpd";
+    g_fc_server.prog_name = "fcserver";
     g_fc_server.prog_addr = "0.0.0.0";
 
     diag_init(g_fc_server.prog_name);
