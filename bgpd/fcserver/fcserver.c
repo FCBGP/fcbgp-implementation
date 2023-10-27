@@ -1171,9 +1171,15 @@ fc_server_bm_handler(char *buffer, int bufferlen, int msg_type)
         memcpy(bm.fclist[i].sig, buff+cur, bm.fclist[i].siglen);
         cur += bm.fclist[i].siglen;
 
-        printf("asn: %d, %d, %d, siglen: %d\n", bm.fclist[i].previous_asn,
+        printf("3 asn: %d, %d, %d, siglen: %d\n", bm.fclist[i].previous_asn,
                 bm.fclist[i].current_asn, bm.fclist[i].nexthop_asn,
                 bm.fclist[i].siglen);
+
+        if (bm.fclist[i].nexthop_asn == bm.fclist[i].previous_asn)
+        {
+            printf("not needed fclist\n");
+            return -1;
+        }
     }
 
     ret = fc_bm_verify_fc(&bm);
@@ -1244,16 +1250,15 @@ fc_server_handler(ncs_ctx_t *ctx)
     memcpy(&bufflen, &buff[2], sizeof(u16));
     bufflen = ntohs(bufflen);
 
-    printf("bufflen: %d\n", bufflen);
+    printf("bufflen: %d, recvlen: %d\n", bufflen, recvlen);
+    /*
     while (bufflen > recvlen)
     {
         recvlen += ncs_server_recv(ctx, buff+recvlen,
                 bufflen-recvlen);
     }
+    */
 
-    printf("recvlen = %d, received from %s:%d %s:%d\n",
-            recvlen, ctx->remote_addr, ctx->remote_port,
-            ctx->local_addr, ctx->local_port);
     if (buff[0] == FC_VERSION)
     {
         switch (buff[1])
@@ -1282,6 +1287,8 @@ fc_server_handler(ncs_ctx_t *ctx)
             printf("FC HDR VERSION: %d\n", buff[0]);
         }
     }
+
+    printf("#################################################\n\n");
 
     ncs_client_stop(ctx);
 

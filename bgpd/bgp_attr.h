@@ -380,7 +380,7 @@ extern enum bgp_attr_parse_ret
 bgp_attr_parse(struct peer *peer, struct attr *attr, bgp_size_t size,
 	       struct bgp_nlri *mp_update, struct bgp_nlri *mp_withdraw
 #ifdef USE_FC
-           , FCList_t *fclist
+           , FCList_t *fclist, char *fcbuff
 #endif
            );
 extern struct attr *bgp_attr_intern(struct attr *attr);

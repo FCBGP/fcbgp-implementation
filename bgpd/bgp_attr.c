@@ -1704,13 +1704,13 @@ static enum bgp_attr_parse_ret bgp_attr_aspath_check(struct peer *const peer,
 
 #ifdef USE_FC
 /* Parse FC information. */
-static int bgp_attr_fc(struct bgp_attr_parser_args *args, FCList_t *fclist)
+static int bgp_attr_fc(struct bgp_attr_parser_args *args, FCList_t *fclist,
+        char *buff)
 {
 	struct peer *const peer = args->peer;
 	struct attr *const attr = args->attr;
 	const bgp_size_t length = args->length;
     int curpos = 0;
-    char buff[BUFSIZ] = {0};
 
     FC_node_t *fcnode = NULL, *prevnode = NULL;
 
@@ -1718,9 +1718,9 @@ static int bgp_attr_fc(struct bgp_attr_parser_args *args, FCList_t *fclist)
 	attr->flag |= ATTR_FLAG_BIT(BGP_ATTR_FC);
 
     /* 1. parse FC */
-    stream_get(buff, BGP_INPUT(peer), length);
     fclist->size = 0;
     fclist->length = length;
+    stream_get(buff, BGP_INPUT(peer), length);
 
     if (length > 0)
     {
@@ -1771,11 +1771,6 @@ static int bgp_attr_fc(struct bgp_attr_parser_args *args, FCList_t *fclist)
             }
         }
     }
-
-    // following steps would implement at FCServer
-    /* 2. gen ACL */
-    /* 3. store to local */
-    /* 4. send to fcserver */
 
 	return BGP_ATTR_PARSE_PROCEED;
 }
@@ -3481,7 +3476,7 @@ enum bgp_attr_parse_ret bgp_attr_parse(struct peer *peer, struct attr *attr,
 				       struct bgp_nlri *mp_update,
 				       struct bgp_nlri *mp_withdraw
 #ifdef USE_FC
-                       , FCList_t *fclist
+                       , FCList_t *fclist, char *fcbuff
 #endif
                        )
 {
@@ -3686,7 +3681,7 @@ enum bgp_attr_parse_ret bgp_attr_parse(struct peer *peer, struct attr *attr,
 			break;
 #ifdef USE_FC
         case BGP_ATTR_FC:
-            ret = bgp_attr_fc(&attr_args, fclist);
+            ret = bgp_attr_fc(&attr_args, fclist, fcbuff);
             break;
 #endif // USE_FC
 
@@ -4795,12 +4790,11 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
     /* FC_BGP */
     if (prefix_for_fc)
     {
-        u32 previous_asn = 0, nexthop_asn = 0;
+        u32 previous_asn = (u32)from->as, nexthop_asn = (u32)peer->as;
         int flag = 1;
         struct assegment *asseg = NULL;
 
-        nexthop_asn = (u32)peer->as;
-
+        /*
         if (aspath)
         {
             asseg = aspath->segments;
@@ -4816,6 +4810,7 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
             }
             asseg = asseg->next;
         }
+        */
 
         if (flag)
         {
@@ -4908,8 +4903,8 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
                 char fcsigmsg[FC_BUFF_SIZE];
                 int fcsigmsglen = 0;
 
-                inet_ntop(AF_INET, &fclist->ipprefix.u.prefix4,
-                        prefixstr, sizeof(fclist->ipprefix.u.prefix4));
+                inet_ntop(fclist->ipprefix.family, &fclist->ipprefix.u.prefix,
+                        prefixstr, sizeof(prefixstr));
 
                 length = fclist->length;
                 fcnode = fclist->fcs;
@@ -4998,6 +4993,7 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
             zlog_debug("fclist_length:%lu, sigbufflen: %u, fcbufflen: %d",
                     length,sigbufflen, fcbufflen);
             // 4. send to local bgpd server
+            /*
             bmbuff[bmbufflen++] = FC_VERSION;               // version
             bmbuff[bmbufflen++] = FC_MSG_BGPD;              // type
             // memset(bmbuff+bmbufflen, 0, sizeof(u16));    // length
@@ -5077,6 +5073,7 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
             totallength = htons(bmbufflen);
             memcpy(bmbuff+2, &totallength, sizeof(u16));
             fc_send_packet_to_fcserver(bmbuff, bmbufflen);
+            */
 
             // 5. clear
             free(msg);
