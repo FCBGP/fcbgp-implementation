@@ -54,11 +54,11 @@ typedef uint64_t  u64;
 #define IP6_LENGTH                      16
 #define TCP_PROTO                       0x06
 
+#define FC_VERSION                      1
 #define FC_BUFF_SIZE                    2048
 #define FCSRV_HTBL_BUCKETS_SIZE         1023
 #define FCSRV_MAX_LINK_AS               256
 #define FCSRV_MAX_SRC_PREFIX            256
-
 
 #define FC_SKI_LENGTH                   20
 // sizeof(u32)*3+FC_SKI_LENGTH+sizeof(u8)*2+sizeof(u16)
@@ -190,9 +190,9 @@ typedef struct FC_ht_node_as_s
 /* ds-binding-message */
 typedef struct FC_msg_hdr_st
 {
-    u8 type; // 1 for pubkey, 2 for bm
+    u8 version; // current is 1
+    u8 type;    // 1 for pubkey, 2 for bm
     u16 length;
-    u8 reserved;
 } FC_msg_hdr_t;
 
 typedef struct FC_msg_bm_st

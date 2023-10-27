@@ -1838,6 +1838,8 @@ static void bgp_refresh_stalepath_timer_expire(struct event *thread)
 static int bgp_update_receive(struct peer *peer, bgp_size_t size)
 {
 #ifdef USE_FC
+    char *fcbuff = malloc(FC_BUFF_SIZE);
+    memset(fcbuff, 0, FC_BUFF_SIZE);
     FCList_t *fclist = malloc(sizeof(FCList_t));
     memset(fclist, 0, sizeof(FCList_t));
 #endif
@@ -1960,7 +1962,7 @@ static int bgp_update_receive(struct peer *peer, bgp_size_t size)
 						&nlris[NLRI_MP_UPDATE],
 						&nlris[NLRI_MP_WITHDRAW]
 #ifdef USE_FC
-                        , fclist
+                        , fclist, fcbuff
 #endif
                         );
 		if (attr_parse_ret == BGP_ATTR_PARSE_ERROR) {
@@ -2046,12 +2048,15 @@ static int bgp_update_receive(struct peer *peer, bgp_size_t size)
 			nlri_ret = bgp_nlri_parse(peer, NLRI_ATTR_ARG,
 						  &nlris[i], 0, &fclist->ipprefix);
 
-            int ret = 0;
+            int j = 0, ret = 0, totallength = 0;
+            u32 local_asn = 0;
+            char *bmbuff = calloc(FC_BUFF_SIZE, sizeof(char));
+            int bmbufflen = 0;
             FC_ht_node_prefix_t *node = NULL;
             FC_ht_meta_asprefix_t meta_asprefix = {0};
             FC_ht_node_asprefix_t *node_asprefix = NULL;
 
-            // insert
+            // 1. insert to htable
             meta_asprefix.asn = peer->as;
             node_asprefix = htbl_meta_find(&g_fc_htbl_asprefix, &meta_asprefix);
             if (!node_asprefix) // if not exist, then create
@@ -2061,8 +2066,109 @@ static int bgp_update_receive(struct peer *peer, bgp_size_t size)
             }
             node = htbl_meta_insert(&node_asprefix->htbl, fclist, &ret);
             if (!node)
-            {// TODO
+            {
+                zlog_debug("htbl_meta_insert: %s:%d",
+                        __func__, __LINE__);
             }
+
+            // 2. sent to fcserver
+            // check
+            int check_flag = 1;
+            for (j=0; j<fclist->size; ++j)
+            {
+                if (fclist->fcs[i].fc.current_asn == peer->local_as)
+                {
+                    check_flag = 0;
+                    break;
+                }
+            }
+
+            if (check_flag)
+            {
+                bmbuff[bmbufflen ++] = FC_VERSION;          // version
+                bmbuff[bmbufflen ++] = FC_MSG_BGPD;         // type
+                memset(bmbuff+bmbufflen, 0, sizeof(u16));    // length
+                bmbufflen += sizeof(u16);
+
+                if (fclist->ipprefix.family == AF_INET)
+                {
+                    bmbuff[bmbufflen++] = IPV4;              // ipv4
+                }
+                else if (fclist->ipprefix.family == AF_INET6)
+                {
+                    bmbuff[bmbufflen++] = IPV6;              // ipv6
+                }
+                bmbuff[bmbufflen++] = FC_NODE_TYPE_ONPATH;   // node's type
+                bmbuff[bmbufflen++] = FC_ACTION_ADD_UPDATE;  // action
+                bmbuff[bmbufflen++] = fclist->size;          // fc_num
+
+                int fc_bm_srcipnum_pos = bmbufflen;
+                bmbuff[bmbufflen] = 0; // src_ip_num
+                bmbufflen += sizeof(u8);
+                bmbuff[bmbufflen] = 1; // dst_ip_num
+                bmbufflen += sizeof(u8);
+                memset(bmbuff+bmbufflen, 0, sizeof(u16)); // siglen
+                bmbufflen += sizeof(u16);
+                local_asn = htonl(peer->local_as);  // local asn
+                memcpy(bmbuff+bmbufflen, &local_asn, sizeof(u32));
+                bmbufflen += sizeof(u32);
+                memset(bmbuff+bmbufflen, 0, sizeof(u32)); // version
+                bmbufflen += sizeof(u32);
+                memset(bmbuff+bmbufflen, 0, sizeof(u32)); // subversion
+                bmbufflen += sizeof(u32);
+                // srcip
+                // find current bgp
+                struct listnode *currnode = NULL;
+                struct bgp *currbgp = NULL;
+
+                currnode = bm->bgp->head;
+                while (currnode != NULL)
+                {
+                    currbgp = (struct bgp*)currnode->data;
+                    if (currbgp->as == peer->local_as)
+                    {
+                        break;
+                    }
+                    currnode = currnode->next;
+                }
+
+                if (currbgp)
+                {
+                    for (j=0; j<currbgp->ipsrcs_size; ++j)
+                    {
+                        memcpy(bmbuff+bmbufflen, currbgp->ipsrcs[j].u.val,
+                                currbgp->ipsrcs[j].prefixlen);
+                        if (currbgp->ipsrcs[j].family == AF_INET)
+                            bmbufflen += IP4_LENGTH;
+                        else if (currbgp->ipsrcs[j].family == AF_INET6)
+                            bmbufflen += IP6_LENGTH;
+                        bmbuff[bmbufflen] = (u8)currbgp->ipsrcs[j].prefixlen;
+                        bmbufflen += sizeof(u8);
+                    }
+                    bmbuff[fc_bm_srcipnum_pos] = j;
+                }
+
+                // dstip x.x.x.x/x but in bit fmt
+                memcpy(bmbuff+bmbufflen, fclist->ipprefix.u.val,
+                        fclist->ipprefix.prefixlen);
+                if (fclist->ipprefix.family == AF_INET)
+                    bmbufflen += IP4_LENGTH;
+                else if (fclist->ipprefix.family == AF_INET6)
+                    bmbufflen += IP6_LENGTH;
+                bmbuff[bmbufflen] = (u8)fclist->ipprefix.prefixlen;
+                bmbufflen += sizeof(u8);
+                // fclist
+                memcpy(bmbuff+bmbufflen, fcbuff, fclist->length);
+                bmbufflen += fclist->length;
+                // total length
+                totallength = htons(bmbufflen);
+                memcpy(bmbuff+2, &totallength, sizeof(u16));
+                fc_send_packet_to_fcserver(bmbuff, bmbufflen);
+            }
+
+            // 3. clear
+            free(fcbuff);
+            free(bmbuff);
 #endif
 			break;
 		case NLRI_WITHDRAW:
