@@ -18,7 +18,7 @@ server:
 	$(CC) $(CFLAGS) -o bin/$(@) $(SRCs) $(LFLAGS)
 
 setup:
-	@mkdir /etc/frr
+	@mkdir -p /etc/frr
 	sudo cp -r assets/* /etc/frr
 
 clean:

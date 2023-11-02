@@ -4307,7 +4307,7 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
 				bool addpath_capable, uint32_t addpath_tx_id,
 				struct bgp_path_info *bpi
 #ifdef USE_FC
-                , const struct prefix *prefix_for_fc
+                , const struct prefix *prefix_for_fc, as_t to_whom
 #endif
                 )
 {
@@ -4787,13 +4787,14 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
 	}
 
 #ifdef USE_FC
-    /* FC_BGP */
+    /* FC_BGP: Add FC patr attr. to BGP-UPDATE. */
     if (prefix_for_fc)
     {
         u32 previous_asn = (u32)from->as, nexthop_asn = (u32)peer->as;
         int flag = 1;
         struct assegment *asseg = NULL;
 
+        // I don't know why it cannot send out the packet to add this condition.
         /*
         if (aspath)
         {
@@ -4812,9 +4813,13 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
         }
         */
 
+        zlog_debug("UPDATE: pasn: %08X, casn: %08X, nasn: %08X, prefix: %08X",
+                previous_asn, peer->local_as, nexthop_asn,
+                prefix_for_fc->u.prefix4.s_addr);
+
         if (flag)
         {
-            int j = 0, ret = 0;
+            int i = 0, j = 0, ret = 0;
             int msglen = 0, fcbufflen = 0, fcnum = 0, bmbufflen = 0;
             u8 prefixlen = 0;
             u16 totallength = 0;
@@ -4858,20 +4863,17 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
             memcpy(msg+msglen, &fc.nexthop_asn, sizeof(u32));
             msglen += sizeof(u32);
 
-            for (j=0; j<1; j++)
+            if (afi == AFI_IP) // ipv4
             {
-                if (afi == AFI_IP) // ipv4
-                {
-                    // TODO
-                    memcpy(msg+msglen, &(prefix_for_fc->u.prefix4),
-                            prefix_for_fc->prefixlen);
-                    msglen += sizeof(struct in_addr);
-                }
-                else if (afi == AFI_IP6) { // ipv6
-                    memcpy(msg+msglen, &(prefix_for_fc->u.prefix6),
-                            prefix_for_fc->prefixlen);
-                    msglen += sizeof(struct in6_addr);
-                }
+                // TODO
+                memcpy(msg+msglen, &(prefix_for_fc->u.prefix4),
+                        prefix_for_fc->prefixlen);
+                msglen += sizeof(struct in_addr);
+            }
+            else if (afi == AFI_IP6) { // ipv6
+                memcpy(msg+msglen, &(prefix_for_fc->u.prefix6),
+                        prefix_for_fc->prefixlen);
+                msglen += sizeof(struct in6_addr);
             }
             prefixlen = (u8) prefix_for_fc->prefixlen;
             zlog_debug("prefixlen: %u", prefixlen);
@@ -4896,6 +4898,25 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
                 memcpy(&meta.ipprefix, prefix_for_fc, sizeof(struct prefix));
                 fclist = htbl_meta_find(&node_asprefix->htbl, &meta);
             }
+            // current fc
+            stream_putl(s, fc.previous_asn);
+            stream_putl(s, fc.current_asn);
+            stream_putl(s, fc.nexthop_asn);
+            stream_put(s, fc.ski, FC_SKI_LENGTH);
+            stream_putc(s, fc.algo_id);
+            stream_putc(s, fc.flags);
+            stream_putw(s, fc.siglen);
+            stream_put(s, sigbuff, sigbufflen);
+
+            fc.previous_asn =htonl(fc.previous_asn);
+            fc.current_asn = htonl(fc.current_asn);
+            fc.nexthop_asn = htonl(fc.nexthop_asn);
+            fc.siglen = htons(fc.siglen);
+            memcpy(fcbuff+fcbufflen, &fc, FC_FIX_LENGTH);
+            fcbufflen += FC_FIX_LENGTH;
+            memcpy(fcbuff+fcbufflen, sigbuff, sigbufflen);
+            fcbufflen += sigbufflen;
+            fcnum ++;
             // fill previous fclist
             if (fclist)
             {
@@ -4911,15 +4932,15 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
                 zlog_debug("=>fcs length: %d, size: %d, prefix: %s/%d",
                         fclist->length, fclist->size, prefixstr,
                         fclist->ipprefix.prefixlen);
-                while (fcnode && fclist->size > fcnum)
+                for (i=0; fcnode && i<fclist->size; ++i)
                 {
                     fcsigmsglen = 0;
                     memset(fcsigmsg, 0, FC_BUFF_SIZE);
 
-                    for (int i=0; i<fcnode->fc.siglen && i < FC_BUFF_SIZE; i ++)
+                    for (int k=0; k<fcnode->fc.siglen && k < FC_BUFF_SIZE; k ++)
                     {
                         snprintf(fcsigmsg+fcsigmsglen, FC_BUFF_SIZE,
-                                "%02X", fcnode->fc.sig[i]);
+                                "%02X", fcnode->fc.sig[k]);
                         fcsigmsglen += 2;
                     }
 
@@ -4969,25 +4990,7 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
                     fcnode = fcnode->next;
                 }
             }
-            // current fc
-            stream_putl(s, fc.previous_asn);
-            stream_putl(s, fc.current_asn);
-            stream_putl(s, fc.nexthop_asn);
-            stream_put(s, fc.ski, FC_SKI_LENGTH);
-            stream_putc(s, fc.algo_id);
-            stream_putc(s, fc.flags);
-            stream_putw(s, fc.siglen);
-            stream_put(s, sigbuff, sigbufflen);
 
-            fc.previous_asn =htonl(fc.previous_asn);
-            fc.current_asn = htonl(fc.current_asn);
-            fc.nexthop_asn = htonl(fc.nexthop_asn);
-            fc.siglen = htons(fc.siglen);
-            memcpy(fcbuff+fcbufflen, &fc, FC_FIX_LENGTH);
-            fcbufflen += FC_FIX_LENGTH;
-            memcpy(fcbuff+fcbufflen, sigbuff, sigbufflen);
-            fcbufflen += sigbufflen;
-            fcnum ++;
             // 3. put FC attr length
             stream_putw_at(s, fclist_sizep, fcbufflen);
             zlog_debug("fclist_length:%lu, sigbufflen: %u, fcbufflen: %d",

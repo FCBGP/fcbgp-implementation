@@ -514,7 +514,13 @@ void bgp_generate_updgrp_packets(struct event *thread)
 				next_pkt = subgroup_withdraw_packet(
 					PAF_SUBGRP(paf));
 				if (!next_pkt || !next_pkt->buffer)
+                {
+#ifdef USE_FC
+					subgroup_update_packet(PAF_SUBGRP(paf), peer->as);
+#else
 					subgroup_update_packet(PAF_SUBGRP(paf));
+#endif
+                }
 				next_pkt = paf->next_pkt_to_send;
 			}
 
@@ -2072,16 +2078,24 @@ static int bgp_update_receive(struct peer *peer, bgp_size_t size)
             }
 
             // 2. sent to fcserver
-            // check
+            // check:
+            //
+            zlog_debug("sent to fcs:, fclist-size: %d", fclist->size);
             int check_flag = 1;
             for (j=0; j<fclist->size; ++j)
             {
-                if (fclist->fcs[i].fc.current_asn == peer->local_as)
+                zlog_debug("=>j: %d, pasn: %08X, casn: %08X, nasn: %08X",
+                        j, fclist->fcs[j].fc.previous_asn,
+                        fclist->fcs[j].fc.current_asn,
+                        fclist->fcs[j].fc.nexthop_asn);
+
+                if (fclist->fcs[j].fc.current_asn == peer->local_as)
                 {
                     check_flag = 0;
                     break;
                 }
             }
+
 
             if (check_flag)
             {

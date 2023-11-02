@@ -98,18 +98,18 @@ fc_read_asn_ips(void)
 {
     cJSON *root = NULL, *asn_list = NULL;
     cJSON *elem = NULL, *asn = NULL,  *acs = NULL;
-    cJSON *ipv4 = NULL, *ipv6 = NULL, *ip4s = NULL, *ip6s = NULL;
+    cJSON *ipv4 = NULL, *ipv6 = NULL, *ifaddr = NULL, *ifname = NULL;
+    cJSON *ifprefix = NULL, *ip4s = NULL, *ip6s = NULL;
     cJSON *addr = NULL, *prefix_len = NULL;
     FC_node_as_t meta = {0};
     FC_ht_node_as_t *node = NULL;
-    int size = 0, i = 0, j = 0, addr_num = 0, ret = 0;
+    int i = 0, j = 0, ret = 0;
 
     root = fc_cjson_root_ptr(g_fc_server.fname);
     asn_list = cJSON_GetObjectItem(root, "asn_list");
-    size = cJSON_GetArraySize(asn_list);
-    g_fc_server.asns_num = size;
+    g_fc_server.asns_num = cJSON_GetArraySize(asn_list);
 
-    for (i=0; i<size; ++i)
+    for (i=0; i<g_fc_server.asns_num; ++i)
     {
         elem = cJSON_GetArrayItem(asn_list, i);
         fc_cjson_print(elem);
@@ -120,13 +120,38 @@ fc_read_asn_ips(void)
         ipv4 = cJSON_GetObjectItem(acs, "ipv4");
         ipv6 = cJSON_GetObjectItem(acs, "ipv6");
 
+        meta.ap.acs.ipv4_num = cJSON_GetArraySize(ipv4);
+        for (j=0; j<meta.ap.acs.ipv4_num; ++j)
+        {
+            elem = cJSON_GetArrayItem(ipv4, j);
+            ifaddr = cJSON_GetObjectItem(elem, "ifaddr");
+            ifprefix = cJSON_GetObjectItem(elem, "ifprefix");
+            meta.ap.acs.ipv4[j].ifprefix = ifprefix->valueint;
+            ifname = cJSON_GetObjectItem(elem, "ifname");
+            memcpy(meta.ap.acs.ipv4[j].ifaddr, ifaddr->valuestring,
+                    strlen(ifaddr->valuestring));
+            memcpy(meta.ap.acs.ipv4[j].ifname, ifname->valuestring,
+                    strlen(ifname->valuestring));
+        }
+
+        meta.ap.acs.ipv6_num = cJSON_GetArraySize(ipv6);
+        for (j=0; j<meta.ap.acs.ipv6_num; ++j)
+        {
+            elem = cJSON_GetArrayItem(ipv6, j);
+            ifaddr = cJSON_GetObjectItem(elem, "ifaddr");
+            ifprefix = cJSON_GetObjectItem(elem, "ifprefix");
+            meta.ap.acs.ipv6[j].ifprefix = ifprefix->valueint;
+            ifname = cJSON_GetObjectItem(elem, "ifname");
+            memcpy(meta.ap.acs.ipv6[j].ifaddr, ifaddr->valuestring,
+                    strlen(ifaddr->valuestring));
+            memcpy(meta.ap.acs.ipv6[j].ifname, ifname->valuestring,
+                    strlen(ifname->valuestring));
+        }
+
         meta.asn = asn->valueint;
-        memcpy(meta.ap.acs.ipv4, ipv4->valuestring,
-                strlen(ipv4->valuestring));
-        memcpy(meta.ap.acs.ipv6, ipv6->valuestring,
-                strlen(ipv6->valuestring));
-        addr_num = cJSON_GetArraySize(ip4s);
-        for (j=0; j<addr_num; ++j)
+
+        meta.ap.prefix.ip4s_num = cJSON_GetArraySize(ip4s);
+        for (j=0; j<meta.ap.prefix.ip4s_num; ++j)
         {
             elem = cJSON_GetArrayItem(ip4s, j);
             addr = cJSON_GetObjectItem(elem, "addr");
@@ -134,9 +159,9 @@ fc_read_asn_ips(void)
             meta.ap.prefix.ip4s[j].prefix_length = prefix_len->valueint;
             inet_pton(AF_INET, addr->valuestring, &meta.ap.prefix.ip4s[j].ip);
         }
-        meta.ap.prefix.ip4s_num = addr_num;
-        addr_num = cJSON_GetArraySize(ip6s);
-        for (j=0; j<addr_num; ++j)
+
+        meta.ap.prefix.ip6s_num = cJSON_GetArraySize(ip6s);
+        for (j=0; j<meta.ap.prefix.ip6s_num; ++j)
         {
             elem = cJSON_GetArrayItem(ip6s, j);
             addr = cJSON_GetObjectItem(elem, "addr");
@@ -144,7 +169,7 @@ fc_read_asn_ips(void)
             meta.ap.prefix.ip6s[j].prefix_length = prefix_len->valueint;
             inet_pton(AF_INET6, addr->valuestring, &meta.ap.prefix.ip6s[j].ip);
         }
-        meta.ap.prefix.ip6s_num = addr_num;
+
         g_fc_server.asns[i] = meta.asn;
         node = htbl_meta_insert(&g_fc_server.ht_as, &meta, &ret);
         if (!node)
@@ -183,10 +208,22 @@ fc_as_node_display(void *node)
     FC_ht_node_as_t *node_as = (FC_ht_node_as_t *) node;
 
     printf("asn: %d\n", node_as->asn);
-    printf("  %s\n", "acs:");
-    printf("    ipv4: %s\n", node_as->ap.acs.ipv4);
-    printf("    ipv6: %s\n", node_as->ap.acs.ipv6);
-    printf("  %s\n", "prefix:");
+    printf("  acs:\n");
+    printf("    ipv4:\n");
+    for (i=0; i<node_as->ap.acs.ipv4_num; ++i)
+    {
+        printf("      ifname: %s\n", node_as->ap.acs.ipv4[i].ifname);
+        printf("      ifprefix: %d\n", node_as->ap.acs.ipv4[i].ifprefix);
+        printf("      ifaddr: %s\n", node_as->ap.acs.ipv4[i].ifaddr);
+    }
+    printf("    ipv6:\n");
+    for (i=0; i<node_as->ap.acs.ipv6_num; ++i)
+    {
+        printf("      ifname: %s\n", node_as->ap.acs.ipv6[i].ifname);
+        printf("      ifprefix: %d\n", node_as->ap.acs.ipv4[i].ifprefix);
+        printf("      ifaddr: %s\n", node_as->ap.acs.ipv6[i].ifaddr);
+    }
+    printf("  prefix\n");
     for (i=0; i<node_as->ap.prefix.ip4s_num; ++i)
     {
         inet_ntop(AF_INET, &node_as->ap.prefix.ip4s[i].ip,
@@ -812,13 +849,45 @@ fc_asn_is_offpath(u32 asn, const FC_msg_bm_t *bm)
 }
 
     static int
-fc_bm_broadcast_to_peer(const FC_msg_bm_t *bm, char *buffer,
+fc_bm_find_server(char *remote_addr, FC_acs_t *acs, char *ifaddr, char *ifname)
+{
+    // TODO ipv6
+    int i = 0, prefixlen = 0;
+    struct sockaddr_in sockaddr_acs, sockaddr_ctx;
+    u32 ip_ctx, ip_acs;
+
+    inet_pton(AF_INET, remote_addr, &sockaddr_ctx);
+
+    for (i=0; i<acs->ipv4_num; ++i)
+    {
+        prefixlen = acs->ipv4[i].ifprefix;
+        ip_ctx = sockaddr_ctx.sin_addr.s_addr & fc_mask_prefix4[prefixlen];
+        inet_pton(AF_INET, acs->ipv4[i].ifaddr, &sockaddr_acs);
+        ip_acs = sockaddr_acs.sin_addr.s_addr & fc_mask_prefix4[prefixlen];
+
+        if (ip_ctx == ip_acs)
+        {
+            memcpy(ifaddr, acs->ipv4[i].ifaddr, strlen(acs->ipv4[i].ifaddr));
+            if (ifname)
+            {
+                memcpy(ifname, acs->ipv4[i].ifname, strlen(acs->ipv4[i].ifname));
+            }
+            return 0;
+        }
+    }
+
+    return -1;
+}
+
+    static int
+fc_bm_broadcast_to_peer(ncs_ctx_t *ctx, const FC_msg_bm_t *bm, char *buffer,
         int bufferlen)
 {
     printf("broadcast to peers start\n");
-    int i = 0;
+    int i = 0, ret = 0;
     u32 asn = 0;
     FC_node_as_t meta = {0};
+    char ifaddr[INET6_ADDRSTRLEN] = {0};
 
     for (i=0; i<g_fc_server.asns_num; ++i)
     {
@@ -836,16 +905,32 @@ fc_bm_broadcast_to_peer(const FC_msg_bm_t *bm, char *buffer,
             // offpath
             if (fc_asn_is_offpath(asn, bm))
             {
-                printf("sent to offpath node: %d\n", node->asn);
-                fc_bm_sent_to_peer(node->ap.acs.ipv4,
-                        bm, buffer, bufferlen);
+                printf("sent to offpath node: %d->remote_addr: %s\n",
+                        node->asn, ctx->remote_addr);
+                ret = fc_bm_find_server(ctx->remote_addr, &node->ap.acs, ifaddr, NULL);
+                if (ret == 0)
+                {
+                    printf("remote-acs addr: %s\n", ifaddr);
+                    fc_bm_sent_to_peer(ifaddr, bm, buffer, bufferlen);
+                } else
+                {
+                    printf("Error: cannot find acs\n");
+                }
             }
             // onpath
             else
             {
-                printf("sent to onpath node: %d\n", node->asn);
-                fc_bm_sent_to_peer(node->ap.acs.ipv4,
-                        bm, buffer, bufferlen);
+                printf("sent to onpath node: %d->remote_addr: %s\n",
+                        node->asn, ctx->remote_addr);
+                ret = fc_bm_find_server(ctx->remote_addr, &node->ap.acs, ifaddr, NULL);
+                if (ret == 0)
+                {
+                    printf("remote-acs addr: %s\n", ifaddr);
+                    fc_bm_sent_to_peer(ifaddr, bm, buffer, bufferlen);
+                } else
+                {
+                    printf("Error: cannot find acs\n");
+                }
             }
         }
     }
@@ -1021,7 +1106,7 @@ fc_db_write_bm(const FC_msg_bm_t *bm)
 }
 
     int
-fc_server_pubkey_handler(const char *buff, int len)
+fc_server_pubkey_handler(ncs_ctx_t *ctx, const char *buff, int len)
 {
     return 0;
 }
@@ -1085,7 +1170,7 @@ fc_bm_verify_fc(FC_msg_bm_t *bm)
 // buff is starting from bm's ipversion
 // msg_type: is broadcast msg
     int
-fc_server_bm_handler(char *buffer, int bufferlen, int msg_type)
+fc_server_bm_handler(ncs_ctx_t *ctx, char *buffer, int bufferlen, int msg_type)
 {
     // remove header
     char buff_new_msg[BUFSIZ] = {0};
@@ -1206,7 +1291,7 @@ fc_server_bm_handler(char *buffer, int bufferlen, int msg_type)
         OPENSSL_free(sigbuff);
         // broadcast to onpath nodes
         buff_new_msg[1] = FC_MSG_BC;  // type: bc msg
-        fc_bm_broadcast_to_peer(&bm, buff_new_msg,
+        fc_bm_broadcast_to_peer(ctx, &bm, buff_new_msg,
                 FC_HDR_GENERAL_LENGTH+cur+FC_SKI_LENGTH+bm.siglen);
     } else if (msg_type == FC_MSG_BC)
     {
@@ -1232,6 +1317,9 @@ fc_server_bm_handler(char *buffer, int bufferlen, int msg_type)
 
     // TODO
     // gen_acl(&bm);
+    char ifaddr[INET6_ADDRSTRLEN] = {0}, ifname[FC_MAX_SIZE] = {0};
+    // fc_bm_find_server(ctx->remote_addr, &node->ap.acs, ifaddr, ifname);
+    printf("-=+=-# ifaddr %s, ifname %s #-=+=-\n", ifaddr, ifname);
 
     fc_db_write_bm(&bm);
 
@@ -1250,6 +1338,7 @@ fc_server_handler(ncs_ctx_t *ctx)
     memcpy(&bufflen, &buff[2], sizeof(u16));
     bufflen = ntohs(bufflen);
 
+    printf("Accept from: %s:%d\n", ctx->remote_addr, ctx->remote_port);
     printf("bufflen: %d, recvlen: %d\n", bufflen, recvlen);
     /*
     while (bufflen > recvlen)
@@ -1266,15 +1355,15 @@ fc_server_handler(ncs_ctx_t *ctx)
         case 1: // pubkey
             printf("Not support pubkey\n");
             // TODO length
-            fc_server_pubkey_handler(buff, recvlen);
+            fc_server_pubkey_handler(ctx, buff, recvlen);
             return 0;
         case 2: // bm
             // TODO length
-            fc_server_bm_handler(buff, recvlen, FC_MSG_BGPD);
+            fc_server_bm_handler(ctx, buff, recvlen, FC_MSG_BGPD);
             break;
         case 3: // broadcast msg
             // TODO length
-            fc_server_bm_handler(buff, recvlen, FC_MSG_BC);
+            fc_server_bm_handler(ctx, buff, recvlen, FC_MSG_BC);
             break;
         default:
             printf("Not support %d\n", buff[0]);

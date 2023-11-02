@@ -367,10 +367,12 @@ fc_sha256_encode(const char *const msg, int msglen, unsigned char *digest,
     }
 
     zlog_debug("Digest_len is : %u, Digest is: ", *digest_len);
+    /*
     for (i = 0; i < (int)*digest_len; i++)
     {
         zlog_debug("%02x", digest[i]);
     }
+    */
 
 error:
     /* Clean up all the resources we allocated */

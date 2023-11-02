@@ -711,11 +711,10 @@ static void *ncs_server_process(void *arg)
                 continue;
             }
 
-            char ipstr[64] = {0};
             // cliaddr.sin_addr.s_addr = ntohl(cliaddr.sin_addr.s_addr);
             inet_ntop(AF_INET, (struct in_addr*)&cliaddr.sin_addr,
-                    ipstr, sizeof(struct sockaddr_in));
-            printf("Accept from: %s:%d\n", ipstr, cliaddr.sin_port);
+                    ctx->remote_addr, sizeof(struct sockaddr_in));
+            ctx->remote_port = cliaddr.sin_port;
 
             ncs_sock_setnonblock(ctx->server_connid);
         } else {
