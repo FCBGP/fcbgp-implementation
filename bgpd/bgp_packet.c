@@ -2082,18 +2082,20 @@ static int bgp_update_receive(struct peer *peer, bgp_size_t size)
             //
             zlog_debug("sent to fcs:, fclist-size: %d", fclist->size);
             int check_flag = 1;
+            FC_node_t *fcnode = fclist->fcs;
             for (j=0; j<fclist->size; ++j)
             {
                 zlog_debug("=>j: %d, pasn: %08X, casn: %08X, nasn: %08X",
-                        j, fclist->fcs[j].fc.previous_asn,
-                        fclist->fcs[j].fc.current_asn,
-                        fclist->fcs[j].fc.nexthop_asn);
+                        j, fcnode->fc.previous_asn,
+                        fcnode->fc.current_asn,
+                        fcnode->fc.nexthop_asn);
 
-                if (fclist->fcs[j].fc.current_asn == peer->local_as)
+                if (fcnode->fc.current_asn == peer->local_as)
                 {
                     check_flag = 0;
                     break;
                 }
+                fcnode = fcnode->next;
             }
 
 

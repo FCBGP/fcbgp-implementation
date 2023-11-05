@@ -4790,9 +4790,12 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
     /* FC_BGP: Add FC patr attr. to BGP-UPDATE. */
     if (prefix_for_fc)
     {
-        u32 previous_asn = (u32)from->as, nexthop_asn = (u32)to_whom;
         int flag = 1;
         struct assegment *asseg = NULL;
+        u32 previous_asn = (u32)from->as;
+        u32 nexthop_asn = (u32) peer->as;
+        if (from->as == peer->as)
+            nexthop_asn = (u32) to_whom;
 
         // I don't know why it cannot send out the packet to add this condition.
         /*
