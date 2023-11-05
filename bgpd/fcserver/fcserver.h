@@ -76,6 +76,7 @@ typedef uint64_t  u64;
 #define FC_MSG_BC                       (FC_MSG_BASE + 3)
 
 #define FC_DB_NAME                      "/etc/frr/fc.db"
+#define FC_NFT_PROG_POS                 "/usr/sbin/nft"
 
 #define FC_ASSERT_RET(ret)                                  \
     do {                                                    \
@@ -256,6 +257,8 @@ typedef struct FC_server_s
     FC_node_as_t aps[FCSRV_MAX_LINK_AS];
     EC_KEY *pubkey;
     EC_KEY *prikey;
+    int nics_num;
+    char nics[FC_MAX_SIZE][20]; // nics
 } FC_server_t;
 
 int fc_mask_prefix4 [] = {

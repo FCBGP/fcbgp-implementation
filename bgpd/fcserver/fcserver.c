@@ -97,7 +97,7 @@ fc_cjson_root_ptr(const char *fname)
 fc_read_asn_ips(void)
 {
     cJSON *root = NULL, *asn_list = NULL;
-    cJSON *elem = NULL, *asn = NULL,  *acs = NULL;
+    cJSON *elem = NULL, *asn = NULL,  *acs = NULL, *nics = NULL;
     cJSON *ipv4 = NULL, *ipv6 = NULL, *ifaddr = NULL, *ifname = NULL;
     cJSON *ifprefix = NULL, *ip4s = NULL, *ip6s = NULL;
     cJSON *addr = NULL, *prefix_len = NULL;
@@ -114,11 +114,19 @@ fc_read_asn_ips(void)
         elem = cJSON_GetArrayItem(asn_list, i);
         fc_cjson_print(elem);
         asn = cJSON_GetObjectItem(elem, "asn");
+        nics = cJSON_GetObjectItem(elem, "nics");
         acs = cJSON_GetObjectItem(elem, "acs");
         ip4s = cJSON_GetObjectItem(elem, "ip4s");
         ip6s = cJSON_GetObjectItem(elem, "ip6s");
         ipv4 = cJSON_GetObjectItem(acs, "ipv4");
         ipv6 = cJSON_GetObjectItem(acs, "ipv6");
+
+        g_fc_server.nics_num = cJSON_GetArraySize(nics);
+        for (j=0; j<g_fc_server.nics_num; ++j)
+        {
+            elem = cJSON_GetArrayItem(nics, j);
+            memcpy(g_fc_server.nics[j], elem->valuestring, strlen(elem->valuestring));
+        }
 
         meta.ap.acs.ipv4_num = cJSON_GetArraySize(ipv4);
         for (j=0; j<meta.ap.acs.ipv4_num; ++j)
@@ -853,19 +861,22 @@ fc_bm_find_server(char *remote_addr, FC_acs_t *acs, char *ifaddr, char *ifname)
 {
     // TODO ipv6
     int i = 0, prefixlen = 0;
-    struct sockaddr_in sockaddr_acs, sockaddr_ctx;
+    struct in_addr sockaddr_acs, sockaddr_ctx;
     u32 ip_ctx, ip_acs;
+    int flag = !(strcmp("127.0.0.1", remote_addr));
+
+    printf("flag = %d\n", flag);
 
     inet_pton(AF_INET, remote_addr, &sockaddr_ctx);
 
     for (i=0; i<acs->ipv4_num; ++i)
     {
         prefixlen = acs->ipv4[i].ifprefix;
-        ip_ctx = sockaddr_ctx.sin_addr.s_addr & fc_mask_prefix4[prefixlen];
+        ip_ctx = sockaddr_ctx.s_addr & fc_mask_prefix4[prefixlen];
         inet_pton(AF_INET, acs->ipv4[i].ifaddr, &sockaddr_acs);
-        ip_acs = sockaddr_acs.sin_addr.s_addr & fc_mask_prefix4[prefixlen];
+        ip_acs = sockaddr_acs.s_addr & fc_mask_prefix4[prefixlen];
 
-        if (ip_ctx == ip_acs)
+        if (ip_ctx == ip_acs || flag)
         {
             memcpy(ifaddr, acs->ipv4[i].ifaddr, strlen(acs->ipv4[i].ifaddr));
             if (ifname)
@@ -1167,6 +1178,66 @@ fc_bm_verify_fc(FC_msg_bm_t *bm)
     return 0;
 }
 
+    static int
+fc_gen_acl(ncs_ctx_t *ctx, FC_msg_bm_t *bm)
+{
+    int i = 0, j = 0, ret = 0;
+    FC_node_as_t meta = {0};
+    int flag_offpath = 0;
+    char ifaddr[INET6_ADDRSTRLEN] = {0}, ifname[FC_MAX_SIZE] = {0};
+    char saddr[INET6_ADDRSTRLEN] = {0};
+    char daddr[INET6_ADDRSTRLEN] = {0};
+
+    meta.asn = bm->local_asn;
+    FC_ht_node_as_t *node = htbl_meta_find(&g_fc_server.ht_as, &meta);
+
+    if (!node)
+    {
+        fprintf(stderr, "node->asn: %d not find\n", meta.asn);
+    } else
+    {
+        // printf("node->asn: %d, prefix: %08X\n", node->asn, node->ap.acs.ipv4);
+        ret = fc_bm_find_server(ctx->remote_addr, &node->ap.acs, ifaddr, ifname);
+        // printf("ctx->remote_addr: %s, ret: %d\n", ctx->remote_addr, ret);
+    }
+    printf("-=+=-# ifaddr %s, ifname %s #-=+=-\n", ifaddr, ifname);
+    flag_offpath = fc_asn_is_offpath(g_fc_server.local_asn, bm);
+
+    inet_ntop(AF_INET, &(((struct sockaddr_in*)&(bm->dst_ip[0].ip))->sin_addr),
+            daddr, (socklen_t)sizeof(daddr));
+
+    for (i=0; i<bm->src_ip_num; ++i)
+    {
+        // TODO ipv6
+        inet_ntop(AF_INET, &(((struct sockaddr_in*)&(bm->src_ip[i].ip))->sin_addr),
+            saddr, (socklen_t)sizeof(daddr));
+        char cmd[1000] = {0};
+        if (flag_offpath) // filter: s->d
+        {
+            sprintf(cmd, "nft add rule filter INPUT iif %s "
+                    "ip saddr %s ip daddr %s drop",
+                    ifname, saddr, daddr);
+            ret = system(cmd);
+        } else // filter: !a->d
+        {
+            for (j=0; j<g_fc_server.nics_num; ++j)
+            {
+                if (strcmp(g_fc_server.nics[j], ifname))
+                {
+                    sprintf(cmd, "nft add rule filter INPUT iif %s "
+                            "ip saddr %s ip daddr %s drop",
+                            g_fc_server.nics[j], saddr, daddr);
+                    ret = system(cmd);
+                    printf("ret = %d\n", ret);
+                }
+            }
+        }
+    }
+
+    return 0;
+}
+
+
 // buff is starting from bm's ipversion
 // msg_type: is broadcast msg
     int
@@ -1316,11 +1387,7 @@ fc_server_bm_handler(ncs_ctx_t *ctx, char *buffer, int bufferlen, int msg_type)
     }
 
     // TODO
-    // gen_acl(&bm);
-    char ifaddr[INET6_ADDRSTRLEN] = {0}, ifname[FC_MAX_SIZE] = {0};
-    // fc_bm_find_server(ctx->remote_addr, &node->ap.acs, ifaddr, ifname);
-    printf("-=+=-# ifaddr %s, ifname %s #-=+=-\n", ifaddr, ifname);
-
+    fc_gen_acl(ctx, &bm);
     fc_db_write_bm(&bm);
 
     return 0;
