@@ -51,7 +51,7 @@ $ make
 
 # TODO
 
-- [ ] Maybe send to fcs when receiving an BGP-UPDATE
+- [ ] store prefix with `network` should also consider `no network` to remove storage.
 - [ ] Linux ACL.
 - [ ] IPv6 features.
 - [ ] When BGPD receives a BGP-UPDATE, it would send out this BGP-UPDATE to the origin. E.g., AS A-B-C, A would send prefix a to AS B. Then AS B would send prefix a to AS A and AS C with B added to AS-PATH. AS A would never send out this BGP-UPDATE, otherwise it would be a loop. It is not clear that this is uniquely in FRR or a feature of BGP. It can't solve with changing the FRR version. There is no such thing in QUAGGA. Currently, there is a radiculous FC: (previouse-asn=A, current-asn=B, nexthop-asn=A). There may be no relavent CMD to disable this.
@@ -59,6 +59,10 @@ $ make
 - [ ] It uses the same public key for all. SKI is reserved.
 
 # CHANGELOG
+
+## 2023.10.27
+
+- [x] Maybe send to fcs when receiving an BGP-UPDATE
 
 ## 2023.10.18
 

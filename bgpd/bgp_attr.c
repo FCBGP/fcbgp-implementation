@@ -4790,7 +4790,7 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
     /* FC_BGP: Add FC patr attr. to BGP-UPDATE. */
     if (prefix_for_fc)
     {
-        u32 previous_asn = (u32)from->as, nexthop_asn = (u32)peer->as;
+        u32 previous_asn = (u32)from->as, nexthop_asn = (u32)to_whom;
         int flag = 1;
         struct assegment *asseg = NULL;
 
