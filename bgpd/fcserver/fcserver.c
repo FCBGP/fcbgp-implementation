@@ -847,7 +847,9 @@ fc_asn_is_offpath(u32 asn, const FC_msg_bm_t *bm)
 
     for (i=0; i<bm->fc_num; ++i)
     {
-        if (asn == bm->fclist[i].current_asn)
+        if (asn == bm->fclist[i].previous_asn
+            || asn == bm->fclist[i].current_asn
+            || asn == bm->fclist[i].nexthop_asn)
         {
             return 0;
         }
@@ -1214,10 +1216,11 @@ fc_gen_acl(ncs_ctx_t *ctx, FC_msg_bm_t *bm)
         char cmd[1000] = {0};
         if (flag_offpath) // filter: s->d
         {
-            sprintf(cmd, "nft add rule filter INPUT iif %s "
+            sprintf(cmd, "nft add rule filter INPUT "
                     "ip saddr %s ip daddr %s drop",
-                    ifname, saddr, daddr);
+                    saddr, daddr);
             ret = system(cmd);
+            printf("ret = %d, cmd: %s\n", ret, cmd);
         } else // filter: !a->d
         {
             for (j=0; j<g_fc_server.nics_num; ++j)
@@ -1228,7 +1231,7 @@ fc_gen_acl(ncs_ctx_t *ctx, FC_msg_bm_t *bm)
                             "ip saddr %s ip daddr %s drop",
                             g_fc_server.nics[j], saddr, daddr);
                     ret = system(cmd);
-                    printf("ret = %d\n", ret);
+                    printf("ret = %d, cmd: %s\n", ret, cmd);
                 }
             }
         }

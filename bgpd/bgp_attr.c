@@ -4793,9 +4793,12 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
         int flag = 1;
         struct assegment *asseg = NULL;
         u32 previous_asn = (u32)from->as;
+        /*
         u32 nexthop_asn = (u32) peer->as;
         if (from->as == peer->as)
             nexthop_asn = (u32) to_whom;
+            */
+        u32 nexthop_asn = (u32) to_whom;
 
         // I don't know why it cannot send out the packet to add this condition.
         /*
@@ -4816,9 +4819,9 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
         }
         */
 
-        zlog_debug("UPDATE: pasn: %08X, casn: %08X, nasn: %08X, prefix: %08X",
+        zlog_debug("UPDATE: pasn: %08X, casn: %08X, nasn: %08X, prefix: %d",
                 previous_asn, peer->local_as, nexthop_asn,
-                prefix_for_fc->u.prefix4.s_addr);
+                prefix_for_fc->u.prefix);
 
         if (flag)
         {

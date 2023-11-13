@@ -18,13 +18,15 @@ $ sudo apt install sqlite3 libsqlite3-dev libjson-c-dev
 $ sqlite3 -version
 3.37.2 2022-01-06 13:25:41 872ba256cbf61d9290b571c0e6d82a20c224ca3ad82971edc46b29818d5dalt1
 
-# You'd best to use version 1.1.1, or 3.x would pull out a deprecated warnning.
+# v3.x would pull out a deprecated warnning but it uses v3.x features.
 $ openssl version
 OpenSSL 3.0.2 15 Mar 2022 (Library: OpenSSL 3.0.2 15 Mar 2022)
 
 $ sudo apt install iptables
 $ iptables --version
 iptables v1.8.7 (nf_tables)
+
+$ sudo apt install nftables
 ```
 
 ## for libs
@@ -58,6 +60,11 @@ $ make
 - [ ] It uses the same public key for all. SKI is reserved.
 
 # CHANGELOG
+
+## 2023.11.13
+
+- [x] offpath nodes would only need to drop all traffic from any ports.
+- [x] FC 3 ASNs.
 
 ## 2023.11.5
 
