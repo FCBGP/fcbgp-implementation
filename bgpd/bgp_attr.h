@@ -401,7 +401,7 @@ extern bgp_size_t bgp_packet_attribute(
 	mpls_label_t *label, uint32_t num_labels, bool addpath_capable,
 	uint32_t addpath_tx_id, struct bgp_path_info *bpi
 #ifdef USE_FC
-    , const struct prefix *prefix_for_fc, as_t to_whom
+    , const struct prefix *prefix_for_fc
 #endif
     );
 extern void bgp_dump_routes_attr(struct stream *s, struct bgp_path_info *bpi,

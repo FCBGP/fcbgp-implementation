@@ -99,7 +99,7 @@ fc_read_asn_ips(void)
     cJSON *root = NULL, *asn_list = NULL;
     cJSON *elem = NULL, *asn = NULL,  *acs = NULL, *nics = NULL;
     cJSON *ipv4 = NULL, *ipv6 = NULL, *ifaddr = NULL, *ifname = NULL;
-    cJSON *ifprefix = NULL, *ip4s = NULL, *ip6s = NULL;
+    cJSON *ifprefix = NULL;
     cJSON *addr = NULL, *prefix_len = NULL;
     FC_node_as_t meta = {0};
     FC_ht_node_as_t *node = NULL;
@@ -116,8 +116,6 @@ fc_read_asn_ips(void)
         asn = cJSON_GetObjectItem(elem, "asn");
         nics = cJSON_GetObjectItem(elem, "nics");
         acs = cJSON_GetObjectItem(elem, "acs");
-        ip4s = cJSON_GetObjectItem(elem, "ip4s");
-        ip6s = cJSON_GetObjectItem(elem, "ip6s");
         ipv4 = cJSON_GetObjectItem(acs, "ipv4");
         ipv6 = cJSON_GetObjectItem(acs, "ipv6");
 
@@ -128,55 +126,35 @@ fc_read_asn_ips(void)
             memcpy(g_fc_server.nics[j], elem->valuestring, strlen(elem->valuestring));
         }
 
-        meta.ap.acs.ipv4_num = cJSON_GetArraySize(ipv4);
-        for (j=0; j<meta.ap.acs.ipv4_num; ++j)
+        meta.acs.ipv4_num = cJSON_GetArraySize(ipv4);
+        for (j=0; j<meta.acs.ipv4_num; ++j)
         {
             elem = cJSON_GetArrayItem(ipv4, j);
             ifaddr = cJSON_GetObjectItem(elem, "ifaddr");
             ifprefix = cJSON_GetObjectItem(elem, "ifprefix");
-            meta.ap.acs.ipv4[j].ifprefix = ifprefix->valueint;
+            meta.acs.ipv4[j].ifprefix = ifprefix->valueint;
             ifname = cJSON_GetObjectItem(elem, "ifname");
-            memcpy(meta.ap.acs.ipv4[j].ifaddr, ifaddr->valuestring,
+            memcpy(meta.acs.ipv4[j].ifaddr, ifaddr->valuestring,
                     strlen(ifaddr->valuestring));
-            memcpy(meta.ap.acs.ipv4[j].ifname, ifname->valuestring,
+            memcpy(meta.acs.ipv4[j].ifname, ifname->valuestring,
                     strlen(ifname->valuestring));
         }
 
-        meta.ap.acs.ipv6_num = cJSON_GetArraySize(ipv6);
-        for (j=0; j<meta.ap.acs.ipv6_num; ++j)
+        meta.acs.ipv6_num = cJSON_GetArraySize(ipv6);
+        for (j=0; j<meta.acs.ipv6_num; ++j)
         {
             elem = cJSON_GetArrayItem(ipv6, j);
             ifaddr = cJSON_GetObjectItem(elem, "ifaddr");
             ifprefix = cJSON_GetObjectItem(elem, "ifprefix");
-            meta.ap.acs.ipv6[j].ifprefix = ifprefix->valueint;
+            meta.acs.ipv6[j].ifprefix = ifprefix->valueint;
             ifname = cJSON_GetObjectItem(elem, "ifname");
-            memcpy(meta.ap.acs.ipv6[j].ifaddr, ifaddr->valuestring,
+            memcpy(meta.acs.ipv6[j].ifaddr, ifaddr->valuestring,
                     strlen(ifaddr->valuestring));
-            memcpy(meta.ap.acs.ipv6[j].ifname, ifname->valuestring,
+            memcpy(meta.acs.ipv6[j].ifname, ifname->valuestring,
                     strlen(ifname->valuestring));
         }
 
         meta.asn = asn->valueint;
-
-        meta.ap.prefix.ip4s_num = cJSON_GetArraySize(ip4s);
-        for (j=0; j<meta.ap.prefix.ip4s_num; ++j)
-        {
-            elem = cJSON_GetArrayItem(ip4s, j);
-            addr = cJSON_GetObjectItem(elem, "addr");
-            prefix_len = cJSON_GetObjectItem(elem, "prefixlen");
-            meta.ap.prefix.ip4s[j].prefix_length = prefix_len->valueint;
-            inet_pton(AF_INET, addr->valuestring, &meta.ap.prefix.ip4s[j].ip);
-        }
-
-        meta.ap.prefix.ip6s_num = cJSON_GetArraySize(ip6s);
-        for (j=0; j<meta.ap.prefix.ip6s_num; ++j)
-        {
-            elem = cJSON_GetArrayItem(ip6s, j);
-            addr = cJSON_GetObjectItem(elem, "addr");
-            prefix_len = cJSON_GetObjectItem(elem, "prefixlen");
-            meta.ap.prefix.ip6s[j].prefix_length = prefix_len->valueint;
-            inet_pton(AF_INET6, addr->valuestring, &meta.ap.prefix.ip6s[j].ip);
-        }
 
         g_fc_server.asns[i] = meta.asn;
         node = htbl_meta_insert(&g_fc_server.ht_as, &meta, &ret);
@@ -218,33 +196,18 @@ fc_as_node_display(void *node)
     printf("asn: %d\n", node_as->asn);
     printf("  acs:\n");
     printf("    ipv4:\n");
-    for (i=0; i<node_as->ap.acs.ipv4_num; ++i)
+    for (i=0; i<node_as->acs.ipv4_num; ++i)
     {
-        printf("      ifname: %s\n", node_as->ap.acs.ipv4[i].ifname);
-        printf("      ifprefix: %d\n", node_as->ap.acs.ipv4[i].ifprefix);
-        printf("      ifaddr: %s\n", node_as->ap.acs.ipv4[i].ifaddr);
+        printf("      ifname: %s\n", node_as->acs.ipv4[i].ifname);
+        printf("      ifprefix: %d\n", node_as->acs.ipv4[i].ifprefix);
+        printf("      ifaddr: %s\n", node_as->acs.ipv4[i].ifaddr);
     }
     printf("    ipv6:\n");
-    for (i=0; i<node_as->ap.acs.ipv6_num; ++i)
+    for (i=0; i<node_as->acs.ipv6_num; ++i)
     {
-        printf("      ifname: %s\n", node_as->ap.acs.ipv6[i].ifname);
-        printf("      ifprefix: %d\n", node_as->ap.acs.ipv4[i].ifprefix);
-        printf("      ifaddr: %s\n", node_as->ap.acs.ipv6[i].ifaddr);
-    }
-    printf("  prefix\n");
-    for (i=0; i<node_as->ap.prefix.ip4s_num; ++i)
-    {
-        inet_ntop(AF_INET, &node_as->ap.prefix.ip4s[i].ip,
-                ipstr, (socklen_t)sizeof(ipstr));
-        printf("    ipv4: %s/%d\n",
-                ipstr, node_as->ap.prefix.ip4s[i].prefix_length);
-    }
-    for (i=0; i<node_as->ap.prefix.ip6s_num; ++i)
-    {
-        inet_ntop(AF_INET6, &node_as->ap.prefix.ip6s[i].ip,
-                ipstr, (socklen_t)sizeof(ipstr));
-        printf("    ipv6: %s/%d\n",
-                ipstr, node_as->ap.prefix.ip6s[i].prefix_length);
+        printf("      ifname: %s\n", node_as->acs.ipv6[i].ifname);
+        printf("      ifprefix: %d\n", node_as->acs.ipv4[i].ifprefix);
+        printf("      ifaddr: %s\n", node_as->acs.ipv6[i].ifaddr);
     }
 
     return 0;
@@ -288,7 +251,7 @@ fc_as_meta_save(void *base, void *meta)
     FC_node_as_t *meta_as = (FC_node_as_t *)meta;
 
     node_as->asn = meta_as->asn;
-    memcpy(&node_as->ap, &meta_as->ap, sizeof(FC_asn_ip_t));
+    memcpy(&node_as->acs, &meta_as->acs, sizeof(FC_acs_t));
 
     return 0;
 }
@@ -782,7 +745,7 @@ fc_server_create(void)
 
     if (node)
     {
-        // FC_acs_t *acs = &node->ap.acs;
+        // FC_acs_t *acs = &node->acs;
 
         if ((g_fc_server.fc_bgpd_ctx = ncs_create(g_fc_server.prog_name, TCP_PROTO))
                 == NULL)
@@ -859,34 +822,24 @@ fc_asn_is_offpath(u32 asn, const FC_msg_bm_t *bm)
 }
 
     static int
-fc_bm_find_server(char *remote_addr, FC_acs_t *acs, char *ifaddr, char *ifname)
+fc_bm_find_server(uint32_t asn, char *ifaddr, char *ifname)
 {
-    // TODO ipv6
-    int i = 0, prefixlen = 0;
-    struct in_addr sockaddr_acs, sockaddr_ctx;
-    u32 ip_ctx, ip_acs;
-    int flag = !(strcmp("127.0.0.1", remote_addr));
+    FC_node_as_t meta;
+    FC_ht_node_as_t *node;
 
-    printf("flag = %d\n", flag);
+    meta.asn = asn;
+    node = htbl_meta_find(&g_fc_server.ht_as, &meta);
 
-    inet_pton(AF_INET, remote_addr, &sockaddr_ctx);
-
-    for (i=0; i<acs->ipv4_num; ++i)
+    if (node)
     {
-        prefixlen = acs->ipv4[i].ifprefix;
-        ip_ctx = sockaddr_ctx.s_addr & fc_mask_prefix4[prefixlen];
-        inet_pton(AF_INET, acs->ipv4[i].ifaddr, &sockaddr_acs);
-        ip_acs = sockaddr_acs.s_addr & fc_mask_prefix4[prefixlen];
-
-        if (ip_ctx == ip_acs || flag)
+        memcpy(ifaddr, node->acs.ipv4[0].ifaddr,
+                strlen(node->acs.ipv4[0].ifaddr));
+        if (ifname)
         {
-            memcpy(ifaddr, acs->ipv4[i].ifaddr, strlen(acs->ipv4[i].ifaddr));
-            if (ifname)
-            {
-                memcpy(ifname, acs->ipv4[i].ifname, strlen(acs->ipv4[i].ifname));
-            }
-            return 0;
+            memcpy(ifname, node->acs.ipv4[0].ifname,
+                    strlen(node->acs.ipv4[0].ifname));
         }
+        return 0;
     }
 
     return -1;
@@ -920,7 +873,7 @@ fc_bm_broadcast_to_peer(ncs_ctx_t *ctx, const FC_msg_bm_t *bm, char *buffer,
             {
                 printf("sent to offpath node: %d->remote_addr: %s\n",
                         node->asn, ctx->remote_addr);
-                ret = fc_bm_find_server(ctx->remote_addr, &node->ap.acs, ifaddr, NULL);
+                ret = fc_bm_find_server(asn, ifaddr, NULL);
                 if (ret == 0)
                 {
                     printf("remote-acs addr: %s\n", ifaddr);
@@ -935,7 +888,7 @@ fc_bm_broadcast_to_peer(ncs_ctx_t *ctx, const FC_msg_bm_t *bm, char *buffer,
             {
                 printf("sent to onpath node: %d->remote_addr: %s\n",
                         node->asn, ctx->remote_addr);
-                ret = fc_bm_find_server(ctx->remote_addr, &node->ap.acs, ifaddr, NULL);
+                ret = fc_bm_find_server(asn, ifaddr, NULL);
                 if (ret == 0)
                 {
                     printf("remote-acs addr: %s\n", ifaddr);
@@ -959,7 +912,7 @@ fc_bm_broadcast_to_peer(ncs_ctx_t *ctx, const FC_msg_bm_t *bm, char *buffer,
             if (g_fc_server.local_asn != node->asn)
             {
                 printf("sent to %d\n", node->asn);
-                fc_bm_sent_to_peer(node->ap.acs.ipv4,
+                fc_bm_sent_to_peer(node->acs.ipv4,
                         bm, buffer, bufferlen);
             }
         }
@@ -1184,23 +1137,22 @@ fc_bm_verify_fc(FC_msg_bm_t *bm)
 fc_gen_acl(ncs_ctx_t *ctx, FC_msg_bm_t *bm)
 {
     int i = 0, j = 0, ret = 0;
-    FC_node_as_t meta = {0};
     int flag_offpath = 0;
     char ifaddr[INET6_ADDRSTRLEN] = {0}, ifname[FC_MAX_SIZE] = {0};
     char saddr[INET6_ADDRSTRLEN] = {0};
     char daddr[INET6_ADDRSTRLEN] = {0};
+    u32 asn = 0;
 
-    meta.asn = bm->local_asn;
-    FC_ht_node_as_t *node = htbl_meta_find(&g_fc_server.ht_as, &meta);
+    asn = bm->fclist[0].current_asn;
+    if (strcmp("127.0.0.1", ctx->remote_addr) != 0)
+    {
+        asn = bm->fclist[0].nexthop_asn;
+    }
 
-    if (!node)
+    ret = fc_bm_find_server(asn, ifaddr, ifname);
+    if (ret < 0)
     {
-        fprintf(stderr, "node->asn: %d not find\n", meta.asn);
-    } else
-    {
-        // printf("node->asn: %d, prefix: %08X\n", node->asn, node->ap.acs.ipv4);
-        ret = fc_bm_find_server(ctx->remote_addr, &node->ap.acs, ifaddr, ifname);
-        // printf("ctx->remote_addr: %s, ret: %d\n", ctx->remote_addr, ret);
+        printf("ERROR: there is no such asn: %u\n", asn);
     }
     printf("-=+=-# ifaddr %s, ifname %s #-=+=-\n", ifaddr, ifname);
     flag_offpath = fc_asn_is_offpath(g_fc_server.local_asn, bm);
@@ -1220,7 +1172,7 @@ fc_gen_acl(ncs_ctx_t *ctx, FC_msg_bm_t *bm)
                     "ip saddr %s ip daddr %s drop",
                     saddr, daddr);
             ret = system(cmd);
-            printf("ret = %d, cmd: %s\n", ret, cmd);
+            // printf("ret = %d, cmd: %s\n", ret, cmd);
         } else // filter: !a->d
         {
             for (j=0; j<g_fc_server.nics_num; ++j)
@@ -1231,7 +1183,7 @@ fc_gen_acl(ncs_ctx_t *ctx, FC_msg_bm_t *bm)
                             "ip saddr %s ip daddr %s drop",
                             g_fc_server.nics[j], saddr, daddr);
                     ret = system(cmd);
-                    printf("ret = %d, cmd: %s\n", ret, cmd);
+                    // printf("ret = %d, cmd: %s\n", ret, cmd);
                 }
             }
         }

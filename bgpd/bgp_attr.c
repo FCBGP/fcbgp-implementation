@@ -4307,7 +4307,7 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
 				bool addpath_capable, uint32_t addpath_tx_id,
 				struct bgp_path_info *bpi
 #ifdef USE_FC
-                , const struct prefix *prefix_for_fc, as_t to_whom
+                , const struct prefix *prefix_for_fc
 #endif
                 )
 {
@@ -4791,17 +4791,13 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
     if (prefix_for_fc)
     {
         int flag = 1;
-        struct assegment *asseg = NULL;
         u32 previous_asn = (u32)from->as;
-        /*
         u32 nexthop_asn = (u32) peer->as;
-        if (from->as == peer->as)
-            nexthop_asn = (u32) to_whom;
-            */
-        u32 nexthop_asn = (u32) to_whom;
 
         // I don't know why it cannot send out the packet to add this condition.
         /*
+        struct assegment *asseg = NULL;
+
         if (aspath)
         {
             asseg = aspath->segments;
@@ -4825,11 +4821,9 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
 
         if (flag)
         {
-            int i = 0, j = 0, ret = 0;
-            int msglen = 0, fcbufflen = 0, fcnum = 0, bmbufflen = 0;
+            int i = 0, ret = 0;
+            int msglen = 0, fcbufflen = 0, fcnum = 0;
             u8 prefixlen = 0;
-            u16 totallength = 0;
-            u32 local_asn = 0;
             size_t fclist_sizep = 0, length = 0;
             char *msg = malloc(FC_BUFF_SIZE); // fc ecdsa signed content
             char *fcbuff = malloc(FC_BUFF_SIZE); // FC packet binary format
@@ -5001,8 +4995,13 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
             stream_putw_at(s, fclist_sizep, fcbufflen);
             zlog_debug("fclist_length:%lu, sigbufflen: %u, fcbufflen: %d",
                     length,sigbufflen, fcbufflen);
-            // 4. send to local bgpd server
+            // 4. send to local bgpd server.
+            // THIS step should be completed after receiving an BGP-UPDATE, not sending.
             /*
+            int j = 0;
+            int bmbufflen = 0;
+            u16 totallength = 0;
+            u32 local_asn = 0;
             bmbuff[bmbufflen++] = FC_VERSION;               // version
             bmbuff[bmbufflen++] = FC_MSG_BGPD;              // type
             // memset(bmbuff+bmbufflen, 0, sizeof(u16));    // length

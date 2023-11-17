@@ -515,11 +515,7 @@ void bgp_generate_updgrp_packets(struct event *thread)
 					PAF_SUBGRP(paf));
 				if (!next_pkt || !next_pkt->buffer)
                 {
-#ifdef USE_FC
-					subgroup_update_packet(PAF_SUBGRP(paf), peer->as);
-#else
 					subgroup_update_packet(PAF_SUBGRP(paf));
-#endif
                 }
 				next_pkt = paf->next_pkt_to_send;
 			}

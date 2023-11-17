@@ -844,7 +844,7 @@ static struct stream *bmp_update(const struct prefix *p, struct prefix_rd *prd,
 		bgp_packet_attribute(NULL, peer, s, attr, &vecarr, NULL, afi,
 				     safi, peer, NULL, NULL, 0, 0, 0, NULL
 #ifdef USE_FC
-                     , NULL, 0
+                     , NULL
 #endif
                      );
 

@@ -400,11 +400,7 @@ extern void bpacket_add_peer(struct bpacket *pkt, struct peer_af *paf);
 unsigned int bpacket_queue_virtual_length(struct peer_af *paf);
 extern void bpacket_queue_show_vty(struct bpacket_queue *q, struct vty *vty);
 bool subgroup_packets_to_build(struct update_subgroup *subgrp);
-extern struct bpacket *subgroup_update_packet(struct update_subgroup *s
-#ifdef USE_FC
-        , as_t to_whom
-#endif
-        );
+extern struct bpacket *subgroup_update_packet(struct update_subgroup *s);
 extern struct bpacket *subgroup_withdraw_packet(struct update_subgroup *s);
 extern struct stream *bpacket_reformat_for_peer(struct bpacket *pkt,
 						struct peer_af *paf);

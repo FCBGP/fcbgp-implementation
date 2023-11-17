@@ -39,9 +39,16 @@ $ sudo chmod 777 /opt/log
 
 # SETUP
 
+bgpd:
+- In `frr.conf`, every neighbor should be in separate groups.
+
 fcserver:
 - You need to modify the `-a <ASN>` in Makefile and `assets/asnlist.json`.
 - `make setup` is needed after modification.
+
+## asnlist.json
+
+- ifname: local port, the NIC links to the neighbor.
 
 # compile
 
@@ -55,11 +62,16 @@ $ make
 
 - [ ] store prefix with `network` should also consider `no network` to remove storage.
 - [ ] IPv6 features.
-- [ ] When BGPD receives a BGP-UPDATE, it would send out this BGP-UPDATE to the origin. E.g., AS A-B-C, A would send prefix a to AS B. Then AS B would send prefix a to AS A and AS C with B added to AS-PATH. AS A would never send out this BGP-UPDATE, otherwise it would be a loop. It is not clear that this is uniquely in FRR or a feature of BGP. It can't solve with changing the FRR version. There is no such thing in QUAGGA. Currently, there is a radiculous FC: (previouse-asn=A, current-asn=B, nexthop-asn=A). There may be no relavent CMD to disable this.
 - [ ] Destination prefix in BGP-UPDATE is not using `MP_REACH_NLRI` to encapsulate. So there can only be one prefix each time. It means you could add with `network x.x.x.x/plen` manually. But as ipv4 uses `NLRI` which we don't want to use again, we would never change code here.
 - [ ] It uses the same public key for all. SKI is reserved.
 
 # CHANGELOG
+
+## 2023.11.17
+
+- [x] use peer-group to correct the FCList.
+- [x] remove part of unused codes.
+- [x] THIS IS NOT SOLVED BUT WOULD NEVER AFFECT THE TEST. When BGPD receives a BGP-UPDATE, it would send out this BGP-UPDATE to the origin. E.g., AS A-B-C, A would send prefix a to AS B. Then AS B would send prefix a to AS A and AS C with B added to AS-PATH. AS A would never send out this BGP-UPDATE, otherwise it would be a loop. It is not clear that this is uniquely in FRR or a feature of BGP. It can't solve with changing the FRR version. There is no such thing in QUAGGA. Currently, there is a radiculous FC: (previouse-asn=A, current-asn=B, nexthop-asn=A). There may be no relavent CMD to disable this.
 
 ## 2023.11.13
 

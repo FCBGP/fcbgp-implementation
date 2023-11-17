@@ -168,25 +168,11 @@ typedef struct FC_ip_s
     u8 prefix_length;
 } FC_ip_t;
 
-typedef struct FC_prefix_s
-{
-    int ip4s_num;
-    int ip6s_num;
-    FC_ip_t ip4s[FCSRV_MAX_SRC_PREFIX];
-    FC_ip_t ip6s[FCSRV_MAX_SRC_PREFIX];
-} FC_prefix_t;
-
-typedef struct FC_asn_ip_s
-{
-    FC_acs_t acs;
-    FC_prefix_t prefix;
-} FC_asn_ip_t;
-
 // for hashtable meta
 typedef struct FC_node_as_s
 {
     u32 asn;
-    FC_asn_ip_t ap;
+    FC_acs_t acs;
 } FC_node_as_t;
 
 extern htbl_ops_t g_fc_htbl_as_ops;
@@ -197,7 +183,7 @@ typedef struct FC_ht_node_as_s
 {
     htbl_node_t hnode; // htbl node must be the first one
     u32 asn;
-    FC_asn_ip_t ap;
+    FC_acs_t acs;
 } FC_ht_node_as_t;
 
 /* ds-binding-message */

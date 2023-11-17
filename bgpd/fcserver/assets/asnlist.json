@@ -10,15 +10,7 @@
                     "ifname": "ens36"
                 }],
                 "ipv6": []
-            },
-            "ip4s": [
-                {"addr": "10.0.0.0", "prefixlen": 24},
-                {"addr": "11.0.0.0", "prefixlen": 24}
-            ],
-            "ip6s": [
-                {"addr": "2001:db8:10::", "prefixlen": 64},
-                {"addr": "2001:db8:11::", "prefixlen": 64}
-            ]
+            }
         }, {
             "asn": 20,
             "nics": ["lo", "ens36", "ens37"],
@@ -29,15 +21,7 @@
                     "ifname": "ens36"
                 }],
                 "ipv6": []
-            },
-            "ip4s": [
-                {"addr": "20.0.0.0", "prefixlen": 24},
-                {"addr": "21.0.0.0", "prefixlen": 24}
-            ],
-            "ip6s": [
-                {"addr": "2001:db8:20::", "prefixlen": 64},
-                {"addr": "2001:db8:21::", "prefixlen": 64}
-            ]
+            }
         }, {
             "asn": 30,
             "nics": ["lo", "ens36", "ens37"],
@@ -48,15 +32,18 @@
                     "ifname": "ens36"
                 }],
                 "ipv6": []
-            },
-            "ip4s": [
-                {"addr": "30.0.0.0", "prefixlen": 24},
-                {"addr": "31.0.0.0", "prefixlen": 24}
-            ],
-            "ip6s": [
-                {"addr": "2001:db8:30::", "prefixlen": 64},
-                {"addr": "2001:db8:31::", "prefixlen": 64}
-            ]
+            }
+        }, {
+            "asn": 40,
+            "nics": ["lo", "ens36", "ens37"],
+            "acs": {
+                "ipv4": [{
+                    "ifaddr": "192.168.88.134",
+                    "ifprefix": 24,
+                    "ifname": "ens36"
+                }],
+                "ipv6": []
+            }
         }
     ]
 }

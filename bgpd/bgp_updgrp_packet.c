@@ -637,7 +637,7 @@ bool subgroup_packets_to_build(struct update_subgroup *subgrp)
 }
 
 /* Make BGP update packet.  */
-struct bpacket *subgroup_update_packet(struct update_subgroup *subgrp, as_t to_whom)
+struct bpacket *subgroup_update_packet(struct update_subgroup *subgrp)
 {
 	struct bpacket_attr_vec_arr vecarr;
 	struct bpacket *pkt;
@@ -739,11 +739,10 @@ struct bpacket *subgroup_update_packet(struct update_subgroup *subgrp, as_t to_w
 			/* 5: Encode all the attributes, except MP_REACH_NLRI
 			 * attr. */
 #ifdef USE_FC
-            zlog_debug("peer->as: %d, to_whom: %d", peer->as, to_whom);
 			total_attr_len = bgp_packet_attribute(
 				NULL, peer, s, adv->baa->attr, &vecarr, NULL,
 				afi, safi, from, NULL, NULL, 0, 0, 0, path,
-                dest_p, to_whom);
+                dest_p);
 #else
 
 			total_attr_len = bgp_packet_attribute(
@@ -1134,7 +1133,7 @@ void subgroup_default_update_packet(struct update_subgroup *subgrp,
 		num_labels, addpath_capable,
 		BGP_ADDPATH_TX_ID_FOR_DEFAULT_ORIGINATE, NULL
 #ifdef USE_FC
-        , NULL, 0
+        , NULL
 #endif
         );
 
