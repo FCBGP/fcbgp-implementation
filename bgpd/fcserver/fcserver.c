@@ -8,6 +8,8 @@
 #include "libdiag.h"
 #include "fcserver.h"
 
+const char g_fc_nft_chains[FC_NFT_FILTER_CHAIN_END][20]
+    = {"input", "forward", "output"};
 FC_server_t g_fc_server = {0};
 
 /* JSON UTILS */
@@ -1164,24 +1166,47 @@ fc_gen_acl(ncs_ctx_t *ctx, FC_msg_bm_t *bm)
     {
         // TODO ipv6
         inet_ntop(AF_INET, &(((struct sockaddr_in*)&(bm->src_ip[i].ip))->sin_addr),
-            saddr, (socklen_t)sizeof(daddr));
+            saddr, (socklen_t)sizeof(saddr));
         char cmd[1000] = {0};
         if (flag_offpath) // filter: s->d
         {
-            sprintf(cmd, "nft add rule filter INPUT "
-                    "ip saddr %s ip daddr %s drop",
-                    saddr, daddr);
-            ret = system(cmd);
-            // printf("ret = %d, cmd: %s\n", ret, cmd);
+            for (j=FC_NFT_FILTER_CHAIN_START; j<FC_NFT_FILTER_CHAIN_END; ++j)
+            {
+                sprintf(cmd, "nft add rule inet filter %s "
+                        "ip saddr %s/%d ip daddr %s/%d drop",
+                        g_fc_nft_chains[j],
+                        saddr, bm->src_ip[0].prefix_length,
+                        daddr, bm->dst_ip[0].prefix_length);
+                ret = system(cmd);
+                // printf("ret = %d, cmd: %s\n", ret, cmd);
+            }
         } else // filter: !a->d
         {
             for (j=0; j<g_fc_server.nics_num; ++j)
             {
                 if (strcmp(g_fc_server.nics[j], ifname))
                 {
-                    sprintf(cmd, "nft add rule filter INPUT iif %s "
-                            "ip saddr %s ip daddr %s drop",
-                            g_fc_server.nics[j], saddr, daddr);
+                    // sudo nft add rule inet filter output oif ens36 \
+                    //      ip saddr 192.168.88.131 ip daddr 192.168.88.132 drop
+                    if (bm->fclist[0].nexthop_asn == g_fc_server.local_asn)
+                    {
+                        sprintf(cmd, "nft add rule inet filter %s "
+                                "oifname %s ip saddr %s/%d ip daddr %s/%d drop",
+                                g_fc_nft_chains[FC_NFT_FILTER_CHAIN_OUTPUT],
+                                g_fc_server.nics[j],
+                                saddr, bm->src_ip[0].prefix_length,
+                                daddr, bm->dst_ip[0].prefix_length);
+                    } else
+                    {
+                        sprintf(cmd, "nft add rule inet filter %s "
+                                "iifname %s ip saddr %s/%d ip daddr %s/%d drop",
+                                bm->fc_num > 1 ?
+                                g_fc_nft_chains[FC_NFT_FILTER_CHAIN_FORWARD]
+                                : g_fc_nft_chains[FC_NFT_FILTER_CHAIN_INPUT],
+                                g_fc_server.nics[j],
+                                saddr, bm->src_ip[0].prefix_length,
+                                daddr, bm->dst_ip[0].prefix_length);
+                    }
                     ret = system(cmd);
                     // printf("ret = %d, cmd: %s\n", ret, cmd);
                 }

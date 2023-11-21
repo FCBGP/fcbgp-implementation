@@ -256,6 +256,16 @@ int fc_mask_prefix4 [] = {
     0x3FFFFFFF, 0x7FFFFFFF, 0xFFFFFFFF,
 };
 
+/* nft filter chain rule */
+enum {
+    FC_NFT_FILTER_CHAIN_START,
+    FC_NFT_FILTER_CHAIN_INPUT = 0,
+    FC_NFT_FILTER_CHAIN_FORWARD,
+    FC_NFT_FILTER_CHAIN_OUTPUT,
+    FC_NFT_FILTER_CHAIN_END,
+};
+
+extern const char g_fc_nft_chains[FC_NFT_FILTER_CHAIN_END][20];
 extern FC_server_t g_fc_server;
 
 /* SIG */
