@@ -95,39 +95,90 @@ fc_cjson_root_ptr(const char *fname)
     return root;
 }
 
+/**
+ * If the user forgets to remove the tail '/', we need to properly accept that.
+ * */
+    static char*
+fc_combine_path(const char* path, const char* filename)
+{
+    size_t path_len = strlen(path);
+    size_t filename_len = strlen(filename);
+    size_t combined_len = path_len + filename_len + 2;  // 2 for '/' and '\0'
+
+    char* combined_path = (char*) malloc(combined_len);
+    if (combined_path == NULL) {
+        fprintf(stderr, "malloc for combined_path failed\n");
+        return NULL;
+    }
+
+    memcpy(combined_path, path, strlen(path));
+    if (path_len > 0 && path[path_len - 1] != '/') {
+        strcat(combined_path, "/");
+    }
+
+    strcat(combined_path, filename);
+
+    return combined_path;
+}
+
     int
 fc_read_asn_ips(void)
 {
-    cJSON *root = NULL, *asn_list = NULL;
-    cJSON *elem = NULL, *asn = NULL,  *acs = NULL, *nics = NULL;
+    cJSON *root = NULL, *asn_list = NULL, *certs_location = NULL, *prikey = NULL;
+    cJSON *elem = NULL, *asn = NULL, *cert = NULL, *acs = NULL, *nics = NULL;
     cJSON *ipv4 = NULL, *ipv6 = NULL, *ifaddr = NULL, *ifname = NULL;
     cJSON *ifprefix = NULL;
     cJSON *addr = NULL, *prefix_len = NULL;
     FC_node_as_t meta = {0};
     FC_ht_node_as_t *node = NULL;
     int i = 0, j = 0, ret = 0;
+    char *fpath = NULL;
 
-    root = fc_cjson_root_ptr(g_fc_server.fname);
-    asn_list = cJSON_GetObjectItem(root, "asn_list");
+    root = fc_cjson_root_ptr(g_fc_server.asnlist_fname);
+    // local asn
+    elem = cJSON_GetObjectItem(root, "local_asn");
+    g_fc_server.local_asn = (u32) elem->valueint;
+    // certs location
+    certs_location = cJSON_GetObjectItem(root, "certs_location");
+    memcpy(g_fc_server.certs_location, certs_location->valuestring,
+            strlen(certs_location->valuestring));
+    // private key
+    prikey = cJSON_GetObjectItem(root, "private_key");
+    memcpy(g_fc_server.prikey_fname, prikey->valuestring, strlen(prikey->valuestring));
+    // as list
+    asn_list = cJSON_GetObjectItem(root, "as_info_list");
     g_fc_server.asns_num = cJSON_GetArraySize(asn_list);
-
     for (i=0; i<g_fc_server.asns_num; ++i)
     {
         elem = cJSON_GetArrayItem(asn_list, i);
         fc_cjson_print(elem);
         asn = cJSON_GetObjectItem(elem, "asn");
+        cert = cJSON_GetObjectItem(elem, "cert");
         nics = cJSON_GetObjectItem(elem, "nics");
         acs = cJSON_GetObjectItem(elem, "acs");
         ipv4 = cJSON_GetObjectItem(acs, "ipv4");
         ipv6 = cJSON_GetObjectItem(acs, "ipv6");
 
+        // asn
+        meta.asn = asn->valueint;
+
+        // cert
+        memcpy(meta.cert, cert->valuestring, strlen(cert->valuestring));
+        fpath = fc_combine_path(g_fc_server.certs_location, meta.cert);
+        fc_get_ecpubkey_and_ski(meta.asn, fpath, &meta.pubkey, meta.ski);
+        free(fpath);
+        fpath = NULL;
+
+        // nics
         g_fc_server.nics_num = cJSON_GetArraySize(nics);
         for (j=0; j<g_fc_server.nics_num; ++j)
         {
             elem = cJSON_GetArrayItem(nics, j);
-            memcpy(g_fc_server.nics[j], elem->valuestring, strlen(elem->valuestring));
+            memcpy(g_fc_server.nics[j],
+                    elem->valuestring, strlen(elem->valuestring));
         }
 
+        // acs ipv4 address
         meta.acs.ipv4_num = cJSON_GetArraySize(ipv4);
         for (j=0; j<meta.acs.ipv4_num; ++j)
         {
@@ -142,6 +193,7 @@ fc_read_asn_ips(void)
                     strlen(ifname->valuestring));
         }
 
+        // acs ipv6 address
         meta.acs.ipv6_num = cJSON_GetArraySize(ipv6);
         for (j=0; j<meta.acs.ipv6_num; ++j)
         {
@@ -156,15 +208,15 @@ fc_read_asn_ips(void)
                     strlen(ifname->valuestring));
         }
 
-        meta.asn = asn->valueint;
-
         g_fc_server.asns[i] = meta.asn;
+
         node = htbl_meta_insert(&g_fc_server.ht_as, &meta, &ret);
         if (!node)
         {
-            printf("insert failed\n");
+            fprintf(stderr, "insert failed\n");
             return -1;
         }
+        printf("====================================================================\n");
     }
 
     cJSON_Delete(root);
@@ -177,6 +229,7 @@ fc_read_asn_ips(void)
 fc_as_node_create(void)
 {
     FC_ht_node_as_t *node = malloc(sizeof(FC_ht_node_as_t));
+    memset(node, 0, sizeof(FC_ht_node_as_t));
     return node;
 }
 
@@ -184,6 +237,7 @@ fc_as_node_create(void)
 fc_as_node_destroy(void *node)
 {
     FC_ht_node_as_t *node_as = (FC_ht_node_as_t *)node;
+    EC_KEY_free(node_as->pubkey);
     free(node_as);
     return 0;
 }
@@ -196,6 +250,7 @@ fc_as_node_display(void *node)
     FC_ht_node_as_t *node_as = (FC_ht_node_as_t *) node;
 
     printf("asn: %d\n", node_as->asn);
+    printf(" cert: %s\n", node_as->cert);
     printf("  acs:\n");
     printf("    ipv4:\n");
     for (i=0; i<node_as->acs.ipv4_num; ++i)
@@ -253,7 +308,10 @@ fc_as_meta_save(void *base, void *meta)
     FC_node_as_t *meta_as = (FC_node_as_t *)meta;
 
     node_as->asn = meta_as->asn;
+    node_as->pubkey = meta_as->pubkey;
     memcpy(&node_as->acs, &meta_as->acs, sizeof(FC_acs_t));
+    memcpy(node_as->cert, meta_as->cert, strlen(meta_as->cert));
+    memcpy(node_as->ski, meta_as->ski, FC_SKI_LENGTH);
 
     return 0;
 }
@@ -411,7 +469,7 @@ fc_db_open(sqlite3 **db, const char *dbname)
 {
     if (sqlite3_open(dbname, db) != SQLITE_OK)
     {
-        printf("Can't open database: %s\n", sqlite3_errmsg(*db));
+        fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(*db));
         exit(0);
     }
     else
@@ -447,7 +505,7 @@ fc_db_exec(sqlite3 *db, const char *sql,
     rc = sqlite3_exec(db, sql, cb, data, &zErrMsg);
     if (rc != SQLITE_OK)
     {
-        printf("SQL error: %s\n", zErrMsg);
+        fprintf(stderr, "SQL error: %s\n", zErrMsg);
         sqlite3_free(zErrMsg);
     }
     else
@@ -642,15 +700,73 @@ error:
 }
 
     int
-fc_read_eckey_from_file(int is_pub_key, EC_KEY **pkey)
+fc_get_ecpubkey_and_ski(u32 asn, const char *fpath, EC_KEY **ecpubkey, u8 *ecski)
 {
-    const char *public_key_fname = "/etc/frr/eccpri256.pem";
-    const char *private_key_fname = "/etc/frr/eccpri256.key";
+    FILE *fp = NULL;
+    X509 *cert = NULL;
+    EVP_PKEY *pubkey = NULL;
+    BIO *bio_in = NULL;
+    BIO *bio_out = NULL;
+    const ASN1_OCTET_STRING *ski = NULL;
+
+    if ((bio_in = BIO_new_file(fpath, "r")) == NULL)
+    {
+        fprintf(stderr, "Couldn't read certificate file\n");
+        return -1;
+    }
+
+    if ((bio_out = BIO_new_fp(stdout, BIO_NOCLOSE)) == NULL)
+    {
+        fprintf(stderr, "Couldn't create bio_out\n");
+        return -1;
+    }
+
+    if ((cert = X509_new()) == NULL)
+    {
+        fprintf(stderr, "X509_new() error\n");
+        return -1;
+    }
+
+    if (PEM_read_bio_X509(bio_in, &cert, 0, NULL) == NULL)
+    {
+        fprintf(stderr, "Couldn't read public key from certificate file\n");
+        return -1;
+    }
+
+    if ((ski = X509_get0_subject_key_id(cert)) != NULL)
+    {
+        ecski = (u8 *)ski->data;
+        printf("ASN: %u, Subject Key Identifier (SKI): ", asn);
+        for (int i = 0; i < ski->length; i++) {
+            printf("%02X", ecski[i]);
+        }
+        printf("\n");
+    }
+
+    if ((pubkey = X509_get_pubkey(cert)) != NULL)
+    {
+        printf("ASN: %u, pubkey: ", asn);
+        EVP_PKEY_print_public(bio_out, pubkey, 0, NULL);
+    }
+
+    ecpubkey = EVP_PKEY_get1_EC_KEY(pubkey);
+
+    EVP_PKEY_free(pubkey);
+    X509_free(cert);
+    BIO_free_all(bio_in);
+    BIO_free_all(bio_out);
+
+    return 0;
+}
+
+    int
+fc_read_eckey_from_file(const char *fpath, int is_pub_key, EC_KEY **pkey)
+{
     FILE *fp = NULL;
 
     if (is_pub_key)
     {
-        if ((fp = fopen(public_key_fname, "rb")) == NULL)
+        if ((fp = fopen(fpath, "rb")) == NULL)
         {
             perror("fopen()");
             return -1;
@@ -658,7 +774,7 @@ fc_read_eckey_from_file(int is_pub_key, EC_KEY **pkey)
 
         *pkey = PEM_read_EC_PUBKEY(fp, NULL, NULL, NULL);
     } else {
-        if ((fp = fopen(private_key_fname, "rb")) == NULL)
+        if ((fp = fopen(fpath, "rb")) == NULL)
         {
             perror("fopen()");
             return -1;
@@ -706,8 +822,10 @@ fc_ecdsa_verify(EC_KEY *pubkey, const char *const msg, int msglen,
     int
 fc_init_crypto_env(FC_server_t *fcserver)
 {
-    fc_read_eckey_from_file(1, &fcserver->pubkey);
-    fc_read_eckey_from_file(0, &fcserver->prikey);
+    const char *public_key_fname = "/etc/frr/assets/eccpri256.pem";
+    const char *private_key_fname = "/etc/frr/assets/eccpri256.key";
+    fc_read_eckey_from_file(public_key_fname, 1, &fcserver->pubkey);
+    fc_read_eckey_from_file(private_key_fname, 0, &fcserver->prikey);
 
     return 0;
 }
@@ -729,6 +847,8 @@ fc_server_destroy(int signum)
         fc_db_close(g_fc_server.db);
         fc_hashtable_destroy(&g_fc_server.ht_as);
         // fc_hashtable_destroy(&g_fc_server.ht_prefix);
+        EC_KEY_free(g_fc_server.pubkey);
+        EC_KEY_free(g_fc_server.prikey);
         printf("bye bye!\n");
         exit(EXIT_SUCCESS);
     }
@@ -765,7 +885,7 @@ fc_server_create(void)
         ncs_manager_start(g_fc_server.fc_bgpd_ctx);
     }
 
-    printf("fc_server : %d is ready!!!\n", g_fc_server.local_asn);
+    printf("fc_server : AS %d is ready!!!\n", g_fc_server.local_asn);
 
     return 0;
 }
@@ -1186,7 +1306,7 @@ fc_gen_acl(ncs_ctx_t *ctx, FC_msg_bm_t *bm)
             {
                 if (strcmp(g_fc_server.nics[j], ifname))
                 {
-                    // sudo nft add rule inet filter output oif ens36 \
+                    // sudo nft add rule inet filter output oif ens36
                     //      ip saddr 192.168.88.131 ip daddr 192.168.88.132 drop
                     if (bm->fclist[0].nexthop_asn == g_fc_server.local_asn)
                     {
@@ -1431,31 +1551,67 @@ fc_server_handler(ncs_ctx_t *ctx)
     return 0;
 }
 
+    static inline int
+print_line(char ch, char *string)
+{
+
+    int i = 0, line_len = 84, ln = 40, rn = 40, string_len = 0;
+
+    string_len = strlen(string);
+    ln = (line_len - string_len) / 2;
+    rn = line_len - string_len - ln;
+
+    printf("*");
+    for (i = 0; i < ln; ++i)
+        printf("%c", ch);
+    printf("%s", string);
+    for (i = 0; i < rn; ++i)
+        printf("%c", ch);
+    printf("*\n");
+
+    return 0;
+}
+
+    static inline void
+fc_welcome_banner()
+{
+    char *openssl_ver = OpenSSL_version(OPENSSL_VERSION);
+
+    print_line('*', "");
+    print_line(' ', FC_VERSION_STR);
+    print_line(' ', "Home page: <https://gitee.com/basil1728/fcbgp-new>");
+    print_line(' ', "A private repository. Not avaliable without permission.");
+    print_line(' ', "Need help or report bugs please mailto: guoyangfei@zgclab.edu.cn");
+    print_line(' ', "SSL_VERSION: " FC_SSL_VERSION);
+    print_line('*', "");
+}
+
     static inline void
 fc_help(void)
 {
-    printf("  -h                   print this message.\n");
-    printf("  -a <local-asn>       specify local as number.\n");
-    printf("  -f <asnlist.json>    specify the location of asnlist.json\n");
+    fc_welcome_banner();
+    printf("\n");
+    printf("\t-f <asnlist.json>  Specify the location of asnlist.json.\n");
+    printf("\t                   OPTIONAL. Default location is /etc/frr/assets/\n");
+    printf("\t-h                 Print this message.\n");
+    printf("\t-v                 Print FC Server version.\n");
 }
 
     static void
 fc_parse_args(int argc, char **argv)
 {
     int opt = 0;
-    int specified_asn = 0;
 
-    while ((opt = getopt(argc, argv, "a:f:h")) > 0)
+    while ((opt = getopt(argc, argv, "f:hv")) > 0)
     {
         switch(opt)
         {
-        case 'a':
-            g_fc_server.local_asn = (u32) atol(optarg);
-            specified_asn = 1;
-            break;
         case 'f':
-            memcpy(g_fc_server.fname, optarg, strlen(optarg));
+            memcpy(g_fc_server.asnlist_fname, optarg, strlen(optarg));
             break;
+        case 'v':
+            fc_welcome_banner();
+            exit(EXIT_SUCCESS);
         case 'h':
             fc_help();
             exit(EXIT_SUCCESS);
@@ -1466,17 +1622,10 @@ fc_parse_args(int argc, char **argv)
         }
     }
 
-    if (! specified_asn)
+    if (strlen(g_fc_server.asnlist_fname) == 0)
     {
-        fprintf(stderr, "MUST specified ASN with -a\n");
-        fc_help();
-        exit(EXIT_FAILURE);
-    }
-
-    if ( ! g_fc_server.fname || strlen(g_fc_server.fname) == 0)
-    {
-        const char *pfname = "/etc/frr/asnlist.json";
-        memcpy(g_fc_server.fname, pfname, strlen(pfname));
+        const char *pfname = "/etc/frr/assets/asnlist.json";
+        memcpy(g_fc_server.asnlist_fname, pfname, strlen(pfname));
     }
 }
 
@@ -1485,6 +1634,8 @@ fc_main()
 {
     g_fc_server.prog_name = "fcserver";
     g_fc_server.prog_addr = "0.0.0.0";
+
+    fc_welcome_banner();
 
     diag_init(g_fc_server.prog_name);
 

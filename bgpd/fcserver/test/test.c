@@ -22,13 +22,15 @@ int main(int argc, char *argv[])
     EVP_PKEY *pubkey = NULL;
     EC_KEY *eckey_pub = NULL;
     BIO* bio_in = NULL;
+    BIO* bio_out = NULL;
     int ret = 0;
     const ASN1_OCTET_STRING *ski = NULL;
 
     bio_in = BIO_new_file("10.cert", "r");
-    if (bio_in == NULL)
+    bio_out = BIO_new_fp(stdout, BIO_NOCLOSE);
+    if (bio_in == NULL || bio_out == NULL)
     {
-        printf("coudlt not  read public key file\n");
+        printf("Could not r/w public key file\n");
         exit(1);
     }
 
@@ -41,19 +43,29 @@ int main(int argc, char *argv[])
     }
 
     ski = X509_get0_subject_key_id(cert);
-
-    printf("ski %s\n", ski);
+    if (ski != NULL) {
+        printf("Subject Key Identifier (SKI): ");
+        for (int i = 0; i < ski->length; i++) {
+            printf("%02X", ski->data[i]);
+        }
+        printf("\n");
+    }
 
     pubkey = X509_get_pubkey(cert);
+    if (pubkey != NULL) {
+        printf("公钥信息：\n");
+        EVP_PKEY_print_public(bio_out, pubkey, 0, NULL);
+    }
 
 
     eckey_pub = EVP_PKEY_get1_EC_KEY(pubkey);
 
-    (void) ret;
 
     EC_KEY_free(eckey_pub);
+    EVP_PKEY_free(pubkey);
     X509_free(cert);
     BIO_free_all(bio_in);
+    BIO_free_all(bio_out);
 
     return 0;
 }

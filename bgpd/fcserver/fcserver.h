@@ -31,13 +31,16 @@
 #include <openssl/bio.h>
 #include <openssl/buffer.h>
 #include <openssl/core_names.h>
+#include <openssl/crypto.h>
 #include <openssl/ec.h>
 #include <openssl/ecdsa.h>
 #include <openssl/err.h>
 #include <openssl/evp.h>
 #include <openssl/obj_mac.h>
+#include <openssl/opensslv.h>
 #include <openssl/pem.h>
 #include <openssl/x509.h>
+#include <openssl/x509v3.h>
 
 #include "cJSON.h"
 #include "libjhash.h"
@@ -48,6 +51,18 @@ typedef uint8_t  u8;
 typedef uint16_t  u16;
 typedef uint32_t  u32;
 typedef uint64_t  u64;
+
+#define STR(x) #x
+
+#define FC_MAJOR_VERSION STR(0)
+#define FC_MINOR_VERSION STR(1)
+#define FC_PATCH_VERSION STR(2)
+
+#define FC_PRJ_VERSION FC_MAJOR_VERSION "." FC_MINOR_VERSION "." FC_PATCH_VERSION
+
+#define FC_VERSION_STR "FC Server V" FC_PRJ_VERSION " compiled at " \
+    __DATE__ " "__TIME__ ""
+#define FC_SSL_VERSION "OpenSSL 3.0.2 15 Mar 2022"
 
 #define IPV4                            4
 #define IPV6                            6
@@ -75,7 +90,7 @@ typedef uint64_t  u64;
 #define FC_MSG_BGPD                     (FC_MSG_BASE + 2)
 #define FC_MSG_BC                       (FC_MSG_BASE + 3)
 
-#define FC_DB_NAME                      "/etc/frr/fc.db"
+#define FC_DB_NAME                      "/etc/frr/assets/fc.db"
 #define FC_NFT_PROG_POS                 "/usr/sbin/nft"
 
 #define FC_ASSERT_RET(ret)                                  \
@@ -172,6 +187,10 @@ typedef struct FC_ip_s
 typedef struct FC_node_as_s
 {
     u32 asn;
+    char cert[FC_MAX_SIZE];
+    u8 ski[FC_SKI_LENGTH];
+    EC_KEY *pubkey;
+    // EC_KEY *prikey;
     FC_acs_t acs;
 } FC_node_as_t;
 
@@ -183,6 +202,10 @@ typedef struct FC_ht_node_as_s
 {
     htbl_node_t hnode; // htbl node must be the first one
     u32 asn;
+    char cert[FC_MAX_SIZE];
+    u8 ski[FC_SKI_LENGTH];
+    EC_KEY *pubkey;
+    // EC_KEY *prikey;
     FC_acs_t acs;
 } FC_ht_node_as_t;
 
@@ -225,21 +248,19 @@ typedef struct FC_msg_bm_new_s
 
 typedef struct FC_server_s
 {
-    // as-ip totoal num, of course it's as's number
     char *prog_name;
     char *prog_addr;
+    // as-ip totoal num, of course it is the number of deployed ASs.
     u8 asns_num;
     u32 asns[FCSRV_MAX_LINK_AS];
     u32 local_asn;
-    /*
-       char ipv4[INET_ADDRSTRLEN];
-       char ipv6[INET6_ADDRSTRLEN];
-       */
     sqlite3 *db;
     htbl_ctx_t ht_as;
     htbl_ctx_t ht_prefix;
     ncs_ctx_t *fc_bgpd_ctx;
-    char fname[BUFSIZ];
+    char asnlist_fname[FC_MAX_SIZE];
+    char prikey_fname[FC_MAX_SIZE];
+    char certs_location[FC_MAX_SIZE];
     FC_node_as_t aps[FCSRV_MAX_LINK_AS];
     EC_KEY *pubkey;
     EC_KEY *prikey;
@@ -270,7 +291,8 @@ extern FC_server_t g_fc_server;
 
 /* SIG */
 extern int fc_init_crypto_env(FC_server_t *fcserver);
-extern int fc_read_eckey_from_file(int is_pub_key, EC_KEY **pkey);
+extern int fc_get_ecpubkey_and_ski(u32 asn, const char *fpath, EC_KEY **eckey, u8 *ecski);
+extern int fc_read_eckey_from_file(const char *fpath, int is_pub_key, EC_KEY **pkey);
 extern int fc_base64_encode(const unsigned char *msg,
         size_t length, char * b64msg);
 extern int fc_base64_decode(const char *b64msg, unsigned char **msg,

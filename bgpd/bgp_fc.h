@@ -77,7 +77,7 @@ typedef uint64_t  u64;
 #define FC_ACTION_ADD_UPDATE            1
 #define FC_ACTION_DEL_WITHDRAW          2
 
-#define FC_DB_NAME                      "/etc/frr/fc.db"
+#define FC_DB_NAME                      "/etc/frr/assets/fc.db"
 
 #define FC_ASSERT_RET(ret)                                     \
     do {                                                    \
