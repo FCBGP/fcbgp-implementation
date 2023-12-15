@@ -128,7 +128,6 @@ fc_read_asn_ips(void)
     cJSON *elem = NULL, *asn = NULL, *cert = NULL, *acs = NULL, *nics = NULL;
     cJSON *ipv4 = NULL, *ipv6 = NULL, *ifaddr = NULL, *ifname = NULL;
     cJSON *ifprefix = NULL;
-    cJSON *addr = NULL, *prefix_len = NULL;
     FC_node_as_t meta = {0};
     FC_ht_node_as_t *node = NULL;
     int i = 0, j = 0, ret = 0;
@@ -245,7 +244,6 @@ fc_as_node_destroy(void *node)
     static int
 fc_as_node_display(void *node)
 {
-    char ipstr[INET6_ADDRSTRLEN] = {0};
     int i = 0;
     FC_ht_node_as_t *node_as = (FC_ht_node_as_t *) node;
 
@@ -700,7 +698,8 @@ error:
 }
 
     int
-fc_get_ecpubkey_and_ski(u32 asn, const char *fpath, EC_KEY **ecpubkey, u8 *ecski)
+fc_get_ecpubkey_and_ski(u32 asn, const char *fpath,
+        EC_KEY **ecpubkey, u8 *ecski)
 {
     FILE *fp = NULL;
     X509 *cert = NULL;
@@ -1555,7 +1554,7 @@ fc_server_handler(ncs_ctx_t *ctx)
 print_line(char ch, char *string)
 {
 
-    int i = 0, line_len = 84, ln = 40, rn = 40, string_len = 0;
+    int i = 0, line_len = 78, ln = 0, rn = 0, string_len = 0;
 
     string_len = strlen(string);
     ln = (line_len - string_len) / 2;
@@ -1575,8 +1574,6 @@ print_line(char ch, char *string)
     static inline void
 fc_welcome_banner()
 {
-    char *openssl_ver = OpenSSL_version(OPENSSL_VERSION);
-
     print_line('*', "");
     print_line(' ', FC_VERSION_STR);
     print_line(' ', "Home page: <https://gitee.com/basil1728/fcbgp-new>");
