@@ -389,8 +389,8 @@ error:
     int
 fc_read_eckey_from_file(int is_pub_key, EC_KEY **pkey)
 {
-    const char *public_key_fname = "/etc/frr/eccpri256.pem";
-    const char *private_key_fname = "/etc/frr/eccpri256.key";
+    const char *public_key_fname = "/etc/frr/assets/eccpri256.pem";
+    const char *private_key_fname = "/etc/frr/assets/eccpri256.key";
     FILE *fp = NULL;
 
     if (is_pub_key)
