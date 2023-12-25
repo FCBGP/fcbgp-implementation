@@ -14,7 +14,7 @@
 #include <openssl/ec.h>
 
 #include "libhtable.h"
-#include "libncs.h"
+#include "libncs6.h"
 
 typedef uint8_t  u8;
 typedef uint16_t  u16;
@@ -135,8 +135,8 @@ typedef struct FC_acs_s
 
 typedef struct FC_ip_s
 {
-    struct sockaddr ip;
     u8 prefix_length;
+    struct sockaddr ip;
 } FC_ip_t;
 
 // for hashtable meta
@@ -195,7 +195,8 @@ typedef struct FC_server_s
 {
     // as-ip totoal num, of course it's as's number
     char *prog_name;
-    char *prog_addr;
+    char *prog_addr4;
+    char *prog_addr6;
     u8 log_mode;
     u8 clear_fc_db;
     u32 local_asn;
@@ -204,7 +205,7 @@ typedef struct FC_server_s
     sqlite3 *db;
     htbl_ctx_t ht_as;
     htbl_ctx_t ht_prefix;
-    ncs_ctx_t *fc_bgpd_ctx;
+    ncs6_ctx_t *fc_bgpd_ctx6;
     char fname[BUFSIZ];
     FC_node_as_t aps[FCSRV_MAX_LINK_AS];
     EC_KEY *pubkey;

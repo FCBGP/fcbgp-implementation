@@ -2097,6 +2097,7 @@ static int bgp_update_receive(struct peer *peer, bgp_size_t size)
 
             if (check_flag)
             {
+                u8 ipversion = 0;
                 bmbuff[bmbufflen ++] = FC_VERSION;          // version
                 bmbuff[bmbufflen ++] = FC_MSG_BGPD;         // type
                 memset(bmbuff+bmbufflen, 0, sizeof(u16));    // length
@@ -2104,12 +2105,13 @@ static int bgp_update_receive(struct peer *peer, bgp_size_t size)
 
                 if (fclist->ipprefix.family == AF_INET)
                 {
-                    bmbuff[bmbufflen++] = IPV4;              // ipv4
+                    ipversion = IPV4;
                 }
                 else if (fclist->ipprefix.family == AF_INET6)
                 {
-                    bmbuff[bmbufflen++] = IPV6;              // ipv6
+                    ipversion = IPV6;
                 }
+                bmbuff[bmbufflen++] = ipversion;             // ipversion
                 bmbuff[bmbufflen++] = FC_NODE_TYPE_ONPATH;   // node's type
                 bmbuff[bmbufflen++] = FC_ACTION_ADD_UPDATE;  // action
                 bmbuff[bmbufflen++] = fclist->size;          // fc_num
@@ -2146,18 +2148,31 @@ static int bgp_update_receive(struct peer *peer, bgp_size_t size)
 
                 if (currbgp)
                 {
+                    int wanted_src = 0;
                     for (j=0; j<currbgp->ipsrcs_size; ++j)
                     {
-                        memcpy(bmbuff+bmbufflen, currbgp->ipsrcs[j].u.val,
-                                currbgp->ipsrcs[j].prefixlen);
-                        if (currbgp->ipsrcs[j].family == AF_INET)
-                            bmbufflen += IP4_LENGTH;
-                        else if (currbgp->ipsrcs[j].family == AF_INET6)
-                            bmbufflen += IP6_LENGTH;
-                        bmbuff[bmbufflen] = (u8)currbgp->ipsrcs[j].prefixlen;
-                        bmbufflen += sizeof(u8);
+                        /* only ipv4 or ipv6 is needed, not both */
+                        if (fclist->ipprefix.family ==
+                                currbgp->ipsrcs[j].family)
+                        {
+                            wanted_src ++;
+                            memcpy(bmbuff+bmbufflen,
+                                    currbgp->ipsrcs[j].u.val,
+                                    currbgp->ipsrcs[j].prefixlen);
+                            if (currbgp->ipsrcs[j].family == AF_INET)
+                            {
+                                bmbufflen += IP4_LENGTH;
+                            }
+                            else if (currbgp->ipsrcs[j].family == AF_INET6)
+                            {
+                                bmbufflen += IP6_LENGTH;
+                            }
+                            bmbuff[bmbufflen] =
+                                (u8)currbgp->ipsrcs[j].prefixlen;
+                            bmbufflen += sizeof(u8);
+                        }
                     }
-                    bmbuff[fc_bm_srcipnum_pos] = j;
+                    bmbuff[fc_bm_srcipnum_pos] = wanted_src;
                 }
 
                 // dstip x.x.x.x/x but in bit fmt
@@ -2175,7 +2190,7 @@ static int bgp_update_receive(struct peer *peer, bgp_size_t size)
                 // total length
                 totallength = htons(bmbufflen);
                 memcpy(bmbuff+2, &totallength, sizeof(u16));
-                fc_send_packet_to_fcserver(bmbuff, bmbufflen);
+                fc_send_packet_to_fcserver(ipversion, bmbuff, bmbufflen);
             }
 
             // 3. clear

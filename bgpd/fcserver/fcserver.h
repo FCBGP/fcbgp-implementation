@@ -35,9 +35,9 @@
 extern int fc_main();
 extern int fc_server_create(void);
 extern void fc_server_destroy(int signum);
-extern int fc_server_handler(ncs_ctx_t *ctx);
-extern int fc_server_pubkey_handler(ncs_ctx_t *ctx, const char *buff, int bufflen);
-extern int fc_server_bm_handler(ncs_ctx_t* ctx, char *buffer, int bufferlen, int msg_type);
+extern int fc_server_handler(ncs6_ctx_t *ctx);
+extern int fc_server_pubkey_handler(ncs6_ctx_t *ctx, const char *buff, int bufflen);
+extern int fc_server_bm_handler(ncs6_ctx_t* ctx, char *buffer, int bufferlen, int msg_type);
 
 #endif // BGP_FC_H
 

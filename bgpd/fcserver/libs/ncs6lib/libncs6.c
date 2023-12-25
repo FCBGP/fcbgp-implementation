@@ -117,7 +117,7 @@ int ncs6_sock_bind(int fd, struct sockaddr_in6 *addr, socklen_t len)
     int err = 0;
 
     ncs6_sock_setblock(fd);
-    if (bind(fd, addr, len) < 0){
+    if (bind(fd, (struct sockaddr *)addr, len) < 0){
         err = -errno;
     }
 
@@ -157,7 +157,7 @@ int ncs6_sock_connect(int fd, struct sockaddr_in6 *addr, socklen_t len, int time
 
     /* call connect until done or failed without being interrupted */
     while (1) {
-        if (connect(fd, addr, len) == 0) {
+        if (connect(fd, (struct sockaddr *)addr, len) == 0) {
             return 0;
         }
 
@@ -200,7 +200,7 @@ int ncs6_sock_accept(int fd, struct sockaddr_in6 *addr, socklen_t *len, int time
     }
 
     while (1) {
-        ret = accept(fd, addr, len);
+        ret = accept(fd, (struct sockaddr *)addr, len);
         if (ret < 0) {
             errcode = errno;
             if (errcode == EINTR) {
@@ -279,7 +279,7 @@ int ncs6_sock_sendto(int fd, void *data, int count, int *sent, struct sockaddr_i
     }
 
     while (1) {
-        int txlen = sendto(fd, data, count, 0, addr, len);
+        int txlen = sendto(fd, data, count, 0, (struct sockaddr *)addr, len);
         if (txlen >= 0) {
             *sent = txlen;
             return 0;
@@ -363,7 +363,7 @@ int ncs6_sock_recvfrom(int fd, void *data, int count, int *got, struct sockaddr_
     }
 
     while (1) {
-        int rxlen = recvfrom(fd, data, count, 0, addr, len);
+        int rxlen = recvfrom(fd, data, count, 0, (struct sockaddr *)addr, len);
         if (rxlen > 0) {
             *got = rxlen;
             return 0;
@@ -521,7 +521,7 @@ static int ncs6_server_init(ncs6_ctx_t *ctx)
         return ctx->server_sock;
     }
 
-    setsockopt(ctx->server_sock, IPPROTO_IPV6, IPV6_V6ONLY, &opt, sizeof(opt));
+    // setsockopt(ctx->server_sock, IPPROTO_IPV6, IPV6_V6ONLY, &opt, sizeof(opt));
     setsockopt(ctx->server_sock, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
     setsockopt(ctx->server_sock, SOL_SOCKET, SO_RCVBUF, (const char *) &ctx->server_rcvbuf, sizeof(int));
     setsockopt(ctx->server_sock, SOL_SOCKET, SO_SNDBUF, (const char *) &ctx->server_sndbuf, sizeof(int));
@@ -575,15 +575,18 @@ static int ncs6_client_init(ncs6_ctx_t *ctx)
     inet_pton(AF_INET6, ctx->local_addr, &client_addr.sin6_addr);
     client_addr.sin6_port = htons(0);
 
-    ctx->client_sock = socket(PF_INET6, ctx->is_udp ? SOCK_DGRAM : SOCK_STREAM, 0);
+    ctx->client_sock = socket(PF_INET6,
+            ctx->is_udp ? SOCK_DGRAM : SOCK_STREAM, 0);
     if (ctx->client_sock < 0) {
         DIAG_ERROR("ncs6 %s client socket create failed: %m\n", ctx->name);
         return -ENOTSOCK;
     }
 
     setsockopt(ctx->client_sock, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
-    setsockopt(ctx->client_sock, SOL_SOCKET, SO_RCVBUF, (const char *) &ctx->client_rcvbuf, sizeof(int));
-    setsockopt(ctx->client_sock, SOL_SOCKET, SO_SNDBUF, (const char *) &ctx->client_sndbuf, sizeof(int));
+    setsockopt(ctx->client_sock, SOL_SOCKET, SO_RCVBUF,
+            (const char *) &ctx->client_rcvbuf, sizeof(int));
+    setsockopt(ctx->client_sock, SOL_SOCKET, SO_SNDBUF,
+            (const char *) &ctx->client_sndbuf, sizeof(int));
 
     //ncs6_sock_setnonblock(ctx->client_sock);
 
@@ -591,11 +594,14 @@ static int ncs6_client_init(ncs6_ctx_t *ctx)
         struct linger cl;
         cl.l_onoff = 1;
         cl.l_linger = ctx->client_linger;
-        setsockopt(ctx->client_sock, SOL_SOCKET, SO_LINGER, (const char *) &cl, sizeof(struct linger));
+        setsockopt(ctx->client_sock, SOL_SOCKET, SO_LINGER,
+                (const char *) &cl, sizeof(struct linger));
     }
 
-    if (bind(ctx->client_sock, (struct sockaddr_in6 *) &client_addr, sizeof(struct sockaddr_in6))) {
-        DIAG_ERROR("ncs6 %s client bind %s failed: %m\n", ctx->name, ctx->local_addr);
+    if (bind(ctx->client_sock, (struct sockaddr*) &client_addr,
+                sizeof(struct sockaddr_in6))) {
+        DIAG_ERROR("ncs6 %s client bind %s failed: %m\n",
+                ctx->name, ctx->local_addr);
         ncs6_client_fini(ctx);
         return -EADDRINUSE;
     }
@@ -702,21 +708,29 @@ static void *ncs6_server_process(void *arg)
         }
 
         if (!ctx->is_udp) {
-            DIAG_PRINT("ncs6 %s server try accept %d...\n", ctx->name, ctx->server_sock);
-            ctx->server_connid = ncs6_sock_accept(ctx->server_sock, (struct sockaddr_in6 *)&cliaddr, &length, ctx->recv_timeout);
+            DIAG_PRINT("ncs6 %s server try accept %d...\n",
+                    ctx->name, ctx->server_sock);
+            ctx->server_connid
+                = ncs6_sock_accept(ctx->server_sock,
+                        (struct sockaddr_in6 *)&cliaddr,
+                        &length, ctx->recv_timeout);
             if (ctx->server_connid < 0) {
                 DIAG_ERROR("ncs6 %s socket accept failed: %m\n", ctx->name);
                 continue;
             }
+            inet_ntop(AF_INET6, (struct sockaddr_in6 *)&cliaddr.sin6_addr,
+                    ctx->remote_addr, sizeof(struct sockaddr_in6));
+            ctx->remote_port = ntohs(cliaddr.sin6_port);
 
-        //    ncs6_sock_setnonblock(ctx->server_connid);
+            ncs6_sock_setnonblock(ctx->server_connid);
         } else {
             ctx->server_connid = ctx->server_sock;
         }
 
         ctx->server_error = 0;
         if (ctx->server_handler) {
-            DIAG_PRINT("ncs6 %s server will handler new connid %d.\n", ctx->name, ctx->server_connid);
+            DIAG_PRINT("ncs6 %s server will handler new connid %d.\n",
+                    ctx->name, ctx->server_connid);
             ctx->server_handler(ctx);
         }
 

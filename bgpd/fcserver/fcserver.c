@@ -2,10 +2,18 @@
  * File Name:    fcserver.c
  * Author:       basilguo@163.com
  * Created Time: 2023-09-25 10:09:53
- * Description:  FC SERVER UTILS
+ * Description:  FC SERVER UTILS.
+ *  One could receive IPv4 data with IPv6 API.
+ *  and also distinguish it with getsockopt.
  ********************************************************************************/
 
 #include <ctype.h>
+#include <unistd.h>
+#include <arpa/inet.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <netinet/in.h>
+
 #include "libdiag.h"
 #include "fcconfig.h"
 #include "dbutils.h"
@@ -13,6 +21,7 @@
 #include "sigutils.h"
 #include "nftutils.h"
 #include "fcserver.h"
+#include "libncs6.h"
 
 FC_server_t g_fc_server = {0};
 
@@ -23,11 +32,11 @@ fc_server_destroy(int signum)
     {
         printf("recevied SIGINT\n");
         diag_fini();
-        if (g_fc_server.fc_bgpd_ctx)
+        if (g_fc_server.fc_bgpd_ctx6)
         {
-            ncs_manager_stop(g_fc_server.fc_bgpd_ctx);
-            ncs_destroy(g_fc_server.fc_bgpd_ctx);
-            g_fc_server.fc_bgpd_ctx = NULL;
+            ncs6_manager_stop(g_fc_server.fc_bgpd_ctx6);
+            ncs6_destroy(g_fc_server.fc_bgpd_ctx6);
+            g_fc_server.fc_bgpd_ctx6 = NULL;
         }
         fc_db_close(g_fc_server.db);
         fc_hashtable_destroy(&g_fc_server.ht_as);
@@ -50,19 +59,20 @@ fc_server_create(void)
 
     if (node)
     {
-        if ((g_fc_server.fc_bgpd_ctx = ncs_create(g_fc_server.prog_name, TCP_PROTO))
-                == NULL)
+        if ((g_fc_server.fc_bgpd_ctx6
+                    = ncs6_create(g_fc_server.prog_name, TCP_PROTO)) == NULL)
         {
             printf("create bgpd ncs failed\n");
             exit(-ENOMEM);
         }
 
-        ncs_setup(g_fc_server.fc_bgpd_ctx, g_fc_server.prog_addr, FC_PORT, NULL, 0);
-        ncs_timeout(g_fc_server.fc_bgpd_ctx, 10, -1);
-        ncs_setkeepalive(g_fc_server.fc_bgpd_ctx, 10);
-        ncs_server_enable(g_fc_server.fc_bgpd_ctx);
-        ncs_server_register(g_fc_server.fc_bgpd_ctx, fc_server_handler);
-        ncs_manager_start(g_fc_server.fc_bgpd_ctx);
+        ncs6_setup(g_fc_server.fc_bgpd_ctx6,
+                g_fc_server.prog_addr6, FC_PORT, NULL, 0);
+        ncs6_timeout(g_fc_server.fc_bgpd_ctx6, 10, -1);
+        ncs6_setkeepalive(g_fc_server.fc_bgpd_ctx6, 10);
+        ncs6_server_enable(g_fc_server.fc_bgpd_ctx6);
+        ncs6_server_register(g_fc_server.fc_bgpd_ctx6, fc_server_handler);
+        ncs6_manager_start(g_fc_server.fc_bgpd_ctx6);
     }
 
     printf("fc_server : %d is ready!!!\n", g_fc_server.local_asn);
@@ -148,7 +158,7 @@ fc_bm_find_server(uint32_t asn, char *ifaddr, char *ifname)
 }
 
     static int
-fc_bm_broadcast_to_peer(ncs_ctx_t *ctx, const FC_msg_bm_t *bm, char *buffer,
+fc_bm_broadcast_to_peer(ncs6_ctx_t *ctx, const FC_msg_bm_t *bm, char *buffer,
         int bufferlen)
 {
     printf("broadcast to peers start\n");
@@ -173,8 +183,7 @@ fc_bm_broadcast_to_peer(ncs_ctx_t *ctx, const FC_msg_bm_t *bm, char *buffer,
             // offpath
             if (fc_asn_is_offpath(asn, bm))
             {
-                printf("sent to offpath node: %d->remote_addr: %s\n",
-                        node->asn, ctx->remote_addr);
+                printf("sent to offpath node: %d\n", node->asn);
                 ret = fc_bm_find_server(asn, ifaddr, NULL);
                 if (ret == 0)
                 {
@@ -188,8 +197,7 @@ fc_bm_broadcast_to_peer(ncs_ctx_t *ctx, const FC_msg_bm_t *bm, char *buffer,
             // onpath
             else
             {
-                printf("sent to onpath node: %d->remote_addr: %s\n",
-                        node->asn, ctx->remote_addr);
+                printf("sent to onpath node: %d\n", node->asn);
                 ret = fc_bm_find_server(asn, ifaddr, NULL);
                 if (ret == 0)
                 {
@@ -226,7 +234,7 @@ fc_bm_broadcast_to_peer(ncs_ctx_t *ctx, const FC_msg_bm_t *bm, char *buffer,
 }
 
     int
-fc_server_pubkey_handler(ncs_ctx_t *ctx, const char *buff, int len)
+fc_server_pubkey_handler(ncs6_ctx_t *ctx, const char *buff, int len)
 {
     return 0;
 }
@@ -288,7 +296,7 @@ fc_bm_verify_fc(FC_msg_bm_t *bm)
 }
 
     static int
-fc_gen_acl(ncs_ctx_t *ctx, FC_msg_bm_t *bm)
+fc_gen_acl(ncs6_ctx_t *ctx, FC_msg_bm_t *bm)
 {
     int i = 0, j = 0, ret = 0;
     int flag_offpath = 0;
@@ -375,7 +383,7 @@ fc_gen_acl(ncs_ctx_t *ctx, FC_msg_bm_t *bm)
 // buff is starting from bm's ipversion
 // msg_type: is broadcast msg
     int
-fc_server_bm_handler(ncs_ctx_t *ctx, char *buffer, int bufferlen, int msg_type)
+fc_server_bm_handler(ncs6_ctx_t *ctx, char *buffer, int bufferlen, int msg_type)
 {
     // remove header
     char buff_new_msg[BUFSIZ] = {0};
@@ -397,8 +405,6 @@ fc_server_bm_handler(ncs_ctx_t *ctx, char *buffer, int bufferlen, int msg_type)
     } else if (buff[0] == IPV6) // ipv6
     {
         ip_len = IP6_LENGTH;
-        printf("Not supported now: %d\n", buff[0]);
-        return 0;
     } else
     {
         printf("Not supported now: %d\n", buff[0]);
@@ -416,36 +422,34 @@ fc_server_bm_handler(ncs_ctx_t *ctx, char *buffer, int bufferlen, int msg_type)
     // src_ip
     for (i=0; i<bm.src_ip_num; ++i)
     {
+        bm.src_ip[i].prefix_length = *(buff+cur+ip_len);
         if (bm.ipversion == IPV4)
         {
             struct sockaddr_in* addr = (struct sockaddr_in*) &bm.src_ip[i].ip;
-            memcpy(&(addr->sin_addr),
-                    buff+cur, sizeof(struct in_addr));
+            addr->sin_family = AF_INET;
+            memcpy(&(addr->sin_addr), buff+cur, ip_len);
         } else
         {
             struct sockaddr_in6* addr = (struct sockaddr_in6*) &bm.src_ip[i].ip;
-            memcpy(&(addr->sin6_addr),
-                    buff+cur, sizeof(struct in6_addr));
+            addr->sin6_family = AF_INET6;
+            memcpy(&(addr->sin6_addr), buff+cur, ip_len);
         }
-        memcpy(&bm.src_ip[i].prefix_length, buff+cur+ip_len, 1);
         cur += ip_len + 1;
     }
 
     // dst_ip
     for (i=0; i<bm.dst_ip_num; ++i)
     {
+        bm.dst_ip[i].prefix_length = *(buff+cur+ip_len);
         if (bm.ipversion == IPV4)
         {
             struct sockaddr_in* addr = (struct sockaddr_in*) &bm.dst_ip[i].ip;
-            memcpy(&(addr->sin_addr),
-                    buff+cur, sizeof(struct in_addr));
+            memcpy(&(addr->sin_addr), buff+cur, ip_len);
         } else
         {
             struct sockaddr_in6* addr = (struct sockaddr_in6*) &bm.dst_ip[i].ip;
-            memcpy(&(addr->sin6_addr),
-                    buff+cur, sizeof(struct in6_addr));
+            memcpy(&(addr->sin6_addr), buff+cur, ip_len);
         }
-        memcpy(&bm.dst_ip[i].prefix_length, buff+cur+ip_len, 1);
         cur += ip_len + 1;
     }
 
@@ -528,14 +532,14 @@ fc_server_bm_handler(ncs_ctx_t *ctx, char *buffer, int bufferlen, int msg_type)
 }
 
     int
-fc_server_handler(ncs_ctx_t *ctx)
+fc_server_handler(ncs6_ctx_t *ctx)
 {
     int bufflen = 0;
     int recvlen = 0;
     char buff[BUFSIZ];
 
     memset(buff, 0, BUFSIZ);
-    recvlen = ncs_server_recv(ctx, buff, BUFSIZ);
+    recvlen = ncs6_server_recv(ctx, buff, BUFSIZ);
     memcpy(&bufflen, &buff[2], sizeof(u16));
     bufflen = ntohs(bufflen);
 
@@ -544,7 +548,7 @@ fc_server_handler(ncs_ctx_t *ctx)
     /*
     while (bufflen > recvlen)
     {
-        recvlen += ncs_server_recv(ctx, buff+recvlen,
+        recvlen += ncs6_server_recv(ctx, buff+recvlen,
                 bufflen-recvlen);
     }
     */
@@ -580,7 +584,7 @@ fc_server_handler(ncs_ctx_t *ctx)
 
     printf("#################################################\n\n");
 
-    ncs_client_stop(ctx);
+    ncs6_client_stop(ctx);
 
     return 0;
 }
@@ -625,7 +629,7 @@ fc_parse_args(int argc, char **argv)
 fc_main()
 {
     g_fc_server.prog_name = "fcserver";
-    g_fc_server.prog_addr = "0.0.0.0";
+    g_fc_server.prog_addr6 = "::";
 
     fc_hashtable_create(&g_fc_server.ht_as, &g_fc_htbl_as_ops);
 

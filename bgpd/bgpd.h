@@ -38,10 +38,6 @@
 #define USE_FC
 #endif
 
-#ifdef USE_FC
-    #include "bgp_fc.h"
-#endif
-
 #define BGP_MAX_HOSTNAME 64	/* Linux max, is larger than most other sys */
 #define BGP_PEER_MAX_HASH_SIZE 16384
 
@@ -102,8 +98,6 @@ extern struct frr_pthread *bgp_pth_ka;
 
 /* BGP master for system wide configurations and variables.  */
 struct bgp_master {
-#ifdef USE_FC
-#endif
 	/* BGP instance list.  */
 	struct list *bgp;
 
@@ -345,7 +339,8 @@ struct as_confed {
 struct bgp {
 #ifdef USE_FC
     int ipsrcs_size;
-    struct prefix ipsrcs[FC_MAX_SIZE];
+#define FC_MAX_PREFIX_SIZE 1024
+    struct prefix ipsrcs[FC_MAX_PREFIX_SIZE];
 #endif
 	/* AS number of this BGP instance.  */
 	as_t as;

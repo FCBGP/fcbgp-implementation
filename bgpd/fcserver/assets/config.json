@@ -12,7 +12,11 @@
                     "ifprefix": 24,
                     "ifname": "ens36"
                 }],
-                "ipv6": []
+                "ipv6": [{
+                    "ifaddr": "2001:db8::1",
+                    "ifprefix": 64,
+                    "ifname": "ens36"
+                }]
             }
         }, {
             "asn": 20,
@@ -23,7 +27,11 @@
                     "ifprefix": 24,
                     "ifname": "ens36"
                 }],
-                "ipv6": []
+                "ipv6": [{
+                    "ifaddr": "2001:db8::2",
+                    "ifprefix": 64,
+                    "ifname": "ens36"
+                }]
             }
         }, {
             "asn": 30,
@@ -34,7 +42,11 @@
                     "ifprefix": 24,
                     "ifname": "ens36"
                 }],
-                "ipv6": []
+                "ipv6": [{
+                    "ifaddr": "2001:db8::3",
+                    "ifprefix": 64,
+                    "ifname": "ens36"
+                }]
             }
         }, {
             "asn": 40,
@@ -45,7 +57,11 @@
                     "ifprefix": 24,
                     "ifname": "ens36"
                 }],
-                "ipv6": []
+                "ipv6": [{
+                    "ifaddr": "2001:db8::4",
+                    "ifprefix": 64,
+                    "ifname": "ens36"
+                }]
             }
         }
     ]

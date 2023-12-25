@@ -77,8 +77,6 @@ typedef uint64_t  u64;
 #define FC_ACTION_ADD_UPDATE            1
 #define FC_ACTION_DEL_WITHDRAW          2
 
-#define FC_DB_NAME                      "/etc/frr/fc.db"
-
 #define FC_ASSERT_RET(ret)                                     \
     do {                                                    \
         if (ret != 0) {                                     \
@@ -197,7 +195,7 @@ typedef struct FC_msg_hdr_st
 
 typedef struct FC_msg_bm_st
 {
-    u8 ipversion;       // 1 for ipv4, 2 for ipv6
+    u8 ipversion;       // IPV4 for ipv4, IPV6 for ipv6
     u8 type;            // 0 for onpath nodes, 1 for offpath
     u8 action;          // 0 for add/update, 1 for del/withdraw
     u8 fc_num;          // num of fc in fclist, boundary
@@ -244,7 +242,8 @@ extern int fc_hashtable_destroy(htbl_ctx_t *ht);
 
 /* SERVER */
 #define FC_PORT 23160
-extern int bgp_fc_main(long asn);
-extern int fc_send_packet_to_fcserver(char *buff, int bufflen);
+extern int fc_send_packet_to_fcserver(u8 ipversion, char *buff, int bufflen);
+
+extern int bgp_fc_init(void);
 
 #endif // BGP_FC_H

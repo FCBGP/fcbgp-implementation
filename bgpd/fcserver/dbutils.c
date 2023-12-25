@@ -83,8 +83,6 @@ fc_db_write_bm(const FC_msg_bm_t *bm)
     } else if (bm->ipversion == IPV6)
     {
         socklen = sizeof(struct sockaddr_in6);
-        printf("THIS IS NOT supported: %d!\n", bm->ipversion);
-        return 0;
     } else
     {
         printf("THIS IS NOT supported: %d!\n", bm->ipversion);
@@ -103,7 +101,7 @@ fc_db_write_bm(const FC_msg_bm_t *bm)
             inet_ntop(AF_INET, &sin->sin_addr, buff_src_ip+cur, socklen);
         } else {
             sin6 = (struct sockaddr_in6 *)&(bm->src_ip[i].ip);
-            inet_ntop(AF_INET, &sin6->sin6_addr, buff_src_ip+cur, socklen);
+            inet_ntop(AF_INET6, &sin6->sin6_addr, buff_src_ip+cur, socklen);
         }
         cur += strlen(buff_src_ip+cur);
         snprintf(buff_src_ip+cur, FC_BUFF_SIZE, "/%d,",
@@ -126,7 +124,7 @@ fc_db_write_bm(const FC_msg_bm_t *bm)
             inet_ntop(AF_INET, &sin->sin_addr, buff_dst_ip+cur, socklen);
         } else {
             sin6 = (struct sockaddr_in6 *)&(bm->dst_ip[i].ip);
-            inet_ntop(AF_INET, &sin6->sin6_addr, buff_dst_ip+cur, socklen);
+            inet_ntop(AF_INET6, &sin6->sin6_addr, buff_dst_ip+cur, socklen);
         }
         cur += strlen(buff_dst_ip+cur);
         snprintf(buff_dst_ip+cur, FC_BUFF_SIZE,

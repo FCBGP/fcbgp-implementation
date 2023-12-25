@@ -5,7 +5,11 @@
  * Description:
  ********************************************************************************/
 
+#include <sys/socket.h>
+#include <netinet/in.h>
 #include "bgpd/bgp_fc.h"
+
+extern struct bgp_master *bm;
 
 /* HASHTABLE UTILS */
     static void *
@@ -317,7 +321,7 @@ fc_hashtable_destroy(htbl_ctx_t *ht)
 fc_sha256_encode(const char *const msg, int msglen, unsigned char *digest,
         unsigned int *digest_len)
 {
-    int i = 0, ret = 1;
+    int ret = 1;
     EVP_MD *md = NULL;
     EVP_MD_CTX *mdctx = NULL;
 
@@ -368,11 +372,11 @@ fc_sha256_encode(const char *const msg, int msglen, unsigned char *digest,
 
     zlog_debug("Digest_len is : %u, Digest is: ", *digest_len);
     /*
-    for (i = 0; i < (int)*digest_len; i++)
+    for (int i = 0; i < (int)*digest_len; i++)
     {
-        zlog_debug("%02x", digest[i]);
+       zlog_debug("%02x", digest[i]);
     }
-    */
+       */
 
 error:
     /* Clean up all the resources we allocated */
@@ -461,18 +465,18 @@ fc_ecdsa_verify(EC_KEY *pubkey, const char *const msg, int msglen,
 
 /* FC SERVER UTILS */
 /* BGPD TO FCSERVER */
-    int
-fc_send_packet_to_fcserver(char *buff, int bufflen)
+    static int
+fc_send_packet_to_fcserver4(char *buff, int bufflen)
 {
-    struct sockaddr_in sockaddr;
     int ret = 0;
     int len = 0;
     int sockfd = 0;
+    struct sockaddr_in sockaddr;
 
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
     sockaddr.sin_family = AF_INET;
-    sockaddr.sin_port = htons(23160);
+    sockaddr.sin_port = htons(FC_PORT);
     inet_pton(AF_INET, "127.0.0.1", &sockaddr.sin_addr);
 
     ret = connect(sockfd, (struct sockaddr *)&sockaddr, sizeof(sockaddr));
@@ -491,5 +495,59 @@ fc_send_packet_to_fcserver(char *buff, int bufflen)
 
     close(sockfd);
 
+    return 0;
+}
+
+    static int
+fc_send_packet_to_fcserver6(char *buff, int bufflen)
+{
+    int ret = 0;
+    int len = 0;
+    int sockfd = 0;
+    struct sockaddr_in6 sockaddr;
+
+    sockfd = socket(AF_INET6, SOCK_STREAM, 0);
+
+    sockaddr.sin6_family = AF_INET6;
+    sockaddr.sin6_port = htons(FC_PORT);
+    inet_pton(AF_INET6, "::1", &sockaddr.sin6_addr);
+
+    ret = connect(sockfd, (struct sockaddr *)&sockaddr, sizeof(sockaddr));
+    if (ret < 0)
+    {
+        zlog_debug("connect() error");
+        perror("connect()");
+        return -1;
+    }
+
+    while (len != bufflen)
+    {
+        len = len + send(sockfd, buff+len, bufflen-len, 0);
+        zlog_debug("len = %d, total-length = %d", len, bufflen);
+    }
+
+    close(sockfd);
+
+    return 0;
+}
+
+    int
+fc_send_packet_to_fcserver(u8 ipversion, char *buff, int bufflen)
+{
+    int ret = 0;
+    if (ipversion == IPV4)
+    {
+        ret = fc_send_packet_to_fcserver4(buff, bufflen);
+    } else if (ipversion == IPV6)
+    {
+        ret = fc_send_packet_to_fcserver6(buff, bufflen);
+    }
+
+    return ret;
+}
+
+    int
+bgp_fc_init()
+{
     return 0;
 }

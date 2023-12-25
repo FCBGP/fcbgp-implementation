@@ -39,16 +39,30 @@ $ sudo chmod 777 /opt/log
 
 # SETUP
 
+## config.json
+
+- `local_asn`: the AS number of current bgp located.
+- `log_mode`: for diaglib in fcserver.
+- `clear_fc_db`: true of false. clear the fc.db before running.
+- `asn_list`: all the ASN in test.
+    - `asn`:
+    - `nics`: all the network interface card of current machine.
+    - `acs`: AS Control Server.
+        - `ipv4`: ipv4 address.
+            - `ifaddr`: ipv4 address
+            - `ifprefix`: the prefix length. Not used maybe.
+            - `ifname`: local port, the NIC links to the neighbor. Or where this is configed.
+        - `ipv6`: ipv6 address.
+            - `ifname`: local port, the NIC links to the neighbor. Or where this is configed.
+
+## program
+
 bgpd:
 - In `frr.conf`, every neighbor should be in separate groups.
 
 fcserver:
-- You need to modify the `-a <ASN>` in Makefile and `assets/asnlist.json`.
+- You need to modify the `local_asn` in `assets/config.json`.
 - `make setup` is needed after modification.
-
-## asnlist.json
-
-- ifname: local port, the NIC links to the neighbor.
 
 # compile
 
@@ -56,6 +70,9 @@ fcserver:
 $ cd /path/to/frr/bgpd/fcserver
 $ make setup
 $ make
+
+# After all fcserver started, run
+$ sudo systemctl start/stop/restart/ frr
 ```
 
 # nftable rules management
@@ -95,11 +112,20 @@ $ nft flush table filter
 # TODO
 
 - [ ] store prefix with `network` should also consider `no network` to remove storage.
-- [ ] IPv6 features.
 - [ ] Destination prefix in BGP-UPDATE is not using `MP_REACH_NLRI` to encapsulate. So there can only be one prefix each time. It means you could add with `network x.x.x.x/plen` manually. But as ipv4 uses `NLRI` which we don't want to use again, we would never change code here.
 - [ ] It uses the same public key for all. SKI is reserved.
 
 # CHANGELOG
+
+## 2023.12.25
+
+- [x] v0.1.3
+- [x] IPv6 features. Not gracefully. `v4->v6` will use `::ffff:x.x.x.x`.
+
+## 2023.12.19
+
+- [x] v0.1.2.
+- [x] refactore fcserver & remove asn specified in Makefile. Make the json file as the config file.
 
 ## 2023.11.21
 
