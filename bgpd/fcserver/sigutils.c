@@ -150,7 +150,6 @@ error:
 fc_get_ecpubkey_and_ski(u32 asn, const char *fpath,
         EC_KEY **ecpubkey, u8 *ecski)
 {
-    FILE *fp = NULL;
     X509 *cert = NULL;
     EVP_PKEY *pubkey = NULL;
     BIO *bio_in = NULL;
@@ -197,7 +196,7 @@ fc_get_ecpubkey_and_ski(u32 asn, const char *fpath,
         EVP_PKEY_print_public(bio_out, pubkey, 0, NULL);
     }
 
-    ecpubkey = EVP_PKEY_get1_EC_KEY(pubkey);
+    *ecpubkey = EVP_PKEY_get1_EC_KEY(pubkey);
 
     EVP_PKEY_free(pubkey);
     X509_free(cert);

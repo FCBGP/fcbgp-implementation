@@ -209,14 +209,13 @@ typedef struct FC_msg_bm_new_s
 
 typedef struct FC_server_s
 {
-    // as-ip totoal num, of course it's as's number
     char *prog_name;
     char *prog_addr4;
     char *prog_addr6;
     u8 log_mode;
     u8 clear_fc_db;
     u32 local_asn;
-    u8 asns_num;
+    u8 asns_num; /* as-ip totoal num, of course it's number of AS */
     u32 asns[FCSRV_MAX_LINK_AS];
     sqlite3 *db;
     htbl_ctx_t ht_as;
@@ -229,7 +228,7 @@ typedef struct FC_server_s
     EC_KEY *pubkey;
     EC_KEY *prikey;
     int nics_num;
-    char nics[FC_MAX_SIZE][20]; // nics
+    char nics[FC_MAX_SIZE][20]; /* network interface cards */
 } FC_server_t;
 
 extern FC_server_t g_fc_server;

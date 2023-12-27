@@ -11,7 +11,7 @@
     static void *
 fc_as_node_create(void)
 {
-    FC_ht_node_as_t *node = malloc(sizeof(FC_ht_node_as_t));
+    FC_ht_node_as_t *node = calloc(1, sizeof(FC_ht_node_as_t));
     return node;
 }
 
@@ -19,7 +19,9 @@ fc_as_node_create(void)
 fc_as_node_destroy(void *node)
 {
     FC_ht_node_as_t *node_as = (FC_ht_node_as_t *)node;
+    EC_KEY_free(node_as->pubkey);
     free(node_as);
+    node_as = NULL;
     return 0;
 }
 
@@ -108,8 +110,8 @@ htbl_ops_t g_fc_htbl_as_ops = {
     static void *
 fc_prefix_node_create(void)
 {
-    FC_ht_node_prefix_t *node = malloc(sizeof(FC_ht_node_prefix_t));
-    node->fcs = malloc(sizeof(FC_t) * FC_MAX_SIZE);
+    FC_ht_node_prefix_t *node = calloc(1, sizeof(FC_ht_node_prefix_t));
+    node->fcs = calloc(FC_MAX_SIZE, sizeof(FC_t));
     return node;
 }
 
@@ -118,8 +120,9 @@ fc_prefix_node_destroy(void *node)
 {
     FC_ht_node_prefix_t *node_prefix = (FC_ht_node_prefix_t *)node;
     free(node_prefix->fcs);
+    node_prefix->fcs = NULL;
     free(node_prefix);
-
+    node_prefix = NULL;
     return 0;
 }
 
@@ -236,6 +239,7 @@ fc_hashtable_destroy(htbl_ctx_t *ht)
     if (ht)
     {
         htbl_fini(ht);
+        ht = NULL;
     }
     return 0;
 }

@@ -2000,7 +2000,7 @@ int strnrep(char *dst, char *fmt, char *msg, int n)
                 p++;d++;n--;
             } else {
                 if (idx < argc) {
-                    m = snprintf(d, n, argv[idx]);
+                    m = snprintf(d, (size_t)n, "%s", argv[idx]);
                     d += m;
                     n -= m;
                     p = q;

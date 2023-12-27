@@ -72,17 +72,27 @@ fc_server_destroy(int signum)
             ncs6_destroy(g_fc_server.fc_bgpd_ctx6);
             g_fc_server.fc_bgpd_ctx6 = NULL;
         }
-        fc_db_close(g_fc_server.db);
+        if (g_fc_server.db)
+        {
+            fc_db_close(g_fc_server.db);
+            g_fc_server.db = NULL;
+        }
+
         fc_hashtable_destroy(&g_fc_server.ht_as);
-        // fc_hashtable_destroy(&g_fc_server.ht_prefix);
+        fc_hashtable_destroy(&g_fc_server.ht_prefix);
+
         EC_KEY_free(g_fc_server.pubkey);
         g_fc_server.pubkey = NULL;
+
         EC_KEY_free(g_fc_server.prikey);
         g_fc_server.prikey = NULL;
+
         free(g_fc_server.prikey_fname);
         g_fc_server.prikey_fname = NULL;
+
         free(g_fc_server.certs_location);
         g_fc_server.certs_location = NULL;
+
         printf("bye bye!\n");
         exit(EXIT_SUCCESS);
     }
@@ -675,10 +685,6 @@ fc_parse_args(int argc, char **argv)
     int
 fc_main()
 {
-    g_fc_server.prog_name = FC_PROGRAM_NAME;
-    g_fc_server.prog_addr4 = "0.0.0.0";
-    g_fc_server.prog_addr6 = "::";
-
     fc_welcome_banner();
 
     diag_init(g_fc_server.prog_name);
@@ -711,6 +717,13 @@ fc_main()
     int
 main(int argc, char **argv)
 {
+    g_fc_server.prog_name = FC_PROGRAM_NAME;
+    g_fc_server.prog_addr4 = "0.0.0.0";
+    g_fc_server.prog_addr6 = "::";
+    g_fc_server.config_fname = NULL;
+    g_fc_server.prikey_fname = NULL;
+    g_fc_server.certs_location = NULL;
+
     fc_parse_args(argc, argv);
     fc_main();
 

@@ -9,6 +9,7 @@
 #define FCCONFIG_H
 
 #include "defines.h"
+#include "sigutils.h"
 
 enum {
     FC_LOG_LEVEL_EMERG = 0,

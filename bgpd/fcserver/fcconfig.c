@@ -141,6 +141,7 @@ fc_combine_path(const char* path, const char* filename)
         fprintf(stderr, "malloc for combined_path failed\n");
         return NULL;
     }
+    memset(combined_path, 0, combined_len);
 
     memcpy(combined_path, path, strlen(path));
     if (path_len > 0 && path[path_len - 1] != '/') {
