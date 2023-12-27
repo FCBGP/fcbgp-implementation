@@ -147,15 +147,75 @@ error:
 }
 
     int
-fc_read_eckey_from_file(int is_pub_key, EC_KEY **pkey)
+fc_get_ecpubkey_and_ski(u32 asn, const char *fpath,
+        EC_KEY **ecpubkey, u8 *ecski)
 {
-    const char *public_key_fname = "/etc/frr/assets/eccpri256.pem";
-    const char *private_key_fname = "/etc/frr/assets/eccpri256.key";
+    FILE *fp = NULL;
+    X509 *cert = NULL;
+    EVP_PKEY *pubkey = NULL;
+    BIO *bio_in = NULL;
+    BIO *bio_out = NULL;
+    const ASN1_OCTET_STRING *ski = NULL;
+
+    if ((bio_in = BIO_new_file(fpath, "r")) == NULL)
+    {
+        fprintf(stderr, "Couldn't read certificate file\n");
+        return -1;
+    }
+
+    if ((bio_out = BIO_new_fp(stdout, BIO_NOCLOSE)) == NULL)
+    {
+        fprintf(stderr, "Couldn't create bio_out\n");
+        return -1;
+    }
+
+    if ((cert = X509_new()) == NULL)
+    {
+        fprintf(stderr, "X509_new() error\n");
+        return -1;
+    }
+
+    if (PEM_read_bio_X509(bio_in, &cert, 0, NULL) == NULL)
+    {
+        fprintf(stderr, "Couldn't read public key from certificate file\n");
+        return -1;
+    }
+
+    if ((ski = X509_get0_subject_key_id(cert)) != NULL)
+    {
+        ecski = (u8 *)ski->data;
+        printf("ASN: %u, Subject Key Identifier (SKI): ", asn);
+        for (int i = 0; i < ski->length; i++) {
+            printf("%02X", ecski[i]);
+        }
+        printf("\n");
+    }
+
+    if ((pubkey = X509_get_pubkey(cert)) != NULL)
+    {
+        printf("ASN: %u, pubkey: ", asn);
+        EVP_PKEY_print_public(bio_out, pubkey, 0, NULL);
+    }
+
+    ecpubkey = EVP_PKEY_get1_EC_KEY(pubkey);
+
+    EVP_PKEY_free(pubkey);
+    X509_free(cert);
+    BIO_free_all(bio_in);
+    BIO_free_all(bio_out);
+
+    return 0;
+
+}
+
+    int
+fc_read_eckey_from_file(const char *fpath, int is_pub_key, EC_KEY **pkey)
+{
     FILE *fp = NULL;
 
     if (is_pub_key)
     {
-        if ((fp = fopen(public_key_fname, "rb")) == NULL)
+        if ((fp = fopen(fpath, "rb")) == NULL)
         {
             perror("fopen()");
             return -1;
@@ -163,7 +223,7 @@ fc_read_eckey_from_file(int is_pub_key, EC_KEY **pkey)
 
         *pkey = PEM_read_EC_PUBKEY(fp, NULL, NULL, NULL);
     } else {
-        if ((fp = fopen(private_key_fname, "rb")) == NULL)
+        if ((fp = fopen(fpath, "rb")) == NULL)
         {
             perror("fopen()");
             return -1;
@@ -211,8 +271,10 @@ fc_ecdsa_verify(EC_KEY *pubkey, const char *const msg, int msglen,
     int
 fc_init_crypto_env(FC_server_t *fcserver)
 {
-    fc_read_eckey_from_file(1, &fcserver->pubkey);
-    fc_read_eckey_from_file(0, &fcserver->prikey);
+    const char *public_key_fname = "/etc/frr/assets/eccpri256.pem";
+    const char *private_key_fname = "/etc/frr/assets/eccpri256.key";
+    fc_read_eckey_from_file(public_key_fname, 1, &fcserver->pubkey);
+    fc_read_eckey_from_file(private_key_fname, 0, &fcserver->prikey);
 
     return 0;
 }

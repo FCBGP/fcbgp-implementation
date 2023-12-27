@@ -16,6 +16,16 @@
 #include "libhtable.h"
 #include "libncs6.h"
 
+#define STR(x) #x
+#define FC_MAJOR_VERSION STR(0)
+#define FC_MINOR_VERSION STR(1)
+#define FC_PATCH_VERSION STR(3)
+#define FC_PRJ_VERSION FC_MAJOR_VERSION "." \
+    FC_MINOR_VERSION "." FC_PATCH_VERSION
+#define FC_VERSION_STR "FC Server V" FC_PRJ_VERSION \
+    " compiled at " __DATE__ " " __TIME__ ""
+#define FC_SSL_VERSION "OpenSSL 3.0.2 15 Mar 2022"
+
 typedef uint8_t  u8;
 typedef uint16_t  u16;
 typedef uint32_t  u32;
@@ -143,6 +153,9 @@ typedef struct FC_ip_s
 typedef struct FC_node_as_s
 {
     u32 asn;
+    char cert[FC_MAX_SIZE];
+    u8 ski[FC_SKI_LENGTH];
+    EC_KEY *pubkey;
     FC_acs_t acs;
 } FC_node_as_t;
 
@@ -151,6 +164,9 @@ typedef struct FC_ht_node_as_s
 {
     htbl_node_t hnode; // htbl node must be the first one
     u32 asn;
+    char cert[FC_MAX_SIZE];
+    u8 ski[FC_SKI_LENGTH];
+    EC_KEY *pubkey;
     FC_acs_t acs;
 } FC_ht_node_as_t;
 
@@ -206,7 +222,9 @@ typedef struct FC_server_s
     htbl_ctx_t ht_as;
     htbl_ctx_t ht_prefix;
     ncs6_ctx_t *fc_bgpd_ctx6;
-    char fname[BUFSIZ];
+    char *config_fname;
+    char *prikey_fname;
+    char *certs_location;
     FC_node_as_t aps[FCSRV_MAX_LINK_AS];
     EC_KEY *pubkey;
     EC_KEY *prikey;

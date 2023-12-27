@@ -1,6 +1,8 @@
 #ifndef _LIBSTRING_H_
 #define _LIBSTRING_H_
 
+#define _GNU_SOURCE
+
 #include "libtypes.h"
 
 #define ANSI_COLOR_RESET        "\x1b[0m"

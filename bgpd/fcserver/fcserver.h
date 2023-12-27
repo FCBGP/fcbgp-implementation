@@ -27,9 +27,11 @@
 #include <pthread.h>
 #include <unistd.h>
 
-#include "libncs.h"
+#include "libncs6.h"
 #include "defines.h"
 
+#define FC_DEFAULT_CONFIG_FNAME "/etc/frr/assets/config.json"
+#define FC_PROGRAM_NAME "fcserver"
 #define FC_PORT 23160
 
 extern int fc_main();

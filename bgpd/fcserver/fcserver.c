@@ -25,27 +25,6 @@
 
 FC_server_t g_fc_server = {0};
 
-    void
-fc_server_destroy(int signum)
-{
-    if (signum == SIGINT)
-    {
-        printf("recevied SIGINT\n");
-        diag_fini();
-        if (g_fc_server.fc_bgpd_ctx6)
-        {
-            ncs6_manager_stop(g_fc_server.fc_bgpd_ctx6);
-            ncs6_destroy(g_fc_server.fc_bgpd_ctx6);
-            g_fc_server.fc_bgpd_ctx6 = NULL;
-        }
-        fc_db_close(g_fc_server.db);
-        fc_hashtable_destroy(&g_fc_server.ht_as);
-        // fc_hashtable_destroy(&g_fc_server.ht_prefix);
-        printf("bye bye!\n");
-        exit(EXIT_SUCCESS);
-    }
-}
-
     int
 fc_server_create(void)
 {
@@ -75,9 +54,38 @@ fc_server_create(void)
         ncs6_manager_start(g_fc_server.fc_bgpd_ctx6);
     }
 
-    printf("fc_server : %d is ready!!!\n", g_fc_server.local_asn);
+    printf("fc_server : AS %d is ready!!!\n", g_fc_server.local_asn);
 
     return 0;
+}
+
+    void
+fc_server_destroy(int signum)
+{
+    if (signum == SIGINT)
+    {
+        printf("recevied SIGINT\n");
+        diag_fini();
+        if (g_fc_server.fc_bgpd_ctx6)
+        {
+            ncs6_manager_stop(g_fc_server.fc_bgpd_ctx6);
+            ncs6_destroy(g_fc_server.fc_bgpd_ctx6);
+            g_fc_server.fc_bgpd_ctx6 = NULL;
+        }
+        fc_db_close(g_fc_server.db);
+        fc_hashtable_destroy(&g_fc_server.ht_as);
+        // fc_hashtable_destroy(&g_fc_server.ht_prefix);
+        EC_KEY_free(g_fc_server.pubkey);
+        g_fc_server.pubkey = NULL;
+        EC_KEY_free(g_fc_server.prikey);
+        g_fc_server.prikey = NULL;
+        free(g_fc_server.prikey_fname);
+        g_fc_server.prikey_fname = NULL;
+        free(g_fc_server.certs_location);
+        g_fc_server.certs_location = NULL;
+        printf("bye bye!\n");
+        exit(EXIT_SUCCESS);
+    }
 }
 
     static int
@@ -347,9 +355,9 @@ fc_gen_acl(ncs6_ctx_t *ctx, FC_msg_bm_t *bm)
                 if (strcmp(g_fc_server.nics[j], ifname))
                 {
                     /*
-                    // sudo nft add rule inet filter output oif ens36 \
-                    //      ip saddr 192.168.88.131 ip daddr 192.168.88.132 drop
-                    //      */
+                     * sudo nft add rule inet filter output oif ens36 \
+                     *      ip saddr 192.168.88.131 ip daddr 192.168.88.132 drop
+                     * */
                     if (bm->fclist[0].nexthop_asn == g_fc_server.local_asn)
                     {
                         sprintf(cmd, "nft add rule inet filter %s "
@@ -589,11 +597,48 @@ fc_server_handler(ncs6_ctx_t *ctx)
     return 0;
 }
 
+    static inline int
+print_line(char ch, char *string)
+{
+
+    int i = 0, line_len = 78, ln = 0, rn = 0, string_len = 0;
+
+    string_len = strlen(string);
+    ln = (line_len - string_len) / 2;
+    rn = line_len - string_len - ln;
+
+    printf("*");
+    for (i = 0; i < ln; ++i)
+        printf("%c", ch);
+    printf("%s", string);
+    for (i = 0; i < rn; ++i)
+        printf("%c", ch);
+    printf("*\n");
+
+    return 0;
+}
+
+    static inline void
+fc_welcome_banner()
+{
+    print_line('*', "");
+    print_line(' ', FC_VERSION_STR);
+    print_line(' ', "Home page: <https://gitee.com/basil1728/fcbgp-new>");
+    print_line(' ', "A private repository. Not avaliable without permission.");
+    print_line(' ', "Need help or report bugs please mailto: guoyangfei@zgclab.edu.cn");
+    print_line(' ', "SSL_VERSION: " FC_SSL_VERSION);
+    print_line('*', "");
+}
+
     static inline void
 fc_help(void)
 {
-    printf("  -h                   print this message.\n");
-    printf("  -f <config.json>    specify the location of config.json\n");
+    fc_welcome_banner();
+    printf("\n");
+    printf("\t-f <asnlist.json>  Specify the location of asnlist.json.\n");
+    printf("\t                   OPTIONAL. Default location is /etc/frr/assets/\n");
+    printf("\t-h                 Print this message.\n");
+    printf("\t-v                 Print FC Server version.\n");
 }
 
     static void
@@ -601,13 +646,16 @@ fc_parse_args(int argc, char **argv)
 {
     int opt = 0;
 
-    while ((opt = getopt(argc, argv, "f:h")) > 0)
+    while ((opt = getopt(argc, argv, "f:hv")) > 0)
     {
         switch(opt)
         {
         case 'f':
-            memcpy(g_fc_server.fname, optarg, strlen(optarg));
+            memcpy(g_fc_server.config_fname, optarg, strlen(optarg));
             break;
+        case 'v':
+            fc_welcome_banner();
+            exit(EXIT_SUCCESS);
         case 'h':
             fc_help();
             exit(EXIT_SUCCESS);
@@ -618,18 +666,22 @@ fc_parse_args(int argc, char **argv)
         }
     }
 
-    if ( ! g_fc_server.fname || strlen(g_fc_server.fname) == 0)
+    if ( ! g_fc_server.config_fname || strlen(g_fc_server.config_fname) == 0)
     {
-        const char *pfname = "/etc/frr/assets/config.json";
-        memcpy(g_fc_server.fname, pfname, strlen(pfname));
+        g_fc_server.config_fname = strdup(FC_DEFAULT_CONFIG_FNAME);
     }
 }
 
     int
 fc_main()
 {
-    g_fc_server.prog_name = "fcserver";
+    g_fc_server.prog_name = FC_PROGRAM_NAME;
+    g_fc_server.prog_addr4 = "0.0.0.0";
     g_fc_server.prog_addr6 = "::";
+
+    fc_welcome_banner();
+
+    diag_init(g_fc_server.prog_name);
 
     fc_hashtable_create(&g_fc_server.ht_as, &g_fc_htbl_as_ops);
 
@@ -640,7 +692,6 @@ fc_main()
         htbl_display(&g_fc_server.ht_as);
     }
 
-    diag_init(g_fc_server.prog_name);
     diag_level_set(g_fc_server.log_mode);
 
     fc_init_crypto_env(&g_fc_server);

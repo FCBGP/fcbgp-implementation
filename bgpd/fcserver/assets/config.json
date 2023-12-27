@@ -2,14 +2,17 @@
     "local_asn": 10,
     "log_mode": "debug",
     "clear_fc_db": true,
-    "asn_list": [
+    "certs_location": "/etc/frr/assets",
+    "private_key_fname": "10.key",
+    "as_info_list": [
         {
             "asn": 10,
+            "cert": "10.cert",
             "nics": ["lo", "ens36", "ens37"],
             "acs": {
                 "ipv4": [{
                     "ifaddr": "192.168.88.131",
-                    "ifprefix": 24,
+                    "ifprefix": 32,
                     "ifname": "ens36"
                 }],
                 "ipv6": [{
@@ -20,11 +23,12 @@
             }
         }, {
             "asn": 20,
+            "cert": "20.cert",
             "nics": ["lo", "ens36", "ens37"],
             "acs": {
                 "ipv4": [{
                     "ifaddr": "192.168.88.132",
-                    "ifprefix": 24,
+                    "ifprefix": 32,
                     "ifname": "ens36"
                 }],
                 "ipv6": [{
@@ -35,11 +39,12 @@
             }
         }, {
             "asn": 30,
+            "cert": "30.cert",
             "nics": ["lo", "ens36", "ens37"],
             "acs": {
                 "ipv4": [{
                     "ifaddr": "192.168.88.133",
-                    "ifprefix": 24,
+                    "ifprefix": 32,
                     "ifname": "ens36"
                 }],
                 "ipv6": [{
@@ -50,11 +55,12 @@
             }
         }, {
             "asn": 40,
+            "cert": "40.cert",
             "nics": ["lo", "ens36", "ens37"],
             "acs": {
                 "ipv4": [{
                     "ifaddr": "192.168.88.134",
-                    "ifprefix": 24,
+                    "ifprefix": 32,
                     "ifname": "ens36"
                 }],
                 "ipv6": [{
