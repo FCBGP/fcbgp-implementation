@@ -37,11 +37,14 @@
 #include <openssl/pem.h>
 #include <openssl/x509.h>
 
+#include <json-c/json.h>
+
 #include "lib/prefix.h"
 #include "lib/jhash.h"
 #include "lib/zlog.h"
 
 #include "libhtable.h"
+#include "bgpd/bgpd.h"
 
 typedef uint8_t  u8;
 typedef uint16_t  u16;
@@ -77,6 +80,8 @@ typedef uint64_t  u64;
 #define FC_ACTION_ADD_UPDATE            1
 #define FC_ACTION_DEL_WITHDRAW          2
 
+#define FC_CONFIG_FILE "/etc/frr/assets/config.json"
+
 #define FC_ASSERT_RET(ret)                                     \
     do {                                                    \
         if (ret != 0) {                                     \
@@ -92,6 +97,13 @@ typedef uint64_t  u64;
                     __func__, __LINE__);                        \
         }                                                       \
     } while (0)
+
+typedef struct SKI_ECKEY_s
+{
+    u32 asn;
+    u8 ski[FC_SKI_LENGTH];
+    EC_KEY *pubkey;
+} SKI_ECKEY_t;
 
 typedef struct FC_s
 {
@@ -224,6 +236,10 @@ typedef struct FC_msg_bm_new_s
 
 /* SIG */
 extern int fc_read_eckey_from_file(int is_pub_key, EC_KEY **pkey);
+extern int fc_read_eckey_from_filepath(const char *file,
+        int is_pub_key, EC_KEY **pkey);
+extern int fc_get_ecpubkey_and_ski(u32 asn, const char *fpath,
+        EC_KEY **ecpubkey, u8 *ecski);
 extern int fc_base64_encode(const unsigned char *msg,
         size_t length, char * b64msg);
 extern int fc_base64_decode(const char *b64msg, unsigned char **msg,
@@ -244,6 +260,7 @@ extern int fc_hashtable_destroy(htbl_ctx_t *ht);
 #define FC_PORT 23160
 extern int fc_send_packet_to_fcserver(u8 ipversion, char *buff, int bufflen);
 
-extern int bgp_fc_init(void);
+extern int bgp_fc_init(struct bgp_master *bm);
+extern int bgp_fc_destroy(struct bgp_master *bm);
 
 #endif // BGP_FC_H

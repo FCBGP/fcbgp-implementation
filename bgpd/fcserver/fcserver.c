@@ -295,7 +295,13 @@ fc_bm_verify_fc(FC_msg_bm_t *bm)
             memcpy(msg+msglen, &bm->dst_ip[j].prefix_length, 1);
             msglen += 1;
         }
-        ret = fc_ecdsa_verify(g_fc_server.pubkey, msg, msglen,
+
+        FC_ht_node_as_t *node;
+        FC_node_as_t meta = {0};
+        meta.asn = bm->fclist[i].current_asn;
+        node = htbl_meta_find(&g_fc_server.ht_as, &meta);
+
+        ret = fc_ecdsa_verify(node->pubkey, msg, msglen,
                 bm->fclist[i].sig, bm->fclist[i].siglen);
         switch (ret)
         {
@@ -510,6 +516,18 @@ fc_server_bm_handler(ncs6_ctx_t *ctx, char *buffer, int bufferlen, int msg_type)
         // add signature for sending to peers
         fc_ecdsa_sign(g_fc_server.prikey, msg, cur,
                 &sigbuff, &sigbufflen);
+        memcpy(bm.ski, g_fc_server.ski, FC_SKI_LENGTH);
+        memcpy(buff+cur, g_fc_server.ski, FC_SKI_LENGTH);
+
+#if 0
+        printf("g_fc_server.ski: ");
+        for (int k=0; k<FC_SKI_LENGTH; ++k)
+        {
+            printf("%02X", g_fc_server.ski[k]);
+        }
+        printf("\n");
+#endif
+
         memcpy(buff+cur+FC_SKI_LENGTH, sigbuff, sigbufflen);
         bm.siglen = sigbufflen;
         sigbufflen = htons(sigbufflen);
@@ -526,7 +544,36 @@ fc_server_bm_handler(ncs6_ctx_t *ctx, char *buffer, int bufferlen, int msg_type)
         // SIGLEN MUST be 0 when verify SIGNATURE
         memset(&msg[FC_HDR_BM_SIGLEN_POS], 0, sizeof(16));
         memcpy(bm.signature, buff+cur+FC_SKI_LENGTH, bm.siglen);
-        ret = fc_ecdsa_verify(g_fc_server.pubkey, msg, cur,
+
+        FC_ht_node_as_t *node;
+        FC_node_as_t meta = {0};
+        meta.asn = bm.local_asn;
+        node = htbl_meta_find(&g_fc_server.ht_as, &meta);
+
+#if 0
+        printf("g_fc_server.local_asn: %u, bm.local_asn: %u, node.asn: %u\n",
+                g_fc_server.local_asn, bm.local_asn, node->asn);
+        printf("g_fc_server.ski: ");
+        for (int k=0; k<FC_SKI_LENGTH; ++k)
+        {
+            printf("%02X", g_fc_server.ski[k]);
+        }
+        printf("\n");
+        printf("bm.ski: ");
+        for (int k=0; k<FC_SKI_LENGTH; ++k)
+        {
+            printf("%02X", bm.ski[k]);
+        }
+        printf("\n");
+        printf("node.ski: ");
+        for (int k=0; k<FC_SKI_LENGTH; ++k)
+        {
+            printf("%02X", node->ski[k]);
+        }
+        printf("\n");
+#endif
+
+        ret = fc_ecdsa_verify(node->pubkey, msg, cur,
                 bm.signature, bm.siglen);
         switch (ret)
         {

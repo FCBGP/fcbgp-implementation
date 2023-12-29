@@ -7,9 +7,11 @@
 
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include "bgpd/bgp_fc.h"
+#include <json-c/json.h>
 
-extern struct bgp_master *bm;
+#include "lib/hash.h"
+#include "bgpd/bgpd.h"
+#include "bgpd/bgp_fc.h"
 
 /* HASHTABLE UTILS */
     static void *
@@ -316,6 +318,212 @@ fc_hashtable_destroy(htbl_ctx_t *ht)
     return 0;
 }
 
+/* HASH UTILS */
+    static unsigned int
+hash_key(const void *data)
+{
+    int i = 0;
+    unsigned int ret = 0xdeadbeef;
+    const SKI_ECKEY_t *msg = (const SKI_ECKEY_t*) data;
+    const u8 *ski = msg->ski;
+    u32 num = msg->asn;
+
+    for (i=0; i<FC_SKI_LENGTH; i+=4)
+    {
+        num = (ski[i]<<24) + (ski[i+1]<<16) + (ski[i+2]<<8) + ski[i+3];
+        ret = jhash_1word(num, ret);
+    }
+
+    return ret;
+}
+
+    static bool
+hash_cmp(const void *a, const void *b)
+{
+    const SKI_ECKEY_t *msg1 = (const SKI_ECKEY_t*) a;
+    const SKI_ECKEY_t *msg2 = (const SKI_ECKEY_t*) b;
+
+    // return !(!! memcmp(msg1->ski, msg2->ski, FC_SKI_LENGTH));
+    return msg1->asn == msg2->asn;
+}
+
+    int
+fc_get_ecpubkey_and_ski(u32 asn, const char *fpath,
+        EC_KEY **ecpubkey, u8 *ecski)
+{
+    X509 *cert = NULL;
+    EVP_PKEY *pubkey = NULL;
+    BIO *bio_in = NULL;
+    BIO *bio_out = NULL;
+    const ASN1_OCTET_STRING *ski = NULL;
+
+    if ((bio_in = BIO_new_file(fpath, "r")) == NULL)
+    {
+        zlog_err("Couldn't read certificate file");
+        return -1;
+    }
+
+    if ((bio_out = BIO_new_fp(stdout, BIO_NOCLOSE)) == NULL)
+    {
+        zlog_err("Couldn't create bio_out");
+        return -1;
+    }
+
+    if ((cert = X509_new()) == NULL)
+    {
+        zlog_err("X509_new() error");
+        return -1;
+    }
+
+    if (PEM_read_bio_X509(bio_in, &cert, 0, NULL) == NULL)
+    {
+        zlog_err("Couldn't read public key from certificate file");
+        return -1;
+    }
+
+    if ((ski = X509_get0_subject_key_id(cert)) == NULL)
+    {
+        zlog_err("Couldn't read ski from cert");
+        return -1;
+    } else
+    {
+        memcpy(ecski, (u8 *)ski->data, FC_SKI_LENGTH);
+        printf("ASN: %u, Subject Key Identifier (SKI): ", asn);
+        for (int i = 0; i < ski->length; i++) {
+            printf("%02X", ecski[i]);
+        }
+        printf("\n");
+    }
+
+    if ((pubkey = X509_get_pubkey(cert)) == NULL)
+    {
+        zlog_err("Couldn't read public key from cert");
+        return -1;
+    } else
+    {
+        printf("ASN: %u, pubkey: ", asn);
+        EVP_PKEY_print_public(bio_out, pubkey, 0, NULL);
+    }
+
+    *ecpubkey = EVP_PKEY_get1_EC_KEY(pubkey);
+
+    EVP_PKEY_free(pubkey);
+    X509_free(cert);
+    BIO_free_all(bio_in);
+    BIO_free_all(bio_out);
+
+    return 0;
+}
+
+/* JSON UTILS */
+    static char *
+fc_combine_path(const char *path, const char *filename)
+{
+    size_t path_len = strlen(path);
+    size_t filename_len = strlen(filename);
+    size_t combined_len = path_len + filename_len + 2;  // 2 for '/' and '\0'
+
+    char* combined_path = (char*) malloc(combined_len);
+    if (combined_path == NULL)
+    {
+        zlog_err("malloc for combined_path failed");
+        return NULL;
+    }
+    memset(combined_path, 0, combined_len);
+
+    memcpy(combined_path, path, strlen(path));
+    if (path_len > 0 && path[path_len - 1] != '/')
+    {
+        strcat(combined_path, "/");
+    }
+
+    strcat(combined_path, filename);
+
+    return combined_path;
+}
+    static int
+fc_json_read_config(struct bgp_master *bm)
+{
+    struct hash *ht = bm->ht_ski_ecpubkey;
+    int i, as_num = 0, ret = 0;
+    const char *fpath = NULL, *fname = NULL;
+    char *fullpath = NULL;
+    json_object *root = NULL, *certs_location = NULL;
+    json_object *private_key_fname = NULL, *certificate_fname = NULL;
+    json_object *as_info_list = NULL, *as_info = NULL;
+    json_object *asn = NULL, *cert = NULL;
+
+    root = json_object_from_file(FC_CONFIG_FILE);
+    if (root == NULL)
+    {
+        zlog_err("Couldn't read root json file");
+        return -1;
+    }
+
+    certs_location = json_object_object_get(root, "certs_location");
+    fpath = json_object_get_string(certs_location);
+
+    private_key_fname = json_object_object_get(root, "private_key_fname");
+    fname = json_object_get_string(private_key_fname);
+    fullpath = fc_combine_path(fpath, fname);
+    fc_read_eckey_from_filepath(fullpath, 0, &bm->prikey);
+    free(fullpath);
+
+    certificate_fname = json_object_object_get(root, "certificate_fname");
+    fname = json_object_get_string(certificate_fname);
+    fullpath = fc_combine_path(fpath, fname);
+    ret = fc_get_ecpubkey_and_ski(0, fullpath, &bm->pubkey, bm->ski);
+    free(fullpath);
+
+    as_info_list = json_object_object_get(root, "as_info_list");
+    as_num = json_object_array_length(as_info_list);
+
+    for (i=0; i<as_num; ++i)
+    {
+        SKI_ECKEY_t data = {0};
+
+        as_info = json_object_array_get_idx(as_info_list, i);
+        asn = json_object_object_get(as_info, "asn");
+        data.asn = json_object_get_int(asn);
+
+        cert = json_object_object_get(as_info, "cert");
+        fullpath = fc_combine_path(fpath, json_object_get_string(cert));
+
+        ret = fc_get_ecpubkey_and_ski(data.asn,
+                fullpath, &data.pubkey, data.ski);
+        free(fullpath);
+
+        if (ret != 0)
+        {
+            zlog_err("Couldn't get ecpubkey and ski");
+            return ret;
+        }
+
+        hash_get(ht, &data, hash_alloc_intern);
+
+        /*
+           SKI_ECKEY_t d = {0}, *pd = NULL;
+           d.asn = 10;
+           pd = hash_lookup(ht, &d);
+           if (pd)
+           {
+           printf("pd_asn: asn: %u, aki: %p\n", pd->asn, pd->ski);
+           }
+           memset(&d, 0, sizeof(SKI_ECKEY_t));
+           memcpy(d.ski, data.ski, FC_SKI_LENGTH);
+           pd = hash_lookup(ht, &d);
+           if (pd)
+           {
+           printf("pd_ski: asn: %u, ski: %p\n", pd->asn, pd->ski);
+           }
+           */
+    }
+
+    json_object_put(root);
+
+    return 0;
+}
+
 /* SIGN/VERIFY UTILS */
     static int
 fc_sha256_encode(const char *const msg, int msglen, unsigned char *digest,
@@ -372,10 +580,10 @@ fc_sha256_encode(const char *const msg, int msglen, unsigned char *digest,
 
     zlog_debug("Digest_len is : %u, Digest is: ", *digest_len);
     /*
-    for (int i = 0; i < (int)*digest_len; i++)
-    {
+       for (int i = 0; i < (int)*digest_len; i++)
+       {
        zlog_debug("%02x", digest[i]);
-    }
+       }
        */
 
 error:
@@ -391,15 +599,13 @@ error:
 }
 
     int
-fc_read_eckey_from_file(int is_pub_key, EC_KEY **pkey)
+fc_read_eckey_from_filepath(const char *file, int is_pub_key, EC_KEY **pkey)
 {
-    const char *public_key_fname = "/etc/frr/assets/eccpri256.pem";
-    const char *private_key_fname = "/etc/frr/assets/eccpri256.key";
     FILE *fp = NULL;
 
     if (is_pub_key)
     {
-        if ((fp = fopen(public_key_fname, "rb")) == NULL)
+        if ((fp = fopen(file, "rb")) == NULL)
         {
             perror("fopen()");
             return -1;
@@ -407,7 +613,7 @@ fc_read_eckey_from_file(int is_pub_key, EC_KEY **pkey)
 
         *pkey = PEM_read_EC_PUBKEY(fp, NULL, NULL, NULL);
     } else {
-        if ((fp = fopen(private_key_fname, "rb")) == NULL)
+        if ((fp = fopen(file, "rb")) == NULL)
         {
             perror("fopen()");
             return -1;
@@ -417,6 +623,22 @@ fc_read_eckey_from_file(int is_pub_key, EC_KEY **pkey)
     fclose(fp);
 
     return 0;
+}
+
+    int
+fc_read_eckey_from_file(int is_pub_key, EC_KEY **pkey)
+{
+    int ret = 0;
+    const char *public_key_fname = "/etc/frr/assets/eccpri256.pem";
+    const char *private_key_fname = "/etc/frr/assets/eccpri256.key";
+    if (is_pub_key)
+    {
+        ret = fc_read_eckey_from_filepath(public_key_fname, is_pub_key, pkey);
+    } else {
+        ret = fc_read_eckey_from_filepath(private_key_fname, is_pub_key, pkey);
+    }
+
+    return ret;
 }
 
     int
@@ -547,7 +769,23 @@ fc_send_packet_to_fcserver(u8 ipversion, char *buff, int bufflen)
 }
 
     int
-bgp_fc_init()
+bgp_fc_init(struct bgp_master *bm)
+{
+    int ret = 0;
+    bm->ht_ski_ecpubkey = hash_create(hash_key,
+            hash_cmp, "SKI --- EC public key");
+    ret = fc_json_read_config(bm);
+
+    if (ret != 0)
+    {
+        zlog_err("failed init bgp fc");
+    }
+
+    return 0;
+}
+
+    int
+bgp_fc_destroy(struct bgp_master *bm)
 {
     return 0;
 }

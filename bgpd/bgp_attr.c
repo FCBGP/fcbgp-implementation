@@ -4821,7 +4821,7 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
 
         if (flag)
         {
-            int i = 0, ret = 0;
+            int i = 0, j = 0, ret = 0;
             int msglen = 0, fcbufflen = 0, fcnum = 0;
             u8 prefixlen = 0;
             size_t fclist_sizep = 0, length = 0;
@@ -4833,7 +4833,6 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
             memset(bmbuff, 0, FC_BUFF_SIZE);
             unsigned char *sigbuff = NULL;
             unsigned int sigbufflen = 0;
-            EC_KEY *prikey = NULL;
             FC_ht_node_prefix_t *fclist = NULL;
             FC_ht_meta_asprefix_t meta_asprefix = {0};
             FC_ht_node_asprefix_t *node_asprefix = NULL;
@@ -4849,12 +4848,12 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
             fc.previous_asn = previous_asn;
             fc.current_asn = peer->local_as;
             fc.nexthop_asn = nexthop_asn;
-            memset(fc.ski, 0, sizeof(fc.ski));
+
+            memcpy(fc.ski, bm->ski, FC_SKI_LENGTH);
+
             fc.algo_id = 0x01;
             fc.flags = 0x00;
             fc.siglen = sizeof(fc.sig);
-
-            fc_read_eckey_from_file(0, &prikey);
 
             memcpy(msg+msglen, &fc.previous_asn, sizeof(u32));
             msglen += sizeof(u32);
@@ -4880,9 +4879,12 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
             memcpy(msg+msglen, &prefixlen, sizeof(u8));
             msglen += sizeof(u8);
 
-            ret = fc_ecdsa_sign(prikey, msg, msglen, &sigbuff, &sigbufflen);
-            if (ret > 0) // TODO
-            {}
+            ret = fc_ecdsa_sign(bm->prikey,
+                    msg, msglen, &sigbuff, &sigbufflen);
+            if (ret > 0)
+            {
+                // TODO
+            }
             fc.siglen = sigbufflen;
             // 2. concat: fill packet
             stream_putc(s, BGP_ATTR_FLAG_OPTIONAL | BGP_ATTR_FLAG_TRANS
@@ -4892,7 +4894,8 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
             stream_putw(s, 0);
 
             meta_asprefix.asn = previous_asn;
-            node_asprefix = htbl_meta_find(&g_fc_htbl_asprefix, &meta_asprefix);
+            node_asprefix = htbl_meta_find(&g_fc_htbl_asprefix,
+                    &meta_asprefix);
             if (node_asprefix)
             {
                 memcpy(&meta.ipprefix, prefix_for_fc, sizeof(struct prefix));
@@ -4937,10 +4940,10 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
                     fcsigmsglen = 0;
                     memset(fcsigmsg, 0, FC_BUFF_SIZE);
 
-                    for (int k=0; k<fcnode->fc.siglen && k < FC_BUFF_SIZE; k ++)
+                    for (j=0; j<fcnode->fc.siglen && j < FC_BUFF_SIZE; j ++)
                     {
                         snprintf(fcsigmsg+fcsigmsglen, FC_BUFF_SIZE,
-                                "%02X", fcnode->fc.sig[k]);
+                                "%02X", fcnode->fc.sig[j]);
                         fcsigmsglen += 2;
                     }
 
@@ -4982,7 +4985,8 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
                     fcbufflen += sizeof(u16);
                     stream_putw(s, fcnode->fc.siglen);
 
-                    memcpy(fcbuff+fcbufflen, fcnode->fc.sig, fcnode->fc.siglen);
+                    memcpy(fcbuff+fcbufflen,
+                            fcnode->fc.sig, fcnode->fc.siglen);
                     stream_put(s, fcnode->fc.sig, fcnode->fc.siglen);
 
                     fcnum ++;

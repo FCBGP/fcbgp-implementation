@@ -227,6 +227,7 @@ typedef struct FC_server_s
     FC_node_as_t aps[FCSRV_MAX_LINK_AS];
     EC_KEY *pubkey;
     EC_KEY *prikey;
+    u8 ski[FC_SKI_LENGTH];
     int nics_num;
     char nics[FC_MAX_SIZE][20]; /* network interface cards */
 } FC_server_t;

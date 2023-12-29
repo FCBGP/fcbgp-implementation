@@ -182,6 +182,11 @@ fc_read_config(void)
     // private key
     elem = cJSON_GetObjectItem(root, "private_key_fname");
     g_fc_server.prikey_fname = strdup(elem->valuestring);
+    fpath = fc_combine_path(g_fc_server.certs_location,
+            g_fc_server.prikey_fname);
+    fc_read_eckey_from_file(fpath, 0, &g_fc_server.prikey);
+    free(fpath);
+    fpath = NULL;
     // as info list
     asn_list = cJSON_GetObjectItem(root, "as_info_list");
     g_fc_server.asns_num = cJSON_GetArraySize(asn_list);
@@ -200,6 +205,18 @@ fc_read_config(void)
         memcpy(meta.cert, cert->valuestring, strlen(cert->valuestring));
         fpath = fc_combine_path(g_fc_server.certs_location, meta.cert);
         fc_get_ecpubkey_and_ski(meta.asn, fpath, &meta.pubkey, meta.ski);
+        printf("meta.ski: ");
+        for (int i = 0; i < FC_SKI_LENGTH; i++) {
+            printf("%02X", meta.ski[i]);
+        }
+        printf("\n");
+
+
+        if(meta.asn == g_fc_server.local_asn)
+        {
+            g_fc_server.pubkey = meta.pubkey;
+            memcpy(g_fc_server.ski, meta.ski, FC_SKI_LENGTH);
+        }
         free(fpath);
         fpath = NULL;
 

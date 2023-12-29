@@ -182,7 +182,7 @@ fc_get_ecpubkey_and_ski(u32 asn, const char *fpath,
 
     if ((ski = X509_get0_subject_key_id(cert)) != NULL)
     {
-        ecski = (u8 *)ski->data;
+        memcpy(ecski, (u8*)ski->data, FC_SKI_LENGTH);
         printf("ASN: %u, Subject Key Identifier (SKI): ", asn);
         for (int i = 0; i < ski->length; i++) {
             printf("%02X", ecski[i]);

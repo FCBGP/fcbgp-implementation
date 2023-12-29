@@ -37,6 +37,9 @@
 #ifndef USE_FC
 #define USE_FC
 #endif
+#ifdef USE_FC
+#include <openssl/ec.h>
+#endif // USE_FC
 
 #define BGP_MAX_HOSTNAME 64	/* Linux max, is larger than most other sys */
 #define BGP_PEER_MAX_HASH_SIZE 16384
@@ -170,6 +173,14 @@ struct bgp_master {
 	uint32_t outq_limit;
 
 	QOBJ_FIELDS;
+
+#ifdef USE_FC
+    EC_KEY *prikey;
+    EC_KEY *pubkey;
+    uint8_t ski[20];
+    /* store the pubkey of each as */
+    struct hash *ht_ski_ecpubkey;
+#endif // USE_FC
 };
 DECLARE_QOBJ_TYPE(bgp_master);
 

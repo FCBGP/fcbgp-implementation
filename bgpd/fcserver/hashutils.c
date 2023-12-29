@@ -92,7 +92,7 @@ fc_as_meta_save(void *base, void *meta)
     node_as->pubkey = meta_as->pubkey;
     memcpy(&node_as->acs, &meta_as->acs, sizeof(FC_acs_t));
     memcpy(node_as->cert, meta_as->cert, strlen(meta_as->cert));
-    memcpy(node_as->ski, meta_as->ski, strlen(meta_as->cert));
+    memcpy(node_as->ski, meta_as->ski, FC_SKI_LENGTH);
 
     return 0;
 }

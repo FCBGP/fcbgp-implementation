@@ -8300,6 +8300,10 @@ void bgp_init(unsigned short instance)
 	/* Community list initialize. */
 	bgp_clist = community_list_init();
 
+#ifdef USE_FC
+    bgp_fc_init(bm);
+#endif // USE_FC
+
 	/* BFD init */
 	bgp_bfd_init(bm->master);
 
@@ -8343,6 +8347,10 @@ void bgp_terminate(void)
 						BGP_NOTIFY_CEASE_PEER_UNCONFIG);
 		}
 	}
+
+#ifdef USE_FC
+    bgp_fc_destroy(bm);
+#endif // USE_FC
 
 	if (bm->listen_sockets)
 		list_delete(&bm->listen_sockets);

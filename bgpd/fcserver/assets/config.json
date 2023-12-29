@@ -3,6 +3,7 @@
     "log_mode": "debug",
     "clear_fc_db": true,
     "certs_location": "/etc/frr/assets",
+    "certificate_fname": "10.cert",
     "private_key_fname": "10.key",
     "as_info_list": [
         {
