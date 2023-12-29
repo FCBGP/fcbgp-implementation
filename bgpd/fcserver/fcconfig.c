@@ -175,7 +175,10 @@ fc_read_config(void)
     fc_set_log_mode(elem->valuestring);
     // clear fc db
     elem = cJSON_GetObjectItem(root, "clear_fc_db");
-    g_fc_server.clear_fc_db = elem->type == cJSON_True ? 1 : 0;
+    g_fc_server.clear_fc_db = elem->type == cJSON_True ? true : false;
+    // use data plane - nftables
+    elem = cJSON_GetObjectItem(root, "use_data_plane");
+    g_fc_server.use_data_plane = elem->type == cJSON_True ? true : false;
     // certs location
     elem = cJSON_GetObjectItem(root, "certs_location");
     g_fc_server.certs_location = strdup(elem->valuestring);

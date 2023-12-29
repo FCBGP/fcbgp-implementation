@@ -503,10 +503,6 @@ fc_server_bm_handler(ncs6_ctx_t *ctx, char *buffer, int bufferlen, int msg_type)
     ret = fc_bm_verify_fc(&bm);
     FC_ASSERT_RET(ret);
 
-    // TODO need read from g_fc_server.
-    // ski -- for signature
-    memset(bm.ski, 0, FC_SKI_LENGTH);
-
     // signature to be signed and verified
     // THIS is in network byte order
     memcpy(msg, buff, cur);
@@ -514,12 +510,29 @@ fc_server_bm_handler(ncs6_ctx_t *ctx, char *buffer, int bufferlen, int msg_type)
     if (msg_type == FC_MSG_BGPD)
     {
         // add signature for sending to peers
+
+        printf("prikey_fname: %s\n", g_fc_server.prikey_fname);
         fc_ecdsa_sign(g_fc_server.prikey, msg, cur,
                 &sigbuff, &sigbufflen);
-        memcpy(bm.ski, g_fc_server.ski, FC_SKI_LENGTH);
         memcpy(buff+cur, g_fc_server.ski, FC_SKI_LENGTH);
+        memcpy(bm.ski, g_fc_server.ski, FC_SKI_LENGTH);
 
 #if 0
+        printf("buff_new.ski: ");
+        u8 tmp_ski[FC_SKI_LENGTH];
+        memcpy(tmp_ski, buff_new_msg+FC_HDR_GENERAL_LENGTH+cur, FC_SKI_LENGTH);
+        for (int k=0; k<FC_SKI_LENGTH; ++k)
+        {
+            printf("%02X", tmp_ski[k]);
+        }
+        printf("\n");
+        printf("buff.ski: ");
+        memcpy(tmp_ski, buff+cur, FC_SKI_LENGTH);
+        for (int k=0; k<FC_SKI_LENGTH; ++k)
+        {
+            printf("%02X", tmp_ski[k]);
+        }
+        printf("\n");
         printf("g_fc_server.ski: ");
         for (int k=0; k<FC_SKI_LENGTH; ++k)
         {
@@ -543,12 +556,16 @@ fc_server_bm_handler(ncs6_ctx_t *ctx, char *buffer, int bufferlen, int msg_type)
         // verify and remove signature
         // SIGLEN MUST be 0 when verify SIGNATURE
         memset(&msg[FC_HDR_BM_SIGLEN_POS], 0, sizeof(16));
+        memcpy(bm.ski, buff+cur, FC_SKI_LENGTH);
         memcpy(bm.signature, buff+cur+FC_SKI_LENGTH, bm.siglen);
 
+        /* TODO Don't know why does not need this pubkey. */
+#if 0
         FC_ht_node_as_t *node;
         FC_node_as_t meta = {0};
         meta.asn = bm.local_asn;
         node = htbl_meta_find(&g_fc_server.ht_as, &meta);
+#endif
 
 #if 0
         printf("g_fc_server.local_asn: %u, bm.local_asn: %u, node.asn: %u\n",
@@ -573,7 +590,9 @@ fc_server_bm_handler(ncs6_ctx_t *ctx, char *buffer, int bufferlen, int msg_type)
         printf("\n");
 #endif
 
-        ret = fc_ecdsa_verify(node->pubkey, msg, cur,
+        // ret = fc_ecdsa_verify(node->pubkey,
+        ret = fc_ecdsa_verify(g_fc_server.pubkey,
+                msg, cur,
                 bm.signature, bm.siglen);
         switch (ret)
         {
@@ -589,8 +608,10 @@ fc_server_bm_handler(ncs6_ctx_t *ctx, char *buffer, int bufferlen, int msg_type)
         }
     }
 
-    // TODO
-    fc_gen_acl(ctx, &bm);
+    if (g_fc_server.use_data_plane)
+    {
+        fc_gen_acl(ctx, &bm);
+    }
     fc_db_write_bm(&bm);
 
     return 0;

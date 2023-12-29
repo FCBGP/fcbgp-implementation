@@ -10,6 +10,7 @@
 
 #include <arpa/inet.h>
 
+#include <stdbool.h>
 #include <sqlite3.h>
 #include <openssl/ec.h>
 
@@ -19,7 +20,7 @@
 #define STR(x) #x
 #define FC_MAJOR_VERSION STR(0)
 #define FC_MINOR_VERSION STR(1)
-#define FC_PATCH_VERSION STR(3)
+#define FC_PATCH_VERSION STR(4)
 #define FC_PRJ_VERSION FC_MAJOR_VERSION "." \
     FC_MINOR_VERSION "." FC_PATCH_VERSION
 #define FC_VERSION_STR "FC Server V" FC_PRJ_VERSION \
@@ -213,7 +214,8 @@ typedef struct FC_server_s
     char *prog_addr4;
     char *prog_addr6;
     u8 log_mode;
-    u8 clear_fc_db;
+    bool use_data_plane;
+    bool clear_fc_db;
     u32 local_asn;
     u8 asns_num; /* as-ip totoal num, of course it's number of AS */
     u32 asns[FCSRV_MAX_LINK_AS];

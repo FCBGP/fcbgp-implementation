@@ -41,19 +41,20 @@ $ sudo chmod 777 /opt/log
 
 ## config.json
 
-- `local_asn`: the AS number of current bgp located.
-- `log_mode`: for diaglib in fcserver.
-- `clear_fc_db`: true of false. clear the fc.db before running.
-- `asn_list`: all the ASN in test.
+- `local_asn`: The AS number of current bgp located.
+- `log_mode`: For diaglib in fcserver. `debug`, `info`
+- `clear_fc_db`: `true` or `false`. Default is `true`. Clear the fc.db before running.
+- `use_data_plane`: `true` or `false`. Default is `false`. Use the data plane - nftables.
+- `asn_list`: All the ASN in test.
     - `asn`:
-    - `nics`: all the network interface card of current machine.
+    - `nics`: All the network interface card of current machine.
     - `acs`: AS Control Server.
         - `ipv4`: ipv4 address.
             - `ifaddr`: ipv4 address
-            - `ifprefix`: the prefix length. Not used maybe.
-            - `ifname`: local port, the NIC links to the neighbor. Or where this is configed.
+            - `ifprefix`: The prefix length. Not used maybe.
+            - `ifname`: Local port, the NIC links to the neighbor. Or where this is configed.
         - `ipv6`: ipv6 address.
-            - `ifname`: local port, the NIC links to the neighbor. Or where this is configed.
+            - `ifname`: Local port, the NIC links to the neighbor. Or where this is configed.
 
 ## program
 
@@ -111,11 +112,16 @@ $ nft flush table filter
 
 # TODO
 
-- [ ] store prefix with `network` should also consider `no network` to remove storage.
-- [ ] Destination prefix in BGP-UPDATE is not using `MP_REACH_NLRI` to encapsulate. So there can only be one prefix each time. It means you could add with `network x.x.x.x/plen` manually. But as ipv4 uses `NLRI` which we don't want to use again, we would never change code here.
-- [ ] It uses the same public key for all. SKI is reserved.
+- [ ] Add more than one network prefix to `frr.conf`.
+- [ ] Send network prefix one by one.
+- [ ] Store prefix with `network` should also consider `no network` to remove storage.
 
 # CHANGELOG
+
+## 2023.12.29
+
+- [x] It uses the same public key for all. SKI is reserved.
+- [ ] THIS WILL NOT BE IMPLEMENTED. <s>Destination prefix in BGP-UPDATE is not using `MP_REACH_NLRI` to encapsulate. So there can only be one prefix each time. It means you could add with `network x.x.x.x/plen` manually. But as ipv4 uses `NLRI` which we don't want to use again, we would never change code here.</s>
 
 ## 2023.12.25
 

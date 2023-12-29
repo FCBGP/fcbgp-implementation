@@ -21,8 +21,9 @@ server: $(SRC_fcs)
 	$(CC) $(CFLAGS) -o bin/$@ $(SRC_fcs) $(SRC_libs) $(LFLAGS) $(LFLAGS_fcs)
 
 setup:
-	@sudo mkdir -p /etc/frr/assets
+	sudo mkdir -p /etc/frr/assets
 	sudo cp -r assets/* /etc/frr/assets
+	sudo chmod +r /etc/frr/assets/*.key
 
 clean:
 	@rm -f bin/*

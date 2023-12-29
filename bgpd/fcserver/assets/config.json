@@ -2,6 +2,7 @@
     "local_asn": 10,
     "log_mode": "debug",
     "clear_fc_db": true,
+    "use_data_plane": false,
     "certs_location": "/etc/frr/assets",
     "certificate_fname": "10.cert",
     "private_key_fname": "10.key",

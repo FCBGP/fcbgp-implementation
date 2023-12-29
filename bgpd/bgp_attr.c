@@ -4884,6 +4884,7 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
             if (ret > 0)
             {
                 // TODO
+                zlog_debug("fc_ecdsa_sign() failed");
             }
             fc.siglen = sigbufflen;
             // 2. concat: fill packet
