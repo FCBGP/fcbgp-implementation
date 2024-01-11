@@ -1714,7 +1714,7 @@ static int bgp_attr_fc(struct bgp_attr_parser_args *args, FCList_t *fclist,
 
     FC_node_t *fcnode = NULL, *prevnode = NULL;
 
-    /* Set aspath attribute flag. */
+    /* Set fc path attribute flag. */
 	attr->flag |= ATTR_FLAG_BIT(BGP_ATTR_FC);
 
     /* 1. parse FC */
