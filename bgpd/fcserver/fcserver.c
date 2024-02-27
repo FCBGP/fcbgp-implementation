@@ -182,11 +182,12 @@ fc_bm_broadcast_to_peer(ncs6_ctx_t *ctx, const FC_msg_bm_t *bm, char *buffer,
     printf("broadcast to peers start\n");
     int i = 0, ret = 0;
     u32 asn = 0;
-    FC_node_as_t meta = {0};
-    char ifaddr[INET6_ADDRSTRLEN] = {0};
 
     for (i=0; i<g_fc_server.asns_num; ++i)
     {
+        FC_node_as_t meta = {0};
+        char ifaddr[INET6_ADDRSTRLEN] = {0};
+
         asn = g_fc_server.asns[i];
         if (g_fc_server.local_asn == asn)
         {

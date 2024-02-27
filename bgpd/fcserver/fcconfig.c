@@ -196,6 +196,7 @@ fc_read_config(void)
 
     for (i=0; i<g_fc_server.asns_num; ++i)
     {
+        memset(&meta, 0, sizeof(meta));
         elem = cJSON_GetArrayItem(asn_list, i);
         fc_cjson_print(elem);
 
@@ -209,8 +210,8 @@ fc_read_config(void)
         fpath = fc_combine_path(g_fc_server.certs_location, meta.cert);
         fc_get_ecpubkey_and_ski(meta.asn, fpath, &meta.pubkey, meta.ski);
         printf("meta.ski: ");
-        for (int i = 0; i < FC_SKI_LENGTH; i++) {
-            printf("%02X", meta.ski[i]);
+        for (j=0; j<FC_SKI_LENGTH; j++) {
+            printf("%02X", meta.ski[j]);
         }
         printf("\n");
 
