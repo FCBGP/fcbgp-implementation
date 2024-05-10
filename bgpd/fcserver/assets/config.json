@@ -71,6 +71,38 @@
                     "ifname": "ens36"
                 }]
             }
+        }, {
+            "asn": 50,
+            "cert": "50.cert",
+            "nics": ["lo", "ens36", "ens37"],
+            "acs": {
+                "ipv4": [{
+                    "ifaddr": "192.168.88.135",
+                    "ifprefix": 32,
+                    "ifname": "ens36"
+                }],
+                "ipv6": [{
+                    "ifaddr": "2001:db8::5",
+                    "ifprefix": 64,
+                    "ifname": "ens36"
+                }]
+            }
+        }, {
+            "asn": 60,
+            "cert": "60.cert",
+            "nics": ["lo", "ens36", "ens37"],
+            "acs": {
+                "ipv4": [{
+                    "ifaddr": "192.168.88.136",
+                    "ifprefix": 32,
+                    "ifname": "ens36"
+                }],
+                "ipv6": [{
+                    "ifaddr": "2001:db8::6",
+                    "ifprefix": 64,
+                    "ifname": "ens36"
+                }]
+            }
         }
     ]
 }
