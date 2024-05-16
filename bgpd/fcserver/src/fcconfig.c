@@ -8,19 +8,101 @@
 #include "cJSON.h"
 #include "fcconfig.h"
 
+/**
+ * If the user forgets to remove the tail '/', we need to properly accept that.
+ * @param path      path
+ * @param filename  filename
+ * @return          Return the combined fullpath
+ * */
+    static inline char*
+fc_combine_path(const char* path, const char* filename)
+{
+    size_t path_len = strlen(path);
+    size_t filename_len = strlen(filename);
+    size_t combined_len = path_len + filename_len + 2;  // 2 for '/' and '\0'
+
+    char* combined_path = (char*) malloc(combined_len);
+    if (combined_path == NULL) {
+        fprintf(stderr, "malloc for combined_path failed\n");
+        return NULL;
+    }
+    memset(combined_path, 0, combined_len);
+
+    memcpy(combined_path, path, strlen(path));
+    if (path_len > 0 && path[path_len - 1] != '/') {
+        strcat(combined_path, "/");
+    }
+
+    strcat(combined_path, filename);
+
+    return combined_path;
+}
+
+/**
+ * Generated the uppercase of string.
+ * @param str   input string
+ * @param size  input string size
+ * @return      output the uppercase of input string.
+ *              you're expected to free it to recycle the memory.
+ * */
+    static inline char *
+fc_utils_str_toupper(const char *str, int size)
+{
+    int i = 0;
+    char *outputstr = NULL;
+
+    outputstr = (char *) calloc(size+1, sizeof(char));
+    if (outputstr)
+    {
+
+        for (i=0; i<size; ++i)
+        {
+            outputstr[i] = toupper(str[i]);
+        }
+
+        outputstr[size] = '\0';
+    }
+
+    return outputstr;
+}
+
+
+    int
+fc_cfg_set_dp_mode(const char *mode_string)
+{
+    int size = 0;
+    char *modestr = NULL;
+
+    size = strlen(mode_string);
+    modestr = fc_utils_str_toupper(mode_string, size);
+    FC_ASSERT_RETP(modestr);
+
+    g_fc_server.use_data_plane = FC_DP_MODE_NONE;
+    if (strcmp(modestr, "LINUX") == 0)
+    {
+        g_fc_server.use_data_plane = FC_DP_MODE_LINUX;
+    } else if (strcmp(modestr, "VPP") == 0)
+    {
+        g_fc_server.use_data_plane = FC_DP_MODE_VPP;
+    } else if (strcmp(modestr, "H3C") == 0)
+    {
+        g_fc_server.use_data_plane = FC_DP_MODE_H3C;
+    }
+
+    free(modestr);
+}
+
     int
 fc_set_log_mode(const char *mode_string)
 {
-    char modestr[20] = {0};
-    int i = 0, len = strlen(mode_string);
+    int size = 0;
+    char *modestr = NULL;
 
-    for (i=0; i<len; ++i)
-    {
-        modestr[i] = toupper(mode_string[i]);
-    }
+    size = strlen(mode_string);
+    modestr = fc_utils_str_toupper(mode_string, size);
+    FC_ASSERT_RETP(modestr);
 
     g_fc_server.log_mode = FC_LOG_LEVEL_INFO;
-
     if (strcmp(modestr, "EMERGE") == 0)
     {
         g_fc_server.log_mode = FC_LOG_LEVEL_EMERG;
@@ -40,6 +122,8 @@ fc_set_log_mode(const char *mode_string)
     {
         g_fc_server.log_mode = FC_LOG_LEVEL_VERBOSE;
     }
+
+    free(modestr);
 
     return 0;
 }
@@ -102,7 +186,7 @@ cleanup:
     return content;
 }
 
-    static void
+    static inline void
 fc_cjson_print(const cJSON* root)
 {
     char *output = cJSON_Print(root);
@@ -110,7 +194,7 @@ fc_cjson_print(const cJSON* root)
     free(output);
 }
 
-    static cJSON *
+    static inline cJSON *
 fc_cjson_root_ptr(const char *fname)
 {
     cJSON *root = NULL;
@@ -126,33 +210,6 @@ fc_cjson_root_ptr(const char *fname)
     return root;
 }
 
-/**
-  * If the user forgets to remove the tail '/', we need to properly accept that.
-  * */
-    static char*
-fc_combine_path(const char* path, const char* filename)
-{
-    size_t path_len = strlen(path);
-    size_t filename_len = strlen(filename);
-    size_t combined_len = path_len + filename_len + 2;  // 2 for '/' and '\0'
-
-    char* combined_path = (char*) malloc(combined_len);
-    if (combined_path == NULL) {
-        fprintf(stderr, "malloc for combined_path failed\n");
-        return NULL;
-    }
-    memset(combined_path, 0, combined_len);
-
-    memcpy(combined_path, path, strlen(path));
-    if (path_len > 0 && path[path_len - 1] != '/') {
-        strcat(combined_path, "/");
-    }
-
-    strcat(combined_path, filename);
-
-    return combined_path;
-}
-
     int
 fc_read_config(void)
 {
@@ -161,11 +218,12 @@ fc_read_config(void)
     cJSON *root = NULL, *asn_list = NULL, *cert = NULL;
     cJSON *elem = NULL, *asn = NULL,  *acs = NULL, *nics = NULL;
     cJSON *ipv4 = NULL, *ipv6 = NULL, *ifaddr = NULL, *ifname = NULL;
-    cJSON *ifprefix = NULL;
     FC_node_as_t meta = {0};
     FC_ht_node_as_t *node = NULL;
 
     root = fc_cjson_root_ptr(g_fc_server.config_fname);
+    FC_ASSERT_RETP(root);
+
 
     // local_asn
     elem = cJSON_GetObjectItem(root, "local_asn");
@@ -178,7 +236,7 @@ fc_read_config(void)
     g_fc_server.clear_fc_db = elem->type == cJSON_True ? true : false;
     // use data plane - nftables
     elem = cJSON_GetObjectItem(root, "use_data_plane");
-    g_fc_server.use_data_plane = elem->type == cJSON_True ? true : false;
+    fc_cfg_set_dp_mode(elem->valuestring);
     // certs location
     elem = cJSON_GetObjectItem(root, "certs_location");
     g_fc_server.certs_location = strdup(elem->valuestring);
@@ -190,6 +248,46 @@ fc_read_config(void)
     fc_read_eckey_from_file(fpath, 0, &g_fc_server.prikey);
     free(fpath);
     fpath = NULL;
+    // router info list
+    cJSON *router_list = NULL, *router_info = NULL;
+    FC_router_info_t *curr_router = NULL, *next_router = NULL;
+    router_list = cJSON_GetObjectItem(root, "router_info_list");
+    FC_ASSERT_RETP(router_list);
+    g_fc_server.routers_num = cJSON_GetArraySize(router_list);
+    for (i=0; i<g_fc_server.routers_num; ++i)
+    {
+        curr_router = calloc(1, sizeof(FC_router_info_t));
+        next_router = g_fc_server.routers;
+        curr_router->next = next_router;
+        g_fc_server.routers = curr_router;
+        router_info = cJSON_GetArrayItem(router_list, i);
+        if (g_fc_server.log_mode >= FC_LOG_LEVEL_DEBUG)
+        {
+            fc_cjson_print(router_info);
+        }
+
+        elem = cJSON_GetObjectItem(router_info, "bgpid");
+        FC_ASSERT_RETP(elem);
+        inet_pton(AF_INET, elem->valuestring, &curr_router->bgpid);
+        curr_router->bgpid = ntohl(curr_router->bgpid);
+        elem = cJSON_GetObjectItem(router_info, "host");
+        FC_ASSERT_RETP(elem);
+        memcpy(curr_router->host, elem->valuestring,
+                strlen(elem->valuestring));
+        elem = cJSON_GetObjectItem(router_info, "port");
+        FC_ASSERT_RETP(elem);
+        curr_router->port = elem->valueint;
+        elem = cJSON_GetObjectItem(router_info, "username");
+        FC_ASSERT_RETP(elem);
+        memcpy(curr_router->username, elem->valuestring,
+                strlen(elem->valuestring));
+        elem = cJSON_GetObjectItem(router_info, "password");
+        FC_ASSERT_RETP(elem);
+        memcpy(curr_router->password, elem->valuestring,
+                strlen(elem->valuestring));
+    }
+
+
     // as info list
     asn_list = cJSON_GetObjectItem(root, "as_info_list");
     g_fc_server.asns_num = cJSON_GetArraySize(asn_list);
@@ -198,7 +296,10 @@ fc_read_config(void)
     {
         memset(&meta, 0, sizeof(meta));
         elem = cJSON_GetArrayItem(asn_list, i);
-        fc_cjson_print(elem);
+        if (g_fc_server.log_mode >= FC_LOG_LEVEL_DEBUG)
+        {
+            fc_cjson_print(elem);
+        }
 
         asn = cJSON_GetObjectItem(elem, "asn");
         cert = cJSON_GetObjectItem(elem, "cert");
@@ -214,7 +315,6 @@ fc_read_config(void)
             printf("%02X", meta.ski[j]);
         }
         printf("\n");
-
 
         if(meta.asn == g_fc_server.local_asn)
         {
@@ -238,8 +338,6 @@ fc_read_config(void)
         {
             elem = cJSON_GetArrayItem(ipv4, j);
             ifaddr = cJSON_GetObjectItem(elem, "ifaddr");
-            ifprefix = cJSON_GetObjectItem(elem, "ifprefix");
-            meta.acs.ipv4[j].ifprefix = ifprefix->valueint;
             ifname = cJSON_GetObjectItem(elem, "ifname");
             memcpy(meta.acs.ipv4[j].ifaddr, ifaddr->valuestring,
                     strlen(ifaddr->valuestring));
@@ -253,8 +351,6 @@ fc_read_config(void)
         {
             elem = cJSON_GetArrayItem(ipv6, j);
             ifaddr = cJSON_GetObjectItem(elem, "ifaddr");
-            ifprefix = cJSON_GetObjectItem(elem, "ifprefix");
-            meta.acs.ipv6[j].ifprefix = ifprefix->valueint;
             ifname = cJSON_GetObjectItem(elem, "ifname");
             memcpy(meta.acs.ipv6[j].ifaddr, ifaddr->valuestring,
                     strlen(ifaddr->valuestring));

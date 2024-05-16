@@ -37,14 +37,12 @@ fc_as_node_display(void *node)
     for (i=0; i<node_as->acs.ipv4_num; ++i)
     {
         printf("      ifname: %s\n", node_as->acs.ipv4[i].ifname);
-        printf("      ifprefix: %d\n", node_as->acs.ipv4[i].ifprefix);
         printf("      ifaddr: %s\n", node_as->acs.ipv4[i].ifaddr);
     }
     printf("    ipv6:\n");
     for (i=0; i<node_as->acs.ipv6_num; ++i)
     {
         printf("      ifname: %s\n", node_as->acs.ipv6[i].ifname);
-        printf("      ifprefix: %d\n", node_as->acs.ipv4[i].ifprefix);
         printf("      ifaddr: %s\n", node_as->acs.ipv6[i].ifaddr);
     }
 

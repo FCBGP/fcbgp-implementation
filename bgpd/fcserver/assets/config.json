@@ -2,10 +2,25 @@
     "local_asn": 10,
     "log_mode": "debug",
     "clear_fc_db": true,
-    "use_data_plane": false,
+    "use_data_plane": "h3c",
     "certs_location": "/etc/frr/assets",
     "certificate_fname": "10.cert",
     "private_key_fname": "10.key",
+    "router_info_list": [
+        {
+            "bgpid": "192.168.10.1",
+            "host": "2001:db8::1001",
+            "port":  830,
+            "username": "admin",
+            "password": "admin"
+        }, {
+            "bgpid": "192.168.10.2",
+            "host": "2001:db8::1002",
+            "port":  830,
+            "username": "admin",
+            "password": "admin"
+        }
+    ],
     "as_info_list": [
         {
             "asn": 10,
@@ -14,12 +29,10 @@
             "acs": {
                 "ipv4": [{
                     "ifaddr": "192.168.88.131",
-                    "ifprefix": 32,
                     "ifname": "ens36"
                 }],
                 "ipv6": [{
                     "ifaddr": "2001:db8::1",
-                    "ifprefix": 64,
                     "ifname": "ens36"
                 }]
             }
@@ -30,12 +43,10 @@
             "acs": {
                 "ipv4": [{
                     "ifaddr": "192.168.88.132",
-                    "ifprefix": 32,
                     "ifname": "ens36"
                 }],
                 "ipv6": [{
                     "ifaddr": "2001:db8::2",
-                    "ifprefix": 64,
                     "ifname": "ens36"
                 }]
             }
@@ -46,12 +57,10 @@
             "acs": {
                 "ipv4": [{
                     "ifaddr": "192.168.88.133",
-                    "ifprefix": 32,
                     "ifname": "ens36"
                 }],
                 "ipv6": [{
                     "ifaddr": "2001:db8::3",
-                    "ifprefix": 64,
                     "ifname": "ens36"
                 }]
             }
@@ -62,12 +71,10 @@
             "acs": {
                 "ipv4": [{
                     "ifaddr": "192.168.88.134",
-                    "ifprefix": 32,
                     "ifname": "ens36"
                 }],
                 "ipv6": [{
                     "ifaddr": "2001:db8::4",
-                    "ifprefix": 64,
                     "ifname": "ens36"
                 }]
             }
@@ -78,12 +85,10 @@
             "acs": {
                 "ipv4": [{
                     "ifaddr": "192.168.88.135",
-                    "ifprefix": 32,
                     "ifname": "ens36"
                 }],
                 "ipv6": [{
                     "ifaddr": "2001:db8::5",
-                    "ifprefix": 64,
                     "ifname": "ens36"
                 }]
             }
@@ -94,12 +99,10 @@
             "acs": {
                 "ipv4": [{
                     "ifaddr": "192.168.88.136",
-                    "ifprefix": 32,
                     "ifname": "ens36"
                 }],
                 "ipv6": [{
                     "ifaddr": "2001:db8::6",
-                    "ifprefix": 64,
                     "ifname": "ens36"
                 }]
             }

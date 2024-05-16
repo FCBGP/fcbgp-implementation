@@ -32,14 +32,17 @@
 
 #define FC_DEFAULT_CONFIG_FNAME "/etc/frr/assets/config.json"
 #define FC_PROGRAM_NAME "fcserver"
-#define FC_PORT 23160
+#define FC_PORT 23162
+#define FC_EPOLL_MAX_EVENTS 32
+#define FC_SOCK_BACKLOG 32
 
 extern int fc_main();
 extern int fc_server_create(void);
 extern void fc_server_destroy(int signum);
-extern int fc_server_handler(ncs6_ctx_t *ctx);
-extern int fc_server_pubkey_handler(ncs6_ctx_t *ctx, const char *buff, int bufflen);
-extern int fc_server_bm_handler(ncs6_ctx_t* ctx, char *buffer, int bufferlen, int msg_type);
+extern int fc_server_handler(int clisockfd, char *buff, int buffsize, int recvlen);
+extern int fc_server_pubkey_handler(int clisockfd, const char *buff, int bufflen);
+extern int fc_server_bm_handler(int clisockfd, char *buff, int bufflen, int msg_type);
+extern int fc_server_topo_handler(int clisockfd, const char *buff, int bufflen);
 
 #endif // BGP_FC_H
 

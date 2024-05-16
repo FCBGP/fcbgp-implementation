@@ -18,7 +18,15 @@ enum {
     FC_LOG_LEVEL_INFO = 3,
     FC_LOG_LEVEL_DEBUG = 4,
     FC_LOG_LEVEL_VERBOSE = 5,
-    FC_LOG_LEVEL_MAX
+    FC_LOG_LEVEL_N
+};
+
+enum {
+    FC_DP_MODE_NONE,
+    FC_DP_MODE_LINUX,
+    FC_DP_MODE_VPP,
+    FC_DP_MODE_H3C,
+    FC_DP_MODE_N
 };
 
 extern int fc_read_config(void);

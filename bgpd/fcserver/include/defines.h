@@ -9,7 +9,7 @@
 #define DEFINES_H
 
 #include <arpa/inet.h>
-
+#include <sys/epoll.h>
 #include <stdbool.h>
 #include <sqlite3.h>
 #include <openssl/ec.h>
@@ -47,31 +47,45 @@ typedef uint64_t  u64;
 
 #define FC_SKI_LENGTH                   20
 #define FC_MAX_SIZE                     256
+#define FC_IF_MAX_SIZE                  32
 
 #define FC_HDR_GENERAL_LENGTH           4
 #define FC_HDR_FC_FIX_LENGTH            36
 #define FC_HDR_BM_FIX_LENGTH            20
 #define FC_HDR_BM_SIGLEN_POS            6
 
-#define FC_MSG_BASE                     0
-#define FC_MSG_SKI                      (FC_MSG_BASE + 1)
-#define FC_MSG_BGPD                     (FC_MSG_BASE + 2)
-#define FC_MSG_BC                       (FC_MSG_BASE + 3)
-
 #define FC_DB_NAME                      "/etc/frr/assets/fc.db"
 #define FC_NFT_PROG_POS                 "/usr/sbin/nft"
 
-#define FC_ASSERT_RET(ret)                                  \
+enum {
+    FC_MSG_BASE   = 0,
+    FC_MSG_PUBKEY = 1,  // pubkey information, not implement, from RPKI.
+    FC_MSG_BGPD   = 2,  // broadcast message from BGP router to FCS
+    FC_MSG_BC     = 3,  // broadcast message from FCS to FCS
+    FC_MSG_TOPO   = 4,  // topo link information from BGP router to FCS
+    FC_MSG_N
+};
+
+enum {
+    FC_ACT_ADD  = 0, // add/update
+    FC_ACT_DEL  = 1, // del/withdraw
+    FC_ACT_N
+};
+
+#define FC_ASSERT_RET_BASE(ret, msg)                        \
     do {                                                    \
         if (ret != 0) {                                     \
-            fprintf(stderr, "%s:%d error: ret is not 0\n",  \
-                    __func__, __LINE__);                    \
+            fprintf(stderr, "%s:%d error: ret is not 0.  "  \
+                    "msg: %s\n",                            \
+                    __func__, __LINE__, msg);               \
         }                                                   \
     } while (0)                                             \
 
+#define FC_ASSERT_RET(ret) FC_ASSERT_RET_BASE(ret, "")
+
 #define FC_ASSERT_RETP(retp)                                    \
     do {                                                        \
-        if (pret == 0) {                                        \
+        if (retp == NULL) {                                        \
             fprintf(stderr, "%s:%d error: pointer is NULL\n",   \
                     __func__, __LINE__);                        \
         }                                                       \
@@ -97,7 +111,6 @@ struct prefix {
         uint32_t val32[4];
     } u __attribute__((aligned(8)));
 };
-
 
 typedef struct FC_s
 {
@@ -132,7 +145,6 @@ typedef struct FC_ht_node_prefix_s
 typedef struct FC_acs_if_s
 {
     char ifaddr[INET6_ADDRSTRLEN];
-    int ifprefix;
     char ifname[INET6_ADDRSTRLEN];
 } FC_acs_if_t;
 
@@ -140,8 +152,8 @@ typedef struct FC_acs_s
 {
     int ipv4_num;
     int ipv6_num;
-    FC_acs_if_t ipv4[FC_MAX_SIZE];
-    FC_acs_if_t ipv6[FC_MAX_SIZE];
+    FC_acs_if_t ipv4[FC_IF_MAX_SIZE];
+    FC_acs_if_t ipv6[FC_IF_MAX_SIZE];
 } FC_acs_t;
 
 typedef struct FC_ip_s
@@ -171,6 +183,25 @@ typedef struct FC_ht_node_as_s
     FC_acs_t acs;
 } FC_ht_node_as_t;
 
+typedef struct FC_node_linkinfo_s
+{
+    int fd;
+    int family; // AF_INET, AF_INET6
+    struct sockaddr sockaddr;
+    int infotype; // 1 for fcs/bm, 2 for aer/bgpd
+    void *infodata;
+} FC_node_linkinfo_t;
+
+typedef struct FC_ht_node_linkinfo_s
+{
+    htbl_node_t hnode; // htbl node must be the first one
+    int fd;
+    int family; // AF_INET, AF_INET6
+    struct sockaddr sockaddr;
+    int infotype; // 1 for fcs/bm, 2 for aer/bgpd
+    void *infodata;
+} FC_ht_node_linkinfo_t;
+
 /* ds-binding-message */
 typedef struct FC_msg_hdr_st
 {
@@ -181,7 +212,7 @@ typedef struct FC_msg_hdr_st
 
 typedef struct FC_msg_bm_st
 {
-    u8 ipversion;       // 1 for ipv4, 2 for ipv6
+    u8 ipversion;       // 4 for ipv4, 6 for ipv6
     u8 type;            // 0 for onpath nodes, 1 for offpath
     u8 action;          // 0 for add/update, 1 for del/withdraw
     u8 fc_num;          // num of fc in fclist, boundary
@@ -208,20 +239,52 @@ typedef struct FC_msg_bm_new_s
     u8 new_signature[80];
 } FC_msg_bm_new_t;
 
+typedef struct FC_router_iface_info_st
+{
+    struct FC_router_iface_info_st *next;
+    u32 iface_index;
+} FC_router_iface_info_t;
+
+typedef struct FC_router_link_info_st
+{
+    struct FC_router_link_info_st *next;
+    u32 neighbor_asn;
+    FC_router_iface_info_t *iface_list;
+} FC_router_link_info_t;
+
+typedef struct FC_router_info_st
+{
+    int fd; // router bgp fd, will remove this data-structue when closed
+    struct FC_router_info_st *next;
+    u32 bgpid;
+    char host[INET6_ADDRSTRLEN];
+    u16 port;
+    char username[FC_MAX_SIZE];
+    char password[FC_MAX_SIZE];
+    struct FC_router_link_info_st *links;
+} FC_router_info_t;
+
 typedef struct FC_server_s
 {
     char *prog_name;
     char *prog_addr4;
     char *prog_addr6;
     u8 log_mode;
-    bool use_data_plane;
     bool clear_fc_db;
+    int use_data_plane;
     u32 local_asn;
     u8 asns_num; /* as-ip totoal num, of course it's number of AS */
     u32 asns[FCSRV_MAX_LINK_AS];
     sqlite3 *db;
     htbl_ctx_t ht_as;
     htbl_ctx_t ht_prefix;
+
+    int sockfd;
+    int epollfd;
+
+    int routers_num;
+    FC_router_info_t *routers;
+
     ncs6_ctx_t *fc_bgpd_ctx6;
     char *config_fname;
     char *prikey_fname;

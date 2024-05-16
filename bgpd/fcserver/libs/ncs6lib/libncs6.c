@@ -685,6 +685,7 @@ static void ncs6_server_cleanup(void *arg)
 
 static void *ncs6_server_process(void *arg)
 {
+    printf("=======>\n");
     int ret;
     ncs6_ctx_t *ctx = (ncs6_ctx_t *)arg;
     struct sockaddr_in6 cliaddr;
