@@ -1087,23 +1087,111 @@ fc_gen_acl_linux(int clisockfd, FC_msg_bm_t *bm)
     static int
 fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
 {
-    int i = 0, j = 0, ret = 0, iface_idx = 0;
+    int i = 0, j = 0, ret = 0, iface_index = 0, fc_index = 0;
     u32 asn = 0;
-    int flag_offpath = 0;
+    int flag_offpath = 1;
+    FC_router_info_t *router_info = NULL;
+    FC_router_link_info_t *link_info = NULL;
+    FC_router_iface_info_t *iface_info = NULL;
     char ifaddr[INET6_ADDRSTRLEN] = {0};
     char ifname[FC_MAX_SIZE] = {0};
     char saddr[INET6_ADDRSTRLEN] = {0};
     char daddr[INET6_ADDRSTRLEN] = {0};
+    int sprefixlen = 0, dprefixlen = 0;
     char ipbuf[INET6_ADDRSTRLEN] = {0};
     struct sockaddr_in6 sockaddr;
+    int direction = 0; // 0 for both, 1 for in, 2 for out
 
-    asn = bm->fclist[0].current_asn;
-
-    flag_offpath = fc_asn_is_offpath(g_fc_server.local_asn, bm);
     fc_sock_get_addr_from_peer_fd(clisockfd, (struct sockaddr *)&sockaddr,
             ipbuf, INET6_ADDRSTRLEN);
 
+    for (fc_index = 0; fc_index < bm->fc_num; ++fc_index)
+    {
+        if (bm->fclist[fc_index].current_asn == g_fc_server.local_asn)
+        {
+            flag_offpath = 0;
+            break;
+        }
+    }
 
+    // maybe can be removed as dst_ip_num is always 1
+    for (i=0; i<bm->dst_ip_num; ++i)
+    {
+        if (bm->ipversion == 4)
+        {
+            inet_ntop(AF_INET,
+                    &(((struct sockaddr_in*)&(bm->dst_ip[i].ip))->sin_addr),
+                    daddr, (socklen_t)sizeof(daddr));
+        } else if (bm->ipversion == 6)
+        {
+            inet_ntop(AF_INET6,
+                    &(((struct sockaddr_in6*)&(bm->dst_ip[i].ip))->sin6_addr),
+                    daddr, (socklen_t)sizeof(daddr));
+        }
+        dprefixlen = bm->dst_ip[i].prefix_length;
+        for (j=0; j<bm->src_ip_num; ++j)
+        {
+            if (bm->ipversion == 4)
+            {
+                inet_ntop(AF_INET,
+                        &(((struct sockaddr_in*)&(bm->src_ip[j].ip))->sin_addr),
+                        saddr, (socklen_t)sizeof(saddr));
+            } else if (bm->ipversion == 6)
+            {
+                inet_ntop(AF_INET6,
+                        &(((struct sockaddr_in6*)&(bm->src_ip[j].ip))->sin6_addr),
+                        saddr, (socklen_t)sizeof(saddr));
+            }
+            sprefixlen = bm->src_ip[j].prefix_length;
+            router_info = g_fc_server.routers;
+            // actually, there may be no so many devices
+            while (router_info)
+            {
+                link_info = router_info->links;
+                while (link_info)
+                {
+                    iface_info = link_info->iface_list;
+                    while (iface_info)
+                    {
+                        if (flag_offpath)
+                        {
+                            // offpath
+                            printf("srcip: %s/%d, dstip: %s/%d, iface_index: %d,"
+                                    " direction: %s\n",
+                                    saddr, sprefixlen, daddr, dprefixlen,
+                                    iface_info->iface_index, "both");
+
+                        } else
+                        {
+                            if (link_info->neighbor_asn
+                                    == bm->fclist[fc_index].nexthop_asn)
+                            {
+                                direction = 1; // in
+                            } else if (link_info->neighbor_asn
+                                    == bm->fclist[fc_index].previous_asn)
+                            {
+                                direction = 2;
+                            } else
+                            {
+                                direction = 0;
+                            }
+
+                            // onpath
+                            printf("srcip: %s/%d, dstip: %s/%d, iface_index: %d,"
+                                    " direction: %s\n",
+                                    saddr, sprefixlen, daddr, dprefixlen,
+                                    iface_info->iface_index,
+                                  direction == 0 ? "both" : (
+                                      direction == 1 ? "in" : "out"));
+                        }
+                        iface_info = iface_info->next;
+                    }
+                    link_info = link_info->next;
+                }
+                router_info = router_info->next;
+            }
+        }
+    }
 
     return 0;
 }

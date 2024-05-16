@@ -30,12 +30,19 @@ iptables v1.8.7 (nf_tables)
 
 # for netconf
 # [CESNET/libnetconf2](https://github.com/CESNET/libnetconf2)
+# this version v3.0.17 depends libyang v2.2.8, libssh-dev, openssl3.x
+$ sudo apt install libssh-dev
+$ git clone https://github.com/CESNET/libyang.git
+$ git checkout v2.2.8
+$ mkdir build; cd build; cmake ..; make ; sudo make install
 $ git clone https://github.com/CESNET/libnetconf2.git
+$ git checkout v3.0.17
 $ mkdir build; cd build; cmake ..; make ; sudo make install
 
 # for python & ncclient
 $ sudo apt install python3.10 python3.10-dev
 $ pip3 install ncclient
+
 ```
 
 ## for libs
