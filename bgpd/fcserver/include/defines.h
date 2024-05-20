@@ -13,6 +13,8 @@
 #include <stdbool.h>
 #include <sqlite3.h>
 #include <openssl/ec.h>
+#include "sysconfig.h"
+#include "mln_hash.h"
 
 #include "libhtable.h"
 #include "libncs6.h"
@@ -183,6 +185,13 @@ typedef struct FC_ht_node_as_s
     FC_acs_t acs;
 } FC_ht_node_as_t;
 
+typedef struct ht_aclinfo_st
+{
+    u32 iface_index;
+    u32 acl_in_index;
+    u32 acl_out_index;
+} ht_aclinfo_t;
+
 typedef struct FC_node_linkinfo_s
 {
     int fd;
@@ -284,6 +293,7 @@ typedef struct FC_server_s
 
     int routers_num;
     FC_router_info_t *routers;
+    mln_hash_t *ht_aclinfo;
 
     ncs6_ctx_t *fc_bgpd_ctx6;
     char *config_fname;

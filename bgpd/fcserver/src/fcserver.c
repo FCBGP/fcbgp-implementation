@@ -842,6 +842,8 @@ fc_server_topo_add(FC_router_info_t *target_router,
                 }
             }
             iface_info->iface_index = iface_index;
+            // insert into ht
+            ht_aclinfo_insert(g_fc_server.ht_aclinfo, iface_index);
         }
     }
 
@@ -1100,7 +1102,7 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
     int sprefixlen = 0, dprefixlen = 0;
     char ipbuf[INET6_ADDRSTRLEN] = {0};
     struct sockaddr_in6 sockaddr;
-    int direction = 0; // 0 for both, 1 for in, 2 for out
+    int direction = 0; // 1 for in, 2 for out, 3 for both
 
     fc_sock_get_addr_from_peer_fd(clisockfd, (struct sockaddr *)&sockaddr,
             ipbuf, INET6_ADDRSTRLEN);
@@ -1153,6 +1155,10 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
                     iface_info = link_info->iface_list;
                     while (iface_info)
                     {
+                        ht_aclinfo_t *item = NULL;
+                        item = mln_hash_search(g_fc_server.ht_aclinfo,
+                                &iface_info->iface_index);
+                        FC_ASSERT_RETP(item);
                         if (flag_offpath)
                         {
                             // offpath
@@ -1160,7 +1166,13 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
                                     " direction: %s\n",
                                     saddr, sprefixlen, daddr, dprefixlen,
                                     iface_info->iface_index, "both");
-
+                            // h3c device has only dir=1: in, dir=2: out
+                            py_apply_acl(item->acl_in_index,
+                                    saddr, sprefixlen, daddr, dprefixlen,
+                                    iface_info->iface_index, 1);
+                            py_apply_acl(item->acl_out_index,
+                                    saddr, sprefixlen, daddr, dprefixlen,
+                                    iface_info->iface_index, 2);
                         } else
                         {
                             if (link_info->neighbor_asn
@@ -1173,16 +1185,29 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
                                 direction = 2;
                             } else
                             {
-                                direction = 0;
+                                direction = 3;
                             }
 
                             // onpath
-                            printf("srcip: %s/%d, dstip: %s/%d, iface_index: %d,"
-                                    " direction: %s\n",
+                            printf("srcip: %s/%d, dstip: %s/%d, "
+                                    "iface_index: %d, direction: %s\n",
                                     saddr, sprefixlen, daddr, dprefixlen,
                                     iface_info->iface_index,
-                                  direction == 0 ? "both" : (
+                                  direction == 3 ? "both" : (
                                       direction == 1 ? "in" : "out"));
+                            // h3c device has only dir=1: in, dir=2: out
+                            if (direction & 0x1)
+                            {
+                                py_apply_acl(item->acl_in_index,
+                                        saddr, sprefixlen, daddr, dprefixlen,
+                                        iface_info->iface_index, 1);
+                            }
+                            if (direction & 0x2)
+                            {
+                                py_apply_acl(item->acl_out_index,
+                                        saddr, sprefixlen, daddr, dprefixlen,
+                                        iface_info->iface_index, 2);
+                            }
                         }
                         iface_info = iface_info->next;
                     }
@@ -1568,6 +1593,11 @@ fc_main()
 
     fc_hashtable_create(&g_fc_server.ht_as, &g_fc_htbl_as_ops);
 
+    // aclinfo ht
+    ht_aclinfo_create(g_fc_server.ht_aclinfo);
+    // py ncclient
+    py_setup("script");
+
     fc_read_config();
 
     if (g_fc_server.log_mode > FC_LOG_LEVEL_INFO)
@@ -1621,8 +1651,12 @@ fc_server_destroy(int signum)
             g_fc_server.db = NULL;
         }
 
+        // close the ncclient session
+        py_teardown();
+
         fc_hashtable_destroy(&g_fc_server.ht_as);
         fc_hashtable_destroy(&g_fc_server.ht_prefix);
+        ht_aclinfo_destroy(&g_fc_server.ht_aclinfo);
 
         EC_KEY_free(g_fc_server.pubkey);
         g_fc_server.pubkey = NULL;
