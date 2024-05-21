@@ -400,8 +400,9 @@ fc_ncs_server()
     int
 fc_server_create(void)
 {
-    FC_node_as_t meta;
-    FC_ht_node_as_t *node;
+    FC_node_as_t meta = {0};
+    FC_ht_node_as_t *node = NULL;
+    FC_router_info_t *router = NULL;
 
     fc_db_init(&g_fc_server.db);
 
@@ -412,6 +413,16 @@ fc_server_create(void)
         DIAG_ERROR("Cannot find AS %d!!!!!!!!\n", g_fc_server.local_asn);
         fprintf(stderr, "Cannot find AS %d!!!\n", g_fc_server.local_asn);
         return -1;
+    }
+
+    // py ncclient establishes sessions
+    router = g_fc_server.routers;
+    while (router)
+    {
+        py_setup(&router->py_config, "script",
+                router->host, router->username,
+                router->password, router->port);
+        router = router->next;
     }
 
     switch (g_fc_server.use_data_plane)
@@ -783,7 +794,7 @@ fc_server_topo_del(FC_router_info_t *target_router,
 fc_server_topo_add(FC_router_info_t *target_router,
         u32 neighbor_num, const char *buff, int currlen)
 {
-    int j = 0, k = 0;
+    int j = 0, k = 0, ret = 0;
     u32 neighbor_asn = 0, il_num = 0, iface_index = 0;
     u32 *iface_list = NULL;
     FC_router_link_info_t *link_info = NULL, *prev_link_info = NULL;
@@ -843,7 +854,8 @@ fc_server_topo_add(FC_router_info_t *target_router,
             }
             iface_info->iface_index = iface_index;
             // insert into ht
-            ht_aclinfo_insert(g_fc_server.ht_aclinfo, iface_index);
+            ret = ht_aclinfo_insert(g_fc_server.ht_aclinfo, iface_index);
+            FC_ASSERT_RET(ret);
         }
     }
 
@@ -1133,12 +1145,12 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
         dprefixlen = bm->dst_ip[i].prefix_length;
         for (j=0; j<bm->src_ip_num; ++j)
         {
-            if (bm->ipversion == 4)
+            if (bm->ipversion == IPV4)
             {
                 inet_ntop(AF_INET,
                         &(((struct sockaddr_in*)&(bm->src_ip[j].ip))->sin_addr),
                         saddr, (socklen_t)sizeof(saddr));
-            } else if (bm->ipversion == 6)
+            } else if (bm->ipversion == IPV6)
             {
                 inet_ntop(AF_INET6,
                         &(((struct sockaddr_in6*)&(bm->src_ip[j].ip))->sin6_addr),
@@ -1167,10 +1179,12 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
                                     saddr, sprefixlen, daddr, dprefixlen,
                                     iface_info->iface_index, "both");
                             // h3c device has only dir=1: in, dir=2: out
-                            py_apply_acl(item->acl_in_index,
+                            py_apply_acl(&router_info->py_config,
+                                    item->acl_in_index, bm->ipversion,
                                     saddr, sprefixlen, daddr, dprefixlen,
                                     iface_info->iface_index, 1);
-                            py_apply_acl(item->acl_out_index,
+                            py_apply_acl(&router_info->py_config,
+                                    item->acl_out_index, bm->ipversion,
                                     saddr, sprefixlen, daddr, dprefixlen,
                                     iface_info->iface_index, 2);
                         } else
@@ -1193,18 +1207,20 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
                                     "iface_index: %d, direction: %s\n",
                                     saddr, sprefixlen, daddr, dprefixlen,
                                     iface_info->iface_index,
-                                  direction == 3 ? "both" : (
-                                      direction == 1 ? "in" : "out"));
+                                    direction == 3 ? "both" : (
+                                        direction == 1 ? "in" : "out"));
                             // h3c device has only dir=1: in, dir=2: out
                             if (direction & 0x1)
                             {
-                                py_apply_acl(item->acl_in_index,
+                                py_apply_acl(&router_info->py_config,
+                                        item->acl_in_index, bm->ipversion,
                                         saddr, sprefixlen, daddr, dprefixlen,
                                         iface_info->iface_index, 1);
                             }
                             if (direction & 0x2)
                             {
-                                py_apply_acl(item->acl_out_index,
+                                py_apply_acl(&router_info->py_config,
+                                        item->acl_out_index, bm->ipversion,
                                         saddr, sprefixlen, daddr, dprefixlen,
                                         iface_info->iface_index, 2);
                             }
@@ -1594,9 +1610,7 @@ fc_main()
     fc_hashtable_create(&g_fc_server.ht_as, &g_fc_htbl_as_ops);
 
     // aclinfo ht
-    ht_aclinfo_create(g_fc_server.ht_aclinfo);
-    // py ncclient
-    py_setup("script");
+    ht_aclinfo_create(&g_fc_server.ht_aclinfo);
 
     fc_read_config();
 
@@ -1618,6 +1632,8 @@ fc_main()
     void
 fc_server_destroy(int signum)
 {
+    FC_router_info_t *router = NULL;
+
     if (signum == SIGINT || signum == SIGUSR1)
     {
         printf("recevied SIGINT\n");
@@ -1652,11 +1668,16 @@ fc_server_destroy(int signum)
         }
 
         // close the ncclient session
-        py_teardown();
+        router = g_fc_server.routers;
+        while (router)
+        {
+            py_teardown(&router->py_config);
+            router = router->next;
+        }
 
         fc_hashtable_destroy(&g_fc_server.ht_as);
         fc_hashtable_destroy(&g_fc_server.ht_prefix);
-        ht_aclinfo_destroy(&g_fc_server.ht_aclinfo);
+        ht_aclinfo_destroy(g_fc_server.ht_aclinfo);
 
         EC_KEY_free(g_fc_server.pubkey);
         g_fc_server.pubkey = NULL;

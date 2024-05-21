@@ -18,12 +18,17 @@ typedef struct py_config_st
     PyObject *session; // manager.connect
 } py_config_t;
 
-extern void py_setup(const char *script_name);
-extern PyObject* py_run_func(const char *funcname);
-extern int py_apply_acl(const u32 group_index,
+extern void py_setup(py_config_t *py_config,
+        const char *script_name,
+        const char *host, const char *username,
+        const char *password, const u16 port);
+extern PyObject* py_run_func(py_config_t *py_config,
+        const char *funcname);
+extern int py_apply_acl(py_config_t *py_config,
+        const u32 group_index, u8 ipversion,
         const char *srcip, const int srcprefixlen,
         const char *dstip, const int dstprefixlen,
         const u32 iface_index, const int direction);
-extern void py_teardown();
+extern void py_teardown(py_config_t *py_config);
 
 #endif // PYUTILS_H

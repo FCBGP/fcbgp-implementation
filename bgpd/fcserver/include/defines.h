@@ -13,6 +13,8 @@
 #include <stdbool.h>
 #include <sqlite3.h>
 #include <openssl/ec.h>
+#include <Python.h>
+#include "pyutils.h"
 #include "sysconfig.h"
 #include "mln_hash.h"
 
@@ -28,17 +30,6 @@
 #define FC_VERSION_STR "FC Server V" FC_PRJ_VERSION \
     " compiled at " __DATE__ " " __TIME__ ""
 #define FC_SSL_VERSION "OpenSSL 3.0.2 15 Mar 2022"
-
-typedef uint8_t  u8;
-typedef uint16_t  u16;
-typedef uint32_t  u32;
-typedef uint64_t  u64;
-
-#define IPV4                            4
-#define IPV6                            6
-#define IP4_LENGTH                      4
-#define IP6_LENGTH                      16
-#define TCP_PROTO                       0x06
 
 #define FC_VERSION                      1
 #define FC_BUFF_SIZE                    1024
@@ -270,6 +261,7 @@ typedef struct FC_router_info_st
     u16 port;
     char username[FC_MAX_SIZE];
     char password[FC_MAX_SIZE];
+    py_config_t py_config;
     struct FC_router_link_info_st *links;
 } FC_router_info_t;
 

@@ -7,7 +7,9 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include "sysconfig.h"
 #include "hashutils.h"
+
     static void *
 fc_as_node_create(void)
 {
@@ -267,6 +269,8 @@ ht_aclinfo_insert(mln_hash_t *h, u32 iface_index)
     static u32 acl_base_index = 3900;
     ht_aclinfo_t *ret = NULL, *item = NULL;
 
+    FC_ASSERT_RETP(h);
+
     // 1. search it in ht
     ret = mln_hash_search(h, &iface_index);
 
@@ -278,13 +282,18 @@ ht_aclinfo_insert(mln_hash_t *h, u32 iface_index)
         item->acl_in_index = acl_base_index;
         item->acl_out_index = acl_base_index + 1;
         acl_base_index += 2;
+        if (mln_hash_insert(h, &(item->iface_index), item) < 0)
+        {
+            fprintf(stderr, "insert failed.\n");
+            return -1;
+        }
     }
 
     return 0;
 }
 
     int
-ht_aclinfo_create(mln_hash_t *h)
+ht_aclinfo_create(mln_hash_t **h)
 {
     struct mln_hash_attr hattr;
 
@@ -299,8 +308,8 @@ ht_aclinfo_create(mln_hash_t *h)
     hattr.expandable = 0;
     hattr.calc_prime = 0;
 
-    h = mln_hash_new(&hattr);
-    FC_ASSERT_RETP(h);
+    *h = mln_hash_new(&hattr);
+    FC_ASSERT_RETP(*h);
 
     return 0;
 }
