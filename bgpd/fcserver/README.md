@@ -31,7 +31,7 @@ iptables v1.8.7 (nf_tables)
 # for netconf
 # [CESNET/libnetconf2](https://github.com/CESNET/libnetconf2)
 # this version v3.0.17 depends libyang v2.2.8, libssh-dev, openssl3.x
-$ sudo apt install libssh-dev
+$ sudo apt install -y libssh-dev libpcre2-dev  libcurl4-gnutls-dev
 $ git clone https://github.com/CESNET/libyang.git
 $ git checkout v2.2.8
 $ mkdir build; cd build; cmake ..; make ; sudo make install
@@ -39,10 +39,17 @@ $ git clone https://github.com/CESNET/libnetconf2.git
 $ git checkout v3.0.17
 $ mkdir build; cd build; cmake ..; make ; sudo make install
 
-# for python & ncclient
-$ sudo apt install python3.10 python3.10-dev
-$ pip3 install ncclient
+# melon
+$ git clone https://github.com/Water-Melon/Melon.git
+$ cd Melon
+$ ./configure [--prefix=LIB_INSTALL_PATH | ...]
+$ make; sudo make install
+$ echo /usr/local/melon/lib >> /etc/ld.so.conf
+$ sudo ldconfig
 
+# for python & ncclient
+$ sudo apt install python3.10 python3.10-dev python3-pip
+$ pip3 install ncclient
 ```
 
 ## for libs
