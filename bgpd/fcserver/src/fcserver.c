@@ -372,6 +372,12 @@ atexit:
     return -1;
 }
 
+static int fc_server_handler_ncs(ncs6_ctx_t *ctx)
+{
+    (void) ctx;
+    return 0;
+}
+
     static void
 fc_ncs_server()
 {
@@ -387,7 +393,7 @@ fc_ncs_server()
     ncs6_timeout(g_fc_server.fc_bgpd_ctx6, 10, -1);
     // ncs6_setkeepalive(g_fc_server.fc_bgpd_ctx6, 10);
     ncs6_server_enable(g_fc_server.fc_bgpd_ctx6);
-    ncs6_server_register(g_fc_server.fc_bgpd_ctx6, fc_server_handler);
+    ncs6_server_register(g_fc_server.fc_bgpd_ctx6, fc_server_handler_ncs);
     ncs6_manager_start(g_fc_server.fc_bgpd_ctx6);
     printf("fc_server : AS %d is ready!!!\n", g_fc_server.local_asn);
 
@@ -415,19 +421,18 @@ fc_server_create(void)
         return -1;
     }
 
-    // py ncclient establishes sessions
-    router = g_fc_server.routers;
-    while (router)
-    {
-        py_setup(&router->py_config, "script",
-                router->host, router->username,
-                router->password, router->port);
-        router = router->next;
-    }
-
     switch (g_fc_server.use_data_plane)
     {
     case FC_DP_MODE_H3C:
+        // py ncclient establishes sessions
+        router = g_fc_server.routers;
+        while (router)
+        {
+            py_setup(&router->py_config, "script",
+                     router->host, router->username,
+                     router->password, router->port);
+            router = router->next;
+        }
         fc_multi_long_pull_server();
         break;
     default:
@@ -1475,6 +1480,7 @@ fc_server_bm_handler(int clisockfd, char *buffer,
 
     return 0;
 }
+
 
     int
 fc_server_handler(int clisockfd, char *buff, int buffsize, int recvlen)

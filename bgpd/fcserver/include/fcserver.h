@@ -32,7 +32,7 @@
 
 #define FC_DEFAULT_CONFIG_FNAME "/etc/frr/assets/config.json"
 #define FC_PROGRAM_NAME "fcserver"
-#define FC_PORT 23162
+#define FC_PORT 23160
 #define FC_EPOLL_MAX_EVENTS 32
 #define FC_SOCK_BACKLOG 32
 

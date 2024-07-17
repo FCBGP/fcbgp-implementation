@@ -252,42 +252,45 @@ fc_read_config(void)
     free(fpath);
     fpath = NULL;
     // router info list
-    cJSON *router_list = NULL, *router_info = NULL;
-    FC_router_info_t *curr_router = NULL, *next_router = NULL;
-    router_list = cJSON_GetObjectItem(root, "router_info_list");
-    FC_ASSERT_RETP(router_list);
-    g_fc_server.routers_num = cJSON_GetArraySize(router_list);
-    for (i=0; i<g_fc_server.routers_num; ++i)
+    if (g_fc_server.use_data_plane == FC_DP_MODE_H3C)
     {
-        curr_router = calloc(1, sizeof(FC_router_info_t));
-        next_router = g_fc_server.routers;
-        curr_router->next = next_router;
-        g_fc_server.routers = curr_router;
-        router_info = cJSON_GetArrayItem(router_list, i);
-        if (g_fc_server.log_mode >= FC_LOG_LEVEL_DEBUG)
+        cJSON *router_list = NULL, *router_info = NULL;
+        FC_router_info_t *curr_router = NULL, *next_router = NULL;
+        router_list = cJSON_GetObjectItem(root, "router_info_list");
+        FC_ASSERT_RETP(router_list);
+        g_fc_server.routers_num = cJSON_GetArraySize(router_list);
+        for (i=0; i<g_fc_server.routers_num; ++i)
         {
-            fc_cjson_print(router_info);
-        }
+            curr_router = calloc(1, sizeof(FC_router_info_t));
+            next_router = g_fc_server.routers;
+            curr_router->next = next_router;
+            g_fc_server.routers = curr_router;
+            router_info = cJSON_GetArrayItem(router_list, i);
+            if (g_fc_server.log_mode >= FC_LOG_LEVEL_DEBUG)
+            {
+                fc_cjson_print(router_info);
+            }
 
-        elem = cJSON_GetObjectItem(router_info, "bgpid");
-        FC_ASSERT_RETP(elem);
-        inet_pton(AF_INET, elem->valuestring, &curr_router->bgpid);
-        curr_router->bgpid = ntohl(curr_router->bgpid);
-        elem = cJSON_GetObjectItem(router_info, "host");
-        FC_ASSERT_RETP(elem);
-        memcpy(curr_router->host, elem->valuestring,
-                strlen(elem->valuestring));
-        elem = cJSON_GetObjectItem(router_info, "port");
-        FC_ASSERT_RETP(elem);
-        curr_router->port = elem->valueint;
-        elem = cJSON_GetObjectItem(router_info, "username");
-        FC_ASSERT_RETP(elem);
-        memcpy(curr_router->username, elem->valuestring,
-                strlen(elem->valuestring));
-        elem = cJSON_GetObjectItem(router_info, "password");
-        FC_ASSERT_RETP(elem);
-        memcpy(curr_router->password, elem->valuestring,
-                strlen(elem->valuestring));
+            elem = cJSON_GetObjectItem(router_info, "bgpid");
+            FC_ASSERT_RETP(elem);
+            inet_pton(AF_INET, elem->valuestring, &curr_router->bgpid);
+            curr_router->bgpid = ntohl(curr_router->bgpid);
+            elem = cJSON_GetObjectItem(router_info, "host");
+            FC_ASSERT_RETP(elem);
+            memcpy(curr_router->host, elem->valuestring,
+                   strlen(elem->valuestring));
+            elem = cJSON_GetObjectItem(router_info, "port");
+            FC_ASSERT_RETP(elem);
+            curr_router->port = elem->valueint;
+            elem = cJSON_GetObjectItem(router_info, "username");
+            FC_ASSERT_RETP(elem);
+            memcpy(curr_router->username, elem->valuestring,
+                   strlen(elem->valuestring));
+            elem = cJSON_GetObjectItem(router_info, "password");
+            FC_ASSERT_RETP(elem);
+            memcpy(curr_router->password, elem->valuestring,
+                   strlen(elem->valuestring));
+        }
     }
 
 
