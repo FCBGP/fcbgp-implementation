@@ -7,6 +7,8 @@ SIGN/VERIFY UTILS
  ********************************************************************************/
 
 #include "sigutils.h"
+#include "libmd5.h"
+#include "libcrc32.h"
 
     int
 fc_base64_encode(const unsigned char *msg, size_t length, char *b64msg)
@@ -93,6 +95,80 @@ fc_sha256_encode(const char *const msg, int msglen, unsigned char *digest,
      * do.                                                                          * In a larger application this fetch would just be done once, and could
      * be used for multiple calls to other operations such as EVP_DigestInit_ex().                                                                                 */
     if ((md = EVP_MD_fetch(NULL, "SHA256", NULL)) == NULL)                         {
+        goto error;
+    }
+
+
+    /* Initialise the digest operation */
+    if (!EVP_DigestInit_ex(mdctx, md, NULL))
+    {
+        goto error;
+    }
+
+    /*
+     * Pass the message to be digested. This can be passed in over multiple
+     * EVP_DigestUpdate calls if necessary
+     */
+    if (!EVP_DigestUpdate(mdctx, msg, msglen))
+    {
+        goto error;
+    }
+
+    /* Allocate the output buffer */
+    /* digest = OPENSSL_malloc(EVP_MD_get_size(sha256));
+     * if (digest == NULL)
+     * {
+     *  goto err;
+     * }
+     **/
+    /* Allocate the output buffer */
+    if (!EVP_DigestFinal_ex(mdctx, digest, digest_len))
+    {
+        goto error;
+    }
+
+    /*
+       printf("Digest_len is : %u, Digest is: ", *digest_len);
+       for (i = 0; i < (int)*digest_len; i++)
+       {
+       printf("%02x", digest[i]);
+       }
+       printf("\n");
+       */
+
+error:
+    /* Clean up all the resources we allocated */
+    EVP_MD_free(md);
+    EVP_MD_CTX_free(mdctx);
+    if (ret != 0)
+    {
+        ERR_print_errors_fp(stderr);
+    }
+
+    return ret;
+}
+
+    static int
+fc_sha1_encode(const char *const msg, int msglen, unsigned char *digest,
+        unsigned int *digest_len)
+{
+    int ret = 1;
+    EVP_MD *md = NULL;
+    EVP_MD_CTX *mdctx = NULL;
+
+    /* Create a context for the digest operation */
+    if ((mdctx = EVP_MD_CTX_new()) == NULL)
+    {
+        goto error;
+    }
+
+    /*
+     * Fetch the SHA256 algorithm implementation for doing the digest. We're        * using the "default" library context here (first NULL parameter), and
+     * we're not supplying any particular search criteria for our SHA256
+     * implementation (second NULL parameter). Any SHA256 implementation will
+     * do.                                                                          * In a larger application this fetch would just be done once, and could
+     * be used for multiple calls to other operations such as EVP_DigestInit_ex().                                                                                 */
+    if ((md = EVP_MD_fetch(NULL, "SHA1", NULL)) == NULL)                         {
         goto error;
     }
 
@@ -243,8 +319,28 @@ fc_ecdsa_sign(EC_KEY *prikey, const char *const msg, int msglen,
     unsigned int keylen = 0;
     int ret = 0;
 
-    fc_sha256_encode(msg, msglen, digest, &digestlen);
-    keylen = ECDSA_size(prikey);
+    if (g_fc_server.hash_algorithm == NULL) {
+	printf("I don't know what algorithm should I use.");
+    	return -1;
+    }
+
+    if(!strcmp(g_fc_server.hash_algorithm, "sha256") || !strcmp(g_fc_server.hash_algorithm, "SHA256")) {
+	    fc_sha256_encode(msg, msglen, digest, &digestlen);
+    } else if (!strcmp(g_fc_server.hash_algorithm, "sha1") || !strcmp(g_fc_server.hash_algorithm, "SHA1")) {
+    	//sha1
+	fc_sha1_encode(msg, msglen, digest, &digestlen);
+    } else if (!strcmp(g_fc_server.hash_algorithm, "crc32") || !strcmp(g_fc_server.hash_algorithm, "CRC32")) {
+    	//crc32
+	uint32_t res =  0;
+	res = crc32_run(0, msg, msglen);
+	memcpy(digest, &res, 4);
+	digestlen = 4;
+    } else if (!strcmp(g_fc_server.hash_algorithm, "md5") || !strcmp(g_fc_server.hash_algorithm, "MD5")) {
+    	//md5
+	strmd5sum(msg, digest, msglen);
+	digestlen = 16;
+    }
+	    keylen = ECDSA_size(prikey);
     *sigbuff = OPENSSL_malloc(keylen);
     ret = ECDSA_sign(0, digest, digestlen, *sigbuff, siglen, prikey);
     if (ret ==0)
@@ -261,7 +357,23 @@ fc_ecdsa_verify(EC_KEY *pubkey, const char *const msg, int msglen,
     unsigned int digestlen = 0;
     int ret = 0;
 
-    fc_sha256_encode(msg, msglen, digest, &digestlen);
+    if(!strcmp(g_fc_server.hash_algorithm, "sha256") || !strcmp(g_fc_server.hash_algorithm, "SHA256")) {
+	    fc_sha256_encode(msg, msglen, digest, &digestlen);
+    } else if (!strcmp(g_fc_server.hash_algorithm, "sha1") || !strcmp(g_fc_server.hash_algorithm, "SHA1")) {
+    	//sha1
+	fc_sha1_encode(msg, msglen, digest, &digestlen);
+    } else if (!strcmp(g_fc_server.hash_algorithm, "crc32") || !strcmp(g_fc_server.hash_algorithm, "CRC32")) {
+    	//crc32
+	uint32_t res =  0;
+	res = crc32_run(0, msg, msglen);
+	memcpy(digest, &res, 4);
+	digestlen = 4;
+    } else if (!strcmp(g_fc_server.hash_algorithm, "md5") || !strcmp(g_fc_server.hash_algorithm, "MD5")) {
+    	//md5
+	strmd5sum(msg, digest, msglen);
+	digestlen = 16;
+    }
+
     ret = ECDSA_verify(0, digest, digestlen, sigbuff, siglen, pubkey);
 
     return ret;

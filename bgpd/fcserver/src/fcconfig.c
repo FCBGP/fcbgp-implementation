@@ -228,6 +228,9 @@ fc_read_config(void)
     // local_asn
     elem = cJSON_GetObjectItem(root, "local_asn");
     g_fc_server.local_asn = elem->valueint;
+    //hash_alogrithm
+    elem = cJSON_GetObjectItem(root, "hash_algorithm");
+    g_fc_server.hash_algorithm = elem->valuestring;
     // log_mode
     elem = cJSON_GetObjectItem(root, "log_mode");
     fc_set_log_mode(elem->valuestring);

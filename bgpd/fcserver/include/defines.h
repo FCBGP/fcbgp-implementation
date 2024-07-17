@@ -274,6 +274,7 @@ typedef struct FC_server_s
     bool clear_fc_db;
     int use_data_plane;
     u32 local_asn;
+    char *hash_algorithm;
     u8 asns_num; /* as-ip totoal num, of course it's number of AS */
     u32 asns[FCSRV_MAX_LINK_AS];
     sqlite3 *db;

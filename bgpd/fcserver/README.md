@@ -65,6 +65,7 @@ $ sudo chmod 777 /opt/log
 ## config.json
 
 - `local_asn`: The AS number of current bgp located.
+- `hash_algorithm`: Specify HASH algorithm, including SHA256, SHA1, MD5, CRC32.
 - `log_mode`: For diaglib in fcserver. `debug`, `info`
 - `clear_fc_db`: `true` or `false`. Default is `true`. Clear the fc.db before running.
 - `use_data_plane`: See Section Data Plane for more information.
