@@ -305,11 +305,8 @@ int fc_ecdsa_sign(EC_KEY *prikey, const char *const msg, int msglen,
     keylen = ECDSA_size(prikey);
     *sigbuff = OPENSSL_malloc(keylen);
     ret = ECDSA_sign(0, digest, digestlen, *sigbuff, siglen, prikey);
-    if (ret == 0) // error
-    {
-    }
 
-    return 0;
+    return ret;
 }
 
 int fc_ecdsa_verify(EC_KEY *pubkey, const char *const msg, int msglen,
@@ -326,13 +323,7 @@ int fc_ecdsa_verify(EC_KEY *pubkey, const char *const msg, int msglen,
                 g_fc_server.hash_algorithm);
     }
     ret = ECDSA_verify(0, digest, digestlen, sigbuff, siglen, pubkey);
-    if (ret == -1) // error
-    {
-    }
-    else if (ret == 0) // invalid signature
-    {
-    }
-
+    
     return ret;
 }
 

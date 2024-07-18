@@ -1016,6 +1016,7 @@ fc_bm_verify_fc(FC_msg_bm_t *bm)
         {
             printf("%02X", bm->ski[k]);
         }
+        printf("\n");
         printf("\033[42;31m node.ski: \033[0m");
         for (int k = 0; k < FC_SKI_LENGTH; ++k)
         {
@@ -1025,10 +1026,6 @@ fc_bm_verify_fc(FC_msg_bm_t *bm)
 
         ret = fc_ecdsa_verify(node->pubkey, msg, msglen,
                               bm->fclist[i].sig, bm->fclist[i].siglen);
-        for (int kkk = 0; kkk < msglen; ++kkk)
-        {
-            printf("%02X", msg[kkk]);
-        }
         switch (ret)
         {
         case 1:
@@ -1468,7 +1465,7 @@ int fc_server_bm_handler(int clisockfd, char *buffer,
         memcpy(bm.signature, buff + cur + FC_SKI_LENGTH, bm.siglen);
 
         /* TODO Don't know why does not need this pubkey. */
-#if 1
+#if 0
         FC_ht_node_as_t *node;
         FC_node_as_t meta = {0};
         meta.asn = bm.local_asn;
@@ -1495,8 +1492,8 @@ int fc_server_bm_handler(int clisockfd, char *buffer,
         printf("\n");
 #endif
 
-        ret = fc_ecdsa_verify(node->pubkey,
-                              // ret = fc_ecdsa_verify(g_fc_server.pubkey,
+        // ret = fc_ecdsa_verify(node->pubkey,
+        ret = fc_ecdsa_verify(g_fc_server.pubkey,
                               msg, cur,
                               bm.signature, bm.siglen);
         switch (ret)
