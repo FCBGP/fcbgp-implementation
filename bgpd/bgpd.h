@@ -178,6 +178,7 @@ struct bgp_master {
     EC_KEY *prikey;
     EC_KEY *pubkey;
     uint8_t ski[20];
+    int hash_algorithm_id;
     /* store the pubkey of each as */
     struct hash *ht_ski_ecpubkey;
 #endif // USE_FC

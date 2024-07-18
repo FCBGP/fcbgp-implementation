@@ -98,6 +98,15 @@ typedef uint64_t  u64;
         }                                                       \
     } while (0)
 
+enum
+{
+    FC_HASH_ALGO_UNKNOWN,
+    FC_HASH_ALGO_SHA256,
+    FC_HASH_ALGO_SHA1,
+    FC_HASH_ALGO_MD5,
+    FC_HASH_ALGO_CRC32,
+};
+
 typedef struct SKI_ECKEY_s
 {
     u32 asn;

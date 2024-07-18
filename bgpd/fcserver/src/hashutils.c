@@ -5,19 +5,19 @@
  * Description:  HASHTABLE UTILS
  ********************************************************************************/
 
+#include "hashutils.h"
+#include "sysconfig.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include "sysconfig.h"
-#include "hashutils.h"
 
-    static void *
+static void *
 fc_as_node_create(void)
 {
     FC_ht_node_as_t *node = calloc(1, sizeof(FC_ht_node_as_t));
     return node;
 }
 
-    static int
+static int
 fc_as_node_destroy(void *node)
 {
     FC_ht_node_as_t *node_as = (FC_ht_node_as_t *)node;
@@ -27,22 +27,22 @@ fc_as_node_destroy(void *node)
     return 0;
 }
 
-    static int
+static int
 fc_as_node_display(void *node)
 {
     int i = 0;
-    FC_ht_node_as_t *node_as = (FC_ht_node_as_t *) node;
+    FC_ht_node_as_t *node_as = (FC_ht_node_as_t *)node;
 
     printf("asn: %d\n", node_as->asn);
     printf("  acs:\n");
     printf("    ipv4:\n");
-    for (i=0; i<node_as->acs.ipv4_num; ++i)
+    for (i = 0; i < node_as->acs.ipv4_num; ++i)
     {
         printf("      ifname: %s\n", node_as->acs.ipv4[i].ifname);
         printf("      ifaddr: %s\n", node_as->acs.ipv4[i].ifaddr);
     }
     printf("    ipv6:\n");
-    for (i=0; i<node_as->acs.ipv6_num; ++i)
+    for (i = 0; i < node_as->acs.ipv6_num; ++i)
     {
         printf("      ifname: %s\n", node_as->acs.ipv6[i].ifname);
         printf("      ifaddr: %s\n", node_as->acs.ipv6[i].ifaddr);
@@ -51,7 +51,7 @@ fc_as_node_display(void *node)
     return 0;
 }
 
-    static u32
+static u32
 fc_as_hash(u32 asn)
 {
     u32 ret = jhash_1word(asn, 0xdeadbeef);
@@ -59,21 +59,21 @@ fc_as_hash(u32 asn)
     return ret;
 }
 
-    static int
+static int
 fc_as_node_hash(void *node)
 {
-    FC_ht_node_as_t *node_as = (FC_ht_node_as_t *) node;
+    FC_ht_node_as_t *node_as = (FC_ht_node_as_t *)node;
     return fc_as_hash(node_as->asn);
 }
 
-    static int
+static int
 fc_as_meta_hash(void *meta)
 {
     FC_node_as_t *meta_as = (FC_node_as_t *)meta;
     return fc_as_hash(meta_as->asn);
 }
 
-    static int
+static int
 fc_as_meta_cmp(void *base, void *meta)
 {
     FC_ht_node_as_t *node_as = (FC_ht_node_as_t *)base;
@@ -82,7 +82,7 @@ fc_as_meta_cmp(void *base, void *meta)
     return !!(node_as->asn != meta_as->asn);
 }
 
-    static int
+static int
 fc_as_meta_save(void *base, void *meta)
 {
     FC_ht_node_as_t *node_as = (FC_ht_node_as_t *)base;
@@ -107,7 +107,7 @@ htbl_ops_t g_fc_htbl_as_ops = {
     .meta_save_func = fc_as_meta_save,
 };
 
-    static void *
+static void *
 fc_prefix_node_create(void)
 {
     FC_ht_node_prefix_t *node = calloc(1, sizeof(FC_ht_node_prefix_t));
@@ -115,7 +115,7 @@ fc_prefix_node_create(void)
     return node;
 }
 
-    static int
+static int
 fc_prefix_node_destroy(void *node)
 {
     FC_ht_node_prefix_t *node_prefix = (FC_ht_node_prefix_t *)node;
@@ -126,7 +126,7 @@ fc_prefix_node_destroy(void *node)
     return 0;
 }
 
-    static int
+static int
 fc_prefix_hash(struct prefix *prefix)
 {
     int i = 0;
@@ -134,27 +134,27 @@ fc_prefix_hash(struct prefix *prefix)
 
     ret = jhash_2words(prefix->family, prefix->prefixlen, 0xdeadbeef);
 
-    for (i=0; i<4; ++i)
+    for (i = 0; i < 4; ++i)
         ret = jhash_2words(ret, prefix->u.val32[i], 0xdeadbeef);
 
     return ret;
 }
 
-    static int
+static int
 fc_prefix_node_hash(void *node)
 {
-    FC_ht_node_prefix_t *node_prefix = (FC_ht_node_prefix_t *) node;
+    FC_ht_node_prefix_t *node_prefix = (FC_ht_node_prefix_t *)node;
     return fc_prefix_hash(&node_prefix->ipprefix);
 }
 
-    static int
+static int
 fc_prefix_meta_hash(void *meta)
 {
     FCList_t *meta_prefix = (FCList_t *)meta;
     return fc_prefix_hash(&meta_prefix->ipprefix);
 }
 
-    static int
+static int
 fc_prefix_meta_cmp(void *base, void *meta)
 {
     FC_ht_node_prefix_t *node_prefix = (FC_ht_node_prefix_t *)base;
@@ -167,10 +167,9 @@ fc_prefix_meta_cmp(void *base, void *meta)
     {
         if (node_prefix->ipprefix.prefixlen == meta_prefix->ipprefix.prefixlen)
         {
-            for (i=0; i<4; ++i)
+            for (i = 0; i < 4; ++i)
             {
-                if (node_prefix->ipprefix.u.val32[i]
-                        != meta_prefix->ipprefix.u.val32[i])
+                if (node_prefix->ipprefix.u.val32[i] != meta_prefix->ipprefix.u.val32[i])
                 {
                     ret = 1;
                     break;
@@ -183,7 +182,7 @@ fc_prefix_meta_cmp(void *base, void *meta)
     return ret;
 }
 
-    static int
+static int
 fc_prefix_meta_save(void *base, void *meta)
 {
     FC_ht_node_prefix_t *node_prefix = (FC_ht_node_prefix_t *)base;
@@ -197,7 +196,7 @@ fc_prefix_meta_save(void *base, void *meta)
     return 0;
 }
 
-    static int
+static int
 fc_prefix_node_display(void *node)
 {
     return 0;
@@ -233,8 +232,7 @@ int fc_hashtable_create(htbl_ctx_t *ht, htbl_ops_t *ops)
     return 0;
 }
 
-    int
-fc_hashtable_destroy(htbl_ctx_t *ht)
+int fc_hashtable_destroy(htbl_ctx_t *ht)
 {
     if (ht)
     {
@@ -244,27 +242,25 @@ fc_hashtable_destroy(htbl_ctx_t *ht)
     return 0;
 }
 
-
-    static mln_u64_t
+static mln_u64_t
 ht_aclinfo_hash_handler(mln_hash_t *h, void *key)
 {
     return *((u32 *)key) % h->len;
 }
 
-    static int
+static int
 ht_aclinfo_cmp_handler(mln_hash_t *h, void *key1, void *key2)
 {
     return !(*((u32 *)key1) - *((u32 *)key2));
 }
 
-    static void
+static void
 ht_aclinfo_free_handler(void *val)
 {
     free(val);
 }
 
-    int
-ht_aclinfo_insert(mln_hash_t *h, u32 iface_index)
+int ht_aclinfo_insert(mln_hash_t *h, u32 iface_index)
 {
     static u32 acl_base_index = 3900;
     ht_aclinfo_t *ret = NULL, *item = NULL;
@@ -275,7 +271,7 @@ ht_aclinfo_insert(mln_hash_t *h, u32 iface_index)
     ret = mln_hash_search(h, &iface_index);
 
     // 2. if not exist, insert it
-    if (! ret)
+    if (!ret)
     {
         item = calloc(1, sizeof(ht_aclinfo_t));
         item->iface_index = iface_index;
@@ -292,8 +288,7 @@ ht_aclinfo_insert(mln_hash_t *h, u32 iface_index)
     return 0;
 }
 
-    int
-ht_aclinfo_create(mln_hash_t **h)
+int ht_aclinfo_create(mln_hash_t **h)
 {
     struct mln_hash_attr hattr;
 
@@ -314,8 +309,7 @@ ht_aclinfo_create(mln_hash_t **h)
     return 0;
 }
 
-    int
-ht_aclinfo_destroy(mln_hash_t *h)
+int ht_aclinfo_destroy(mln_hash_t *h)
 {
     mln_hash_free(h, M_HASH_F_VAL);
     return 0;

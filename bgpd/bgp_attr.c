@@ -4792,7 +4792,8 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
     {
         int flag = 1;
         u32 previous_asn = (u32)from->as;
-        u32 nexthop_asn = (u32) peer->as;
+        u32 current_asn = (u32)peer->local_as;
+        u32 nexthop_asn = (u32)peer->as;
 
         // I don't know why it cannot send out the packet to add this condition.
         /*
@@ -4815,9 +4816,10 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
         }
         */
 
-        zlog_debug("UPDATE: pasn: %08X, casn: %08X, nasn: %08X, prefix: %d",
-                previous_asn, peer->local_as, nexthop_asn,
-                prefix_for_fc->u.prefix);
+        zlog_debug("UPDATE: pasn: %08X, casn: %08X, nasn: %08X, prefix: %d/%d",
+                previous_asn, current_asn, nexthop_asn,
+                prefix_for_fc->u.prefix,
+				prefix_for_fc->prefixlen);
 
         if (flag)
         {
@@ -4841,12 +4843,12 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
             FCList_t meta = {0};
 
             /*
-             * sig content = ecdsa(previous asn,current asn,nexthop asn,prefix)
-             *      prefix = (ipaddr, prefix-length) // binary format
+             * sig content = ecdsa-hash(previous-asn, current-asn, nexthop-asn,
+             *                  ip-address, prefix-length)  // binary format
              * */
             // 1. gen current fc
             fc.previous_asn = previous_asn;
-            fc.current_asn = peer->local_as;
+            fc.current_asn = current_asn;
             fc.nexthop_asn = nexthop_asn;
 
             memcpy(fc.ski, bm->ski, FC_SKI_LENGTH);
@@ -4864,14 +4866,13 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
 
             if (afi == AFI_IP) // ipv4
             {
-                // TODO
-                memcpy(msg+msglen, &(prefix_for_fc->u.prefix4),
-                        prefix_for_fc->prefixlen);
+                memcpy(msg + msglen, &(prefix_for_fc->u.prefix4),
+                       sizeof(struct in_addr));
                 msglen += sizeof(struct in_addr);
             }
             else if (afi == AFI_IP6) { // ipv6
-                memcpy(msg+msglen, &(prefix_for_fc->u.prefix6),
-                        prefix_for_fc->prefixlen);
+                memcpy(msg + msglen, &(prefix_for_fc->u.prefix6),
+                       sizeof(struct in6_addr));
                 msglen += sizeof(struct in6_addr);
             }
             prefixlen = (u8) prefix_for_fc->prefixlen;

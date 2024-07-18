@@ -8,15 +8,15 @@
 #ifndef DEFINES_H
 #define DEFINES_H
 
-#include <arpa/inet.h>
-#include <sys/epoll.h>
-#include <stdbool.h>
-#include <sqlite3.h>
-#include <openssl/ec.h>
-#include <Python.h>
+#include "mln_hash.h"
 #include "pyutils.h"
 #include "sysconfig.h"
-#include "mln_hash.h"
+#include <Python.h>
+#include <arpa/inet.h>
+#include <openssl/ec.h>
+#include <sqlite3.h>
+#include <stdbool.h>
+#include <sys/epoll.h>
 
 #include "libhtable.h"
 #include "libncs6.h"
@@ -25,78 +25,95 @@
 #define FC_MAJOR_VERSION STR(0)
 #define FC_MINOR_VERSION STR(1)
 #define FC_PATCH_VERSION STR(4)
-#define FC_PRJ_VERSION FC_MAJOR_VERSION "." \
-    FC_MINOR_VERSION "." FC_PATCH_VERSION
+#define FC_PRJ_VERSION FC_MAJOR_VERSION "." FC_MINOR_VERSION "." FC_PATCH_VERSION
 #define FC_VERSION_STR "FC Server V" FC_PRJ_VERSION \
-    " compiled at " __DATE__ " " __TIME__ ""
+                       " compiled at " __DATE__ " " __TIME__ ""
 #define FC_SSL_VERSION "OpenSSL 3.0.2 15 Mar 2022"
 
-#define FC_VERSION                      1
-#define FC_BUFF_SIZE                    1024
-#define FC_BUFF_SIZE256                 256
-#define FCSRV_HTBL_BUCKETS_SIZE         1023
-#define FCSRV_MAX_LINK_AS               256
-#define FCSRV_MAX_SRC_PREFIX            256
+#define FC_VERSION 1
+#define FC_BUFF_SIZE 1024
+#define FC_BUFF_SIZE256 256
+#define FCSRV_HTBL_BUCKETS_SIZE 1023
+#define FCSRV_MAX_LINK_AS 256
+#define FCSRV_MAX_SRC_PREFIX 256
 
-#define FC_SKI_LENGTH                   20
-#define FC_MAX_SIZE                     256
-#define FC_IF_MAX_SIZE                  32
+#define FC_SKI_LENGTH 20
+#define FC_MAX_SIZE 256
+#define FC_IF_MAX_SIZE 32
 
-#define FC_HDR_GENERAL_LENGTH           4
-#define FC_HDR_FC_FIX_LENGTH            36
-#define FC_HDR_BM_FIX_LENGTH            20
-#define FC_HDR_BM_SIGLEN_POS            6
+#define FC_HDR_GENERAL_LENGTH 4
+#define FC_HDR_FC_FIX_LENGTH 36
+#define FC_HDR_BM_FIX_LENGTH 20
+#define FC_HDR_BM_SIGLEN_POS 6
 
-#define FC_DB_NAME                      "/etc/frr/assets/fc.db"
-#define FC_NFT_PROG_POS                 "/usr/sbin/nft"
+#define FC_DB_NAME "/etc/frr/assets/fc.db"
+#define FC_NFT_PROG_POS "/usr/sbin/nft"
 
-enum {
-    FC_MSG_BASE   = 0,
-    FC_MSG_PUBKEY = 1,  // pubkey information, not implement, from RPKI.
-    FC_MSG_BGPD   = 2,  // broadcast message from BGP router to FCS
-    FC_MSG_BC     = 3,  // broadcast message from FCS to FCS
-    FC_MSG_TOPO   = 4,  // topo link information from BGP router to FCS
+enum
+{
+    FC_MSG_BASE = 0,
+    FC_MSG_PUBKEY = 1, // pubkey information, not implement, from RPKI.
+    FC_MSG_BGPD = 2,   // broadcast message from BGP router to FCS
+    FC_MSG_BC = 3,     // broadcast message from FCS to FCS
+    FC_MSG_TOPO = 4,   // topo link information from BGP router to FCS
     FC_MSG_N
 };
 
-enum {
-    FC_ACT_ADD  = 0, // add/update
-    FC_ACT_DEL  = 1, // del/withdraw
+enum
+{
+    FC_ACT_ADD = 0, // add/update
+    FC_ACT_DEL = 1, // del/withdraw
     FC_ACT_N
 };
 
-#define FC_ASSERT_RET_BASE(ret, msg)                        \
-    do {                                                    \
-        if (ret != 0) {                                     \
-            fprintf(stderr, "%s:%d error: ret is not 0.  "  \
-                    "msg: %s\n",                            \
-                    __func__, __LINE__, msg);               \
-        }                                                   \
-    } while (0)                                             \
+enum
+{
+    FC_HASH_ALGO_UNKNOWN,
+    FC_HASH_ALGO_SHA256,
+    FC_HASH_ALGO_SHA1,
+    FC_HASH_ALGO_MD5,
+    FC_HASH_ALGO_CRC32,
+};
+
+#define FC_ASSERT_RET_BASE(ret, msg)                       \
+    do                                                     \
+    {                                                      \
+        if (ret != 0)                                      \
+        {                                                  \
+            fprintf(stderr, "%s:%d error: ret is not 0.  " \
+                            "msg: %s\n",                   \
+                    __func__, __LINE__, msg);              \
+        }                                                  \
+    } while (0)
 
 #define FC_ASSERT_RET(ret) FC_ASSERT_RET_BASE(ret, "")
 
-#define FC_ASSERT_RETP(retp)                                    \
-    do {                                                        \
-        if (retp == NULL) {                                        \
-            fprintf(stderr, "%s:%d error: pointer is NULL\n",   \
-                    __func__, __LINE__);                        \
-        }                                                       \
+#define FC_ASSERT_RETP(retp)                                  \
+    do                                                        \
+    {                                                         \
+        if (retp == NULL)                                     \
+        {                                                     \
+            fprintf(stderr, "%s:%d error: pointer is NULL\n", \
+                    __func__, __LINE__);                      \
+        }                                                     \
     } while (0)
 
-#define FC_MEM_CHECK(expr)                                      \
-    do {                                                        \
-        if (expr) {                                             \
-            fprintf(stderr, "[%s:%d] ERROR: memory leak\n",     \
-                    __func__, __LINE__);                        \
-        }                                                       \
+#define FC_MEM_CHECK(expr)                                  \
+    do                                                      \
+    {                                                       \
+        if (expr)                                           \
+        {                                                   \
+            fprintf(stderr, "[%s:%d] ERROR: memory leak\n", \
+                    __func__, __LINE__);                    \
+        }                                                   \
     } while (0)
 
-
-struct prefix {
+struct prefix
+{
     uint8_t family;
     uint16_t prefixlen;
-    union {
+    union
+    {
         uint8_t prefix;
         struct in_addr prefix4;
         struct in6_addr prefix6;
@@ -120,7 +137,7 @@ typedef struct FC_s
 typedef struct FCList_s
 {
     int length; // length of FCs
-    int size; // number of FC in fcs
+    int size;   // number of FC in fcs
     struct prefix ipprefix;
     FC_t *fcs;
 } FCList_t;
@@ -212,14 +229,14 @@ typedef struct FC_msg_hdr_st
 
 typedef struct FC_msg_bm_st
 {
-    u8 ipversion;       // 4 for ipv4, 6 for ipv6
-    u8 type;            // 0 for onpath nodes, 1 for offpath
-    u8 action;          // 0 for add/update, 1 for del/withdraw
-    u8 fc_num;          // num of fc in fclist, boundary
-    u8 src_ip_num;      // src ip prefix num, boundary
-    u8 dst_ip_num;      // dst ip prefix num, boundary
+    u8 ipversion;  // 4 for ipv4, 6 for ipv6
+    u8 type;       // 0 for onpath nodes, 1 for offpath
+    u8 action;     // 0 for add/update, 1 for del/withdraw
+    u8 fc_num;     // num of fc in fclist, boundary
+    u8 src_ip_num; // src ip prefix num, boundary
+    u8 dst_ip_num; // dst ip prefix num, boundary
     u16 siglen;
-    u32 local_asn;      // local as number
+    u32 local_asn; // local as number
     u32 version;
     u32 subversion;
     FC_ip_t src_ip[FCSRV_MAX_SRC_PREFIX];
@@ -274,7 +291,10 @@ typedef struct FC_server_s
     bool clear_fc_db;
     int use_data_plane;
     u32 local_asn;
+    
     char *hash_algorithm;
+    int hash_algorithm_id;
+
     u8 asns_num; /* as-ip totoal num, of course it's number of AS */
     u32 asns[FCSRV_MAX_LINK_AS];
     sqlite3 *db;

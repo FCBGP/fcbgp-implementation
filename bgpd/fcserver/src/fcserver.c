@@ -7,44 +7,44 @@
  *  and also distinguish it with getsockopt.
  ********************************************************************************/
 
-#include <ctype.h>
-#include <unistd.h>
+#include <Python.h>
 #include <arpa/inet.h>
+#include <ctype.h>
+#include <netinet/in.h>
 #include <sys/socket.h>
 #include <sys/types.h>
-#include <netinet/in.h>
 #include <time.h>
-#include <Python.h>
+#include <unistd.h>
 
-#include "pyutils.h"
-#include "libdiag.h"
-#include "fcconfig.h"
 #include "dbutils.h"
-#include "hashutils.h"
-#include "sigutils.h"
-#include "nftutils.h"
+#include "fcconfig.h"
 #include "fcserver.h"
+#include "hashutils.h"
+#include "libdiag.h"
 #include "libncs6.h"
+#include "nftutils.h"
+#include "pyutils.h"
+#include "sigutils.h"
 
-#define fc_error_foreach_server                     \
-    _(SOCK_SOCKET,      "socket()")                 \
-    _(SOCK_OPT,         "setsockopt()")             \
-    _(SOCK_BIND,        "bind()")                   \
-    _(SOCK_LISTEN,      "listen()")                 \
-    _(SOCK_ACCEPT,      "accept()")                 \
-    _(SOCK_CONNECT,     "connect()")                \
-    _(SOCK_SEND,        "send()")                   \
-    _(SOCK_RECV,        "recv()")                   \
-    _(EPOLL_CTL,        "epoll_ctl()")              \
-    _(EPOLL_CREATE,     "epoll_create()")           \
-    _(EPOLL_WAIT,       "epoll_wait()")             \
-    _(GPN,              "getpeername()")            \
-    _(FCNTL,            "fcntl()")
+#define fc_error_foreach_server       \
+    _(SOCK_SOCKET, "socket()")        \
+    _(SOCK_OPT, "setsockopt()")       \
+    _(SOCK_BIND, "bind()")            \
+    _(SOCK_LISTEN, "listen()")        \
+    _(SOCK_ACCEPT, "accept()")        \
+    _(SOCK_CONNECT, "connect()")      \
+    _(SOCK_SEND, "send()")            \
+    _(SOCK_RECV, "recv()")            \
+    _(EPOLL_CTL, "epoll_ctl()")       \
+    _(EPOLL_CREATE, "epoll_create()") \
+    _(EPOLL_WAIT, "epoll_wait()")     \
+    _(GPN, "getpeername()")           \
+    _(FCNTL, "fcntl()")
 
 typedef enum
 {
     FC_ERR_SERVER_NOERR,
-#define _(sym,str) FC_ERR_SERVER_##sym,
+#define _(sym, str) FC_ERR_SERVER_##sym,
     fc_error_foreach_server
 #undef _
         FC_ERR_SERVER_N,
@@ -56,19 +56,19 @@ static char *fc_err_sock_strings[] = {
 #undef _
 };
 
-#define fc_print_error(err_no)                      \
-    do {                                            \
-        printf("[%s: %d] error: %s\n",          \
-                __func__, __LINE__,                 \
-                fc_err_sock_strings[err_no]);       \
+#define fc_print_error(err_no)               \
+    do                                       \
+    {                                        \
+        printf("[%s: %d] error: %s\n",       \
+               __func__, __LINE__,           \
+               fc_err_sock_strings[err_no]); \
     } while (0)
-
 
 FC_server_t g_fc_server = {0};
 
-    static int
+static int
 fc_sock_get_addr_from_peer_fd(int fd, struct sockaddr *sockaddr,
-        char *ipbuf, int buffsize)
+                              char *ipbuf, int buffsize)
 {
     int ret = 0;
     socklen_t socklen = sizeof(struct sockaddr);
@@ -81,12 +81,13 @@ fc_sock_get_addr_from_peer_fd(int fd, struct sockaddr *sockaddr,
     }
 
     printf("sa family: %d, AF_INET: %d, AF_INET6: %d\n",
-            sockaddr->sa_family, AF_INET, AF_INET6);
+           sockaddr->sa_family, AF_INET, AF_INET6);
     if (AF_INET6 == sockaddr->sa_family)
     {
         struct sockaddr_in6 *in = (struct sockaddr_in6 *)sockaddr;
         inet_ntop(AF_INET6, &in->sin6_addr, ipbuf, buffsize);
-    } else if (AF_INET == sockaddr->sa_family)
+    }
+    else if (AF_INET == sockaddr->sa_family)
     {
         struct sockaddr_in *in = (struct sockaddr_in *)sockaddr;
         inet_ntop(AF_INET, &in->sin_addr, ipbuf, buffsize);
@@ -95,7 +96,7 @@ fc_sock_get_addr_from_peer_fd(int fd, struct sockaddr *sockaddr,
     return FC_ERR_SERVER_NOERR;
 }
 
-    static int
+static int
 fc_sock_set_nonblock(int fd)
 {
     int flags = 0;
@@ -104,7 +105,7 @@ fc_sock_set_nonblock(int fd)
     return fcntl(fd, F_SETFL, flags);
 }
 
-    static int
+static int
 fc_mlp_server_sock()
 {
     int ret = FC_ERR_SERVER_NOERR;
@@ -130,7 +131,7 @@ fc_mlp_server_sock()
 
     // setsockopt reuse address
     ret = setsockopt(g_fc_server.sockfd, SOL_SOCKET, SO_REUSEADDR,
-            &yes, sizeof(int));
+                     &yes, sizeof(int));
     if (ret == -1)
     {
         perror("setsockopt()");
@@ -142,7 +143,7 @@ fc_mlp_server_sock()
     sockaddr.sin6_family = AF_INET6;
     sockaddr.sin6_port = htons(FC_PORT);
     inet_pton(AF_INET6, g_fc_server.prog_addr6,
-            (struct sockaddr_in6 *)&sockaddr.sin6_addr);
+              (struct sockaddr_in6 *)&sockaddr.sin6_addr);
     socklen = sizeof(struct sockaddr_in6);
     ret = bind(g_fc_server.sockfd, (struct sockaddr *)&sockaddr, socklen);
     if (ret < 0)
@@ -162,7 +163,7 @@ fc_mlp_server_sock()
     return ret;
 }
 
-    static int
+static int
 fc_mlp_server_epoll_conn()
 {
     int ret = 0;
@@ -174,15 +175,16 @@ fc_mlp_server_epoll_conn()
     while (1)
     {
         clisockfd = accept(g_fc_server.sockfd,
-                (struct sockaddr *)&clisockaddr,
-                &clisocklen);
+                           (struct sockaddr *)&clisockaddr,
+                           &clisocklen);
         if (clisockfd < 0)
         {
             if ((errno == EAGAIN) || (errno == EWOULDBLOCK))
             {
                 /* we have processed all incoming connections */
                 break;
-            } else
+            }
+            else
             {
                 perror("accept()");
                 break;
@@ -193,7 +195,7 @@ fc_mlp_server_epoll_conn()
         event.data.fd = clisockfd;
         event.events = EPOLLIN | EPOLLET;
         ret = epoll_ctl(g_fc_server.epollfd, EPOLL_CTL_ADD,
-                clisockfd, &event);
+                        clisockfd, &event);
         if (ret < 0)
         {
             perror("epoll_ctl()");
@@ -205,9 +207,9 @@ fc_mlp_server_epoll_conn()
     return FC_ERR_SERVER_NOERR;
 }
 
-    static int
+static int
 fc_mlp_server_epoll_recv(int fd, char *buff,
-        int buffsize, int *recvlen, int *done)
+                         int buffsize, int *recvlen, int *done)
 {
     int total = 0, count = 0, flags = 0;
 
@@ -224,7 +226,8 @@ fc_mlp_server_epoll_recv(int fd, char *buff,
                 *done = 1;
             }
             break;
-        } else if (count == 0)
+        }
+        else if (count == 0)
         {
             /* EOF. The remote has closed the connection. */
             *done = 1;
@@ -237,16 +240,16 @@ fc_mlp_server_epoll_recv(int fd, char *buff,
     struct sockaddr_in6 peer_sockaddr = {0};
     char peer_ipbuf[INET6_ADDRSTRLEN] = {0};
     fc_sock_get_addr_from_peer_fd(fd, (struct sockaddr *)&peer_sockaddr,
-            peer_ipbuf, INET6_ADDRSTRLEN);
+                                  peer_ipbuf, INET6_ADDRSTRLEN);
     printf("Recv from fd: %d, remote.addr: %s, remote.port: %d\n",
-            fd, peer_ipbuf, ntohs(peer_sockaddr.sin6_port));
+           fd, peer_ipbuf, ntohs(peer_sockaddr.sin6_port));
 
     *recvlen = total;
 
     return FC_ERR_SERVER_NOERR;
 }
 
-    static int
+static int
 fc_mlp_server_epoll()
 {
     int ret = 0, i = 0;
@@ -268,7 +271,7 @@ fc_mlp_server_epoll()
     event.data.fd = g_fc_server.sockfd;
     event.events = EPOLLIN | EPOLLET;
     ret = epoll_ctl(g_fc_server.epollfd, EPOLL_CTL_ADD,
-            g_fc_server.sockfd, &event);
+                    g_fc_server.sockfd, &event);
     if (ret < 0)
     {
         perror("epoll_ctl()");
@@ -279,12 +282,10 @@ fc_mlp_server_epoll()
     while (1)
     {
         active_events_num = epoll_wait(g_fc_server.epollfd, events,
-                FC_EPOLL_MAX_EVENTS, -1);
-        for (i = 0; i < active_events_num; ++ i)
+                                       FC_EPOLL_MAX_EVENTS, -1);
+        for (i = 0; i < active_events_num; ++i)
         {
-            if ((events[i].events & EPOLLERR)
-                    || (events[i].events & EPOLLHUP)
-                    || (!events[i].events & EPOLLIN))
+            if ((events[i].events & EPOLLERR) || (events[i].events & EPOLLHUP) || (!events[i].events & EPOLLIN))
             {
                 /* an error has occured on this fd,
                  * or the socket is not ready for reading */
@@ -293,7 +294,8 @@ fc_mlp_server_epoll()
                  * from the set of fds which are monitored. */
                 close(events[i].data.fd);
                 continue;
-            } else if (g_fc_server.sockfd == events[i].data.fd)
+            }
+            else if (g_fc_server.sockfd == events[i].data.fd)
             {
                 /* we have a notification on the listening socket,
                  * which means one or more incoming connections. */
@@ -302,7 +304,8 @@ fc_mlp_server_epoll()
                 {
                     return ret;
                 }
-            } else
+            }
+            else
             {
                 /* we have data on the fd waiting to be read.
                  * read and display it.
@@ -312,7 +315,7 @@ fc_mlp_server_epoll()
                 char buff[BUFSIZ] = {0};
                 int recvlen = 0, done = 0;
                 ret = fc_mlp_server_epoll_recv(events[i].data.fd, buff,
-                        BUFSIZ, &recvlen, &done);
+                                               BUFSIZ, &recvlen, &done);
                 if (ret != FC_ERR_SERVER_NOERR)
                 {
                     return ret;
@@ -320,13 +323,13 @@ fc_mlp_server_epoll()
 
                 // process the data
                 printf("fd: %d, recvlen: %d\n",
-                        events[i].data.fd, recvlen);
+                       events[i].data.fd, recvlen);
                 fc_server_handler(events[i].data.fd, buff, BUFSIZ, recvlen);
 
                 if (done)
                 {
                     printf("Closed connection on fd: %d\n",
-                            events[i].data.fd);
+                           events[i].data.fd);
                     /* closing the descriptor will make epoll remove it
                      * from the set of fds which are monitored. */
                     close(events[i].data.fd);
@@ -340,7 +343,7 @@ fc_mlp_server_epoll()
     return ret;
 }
 
-    static int
+static int
 fc_multi_long_pull_server(void)
 {
     int ret = 0;
@@ -374,22 +377,21 @@ atexit:
 
 static int fc_server_handler_ncs(ncs6_ctx_t *ctx)
 {
-    (void) ctx;
+    (void)ctx;
     return 0;
 }
 
-    static void
+static void
 fc_ncs_server()
 {
-    if ((g_fc_server.fc_bgpd_ctx6
-                = ncs6_create(g_fc_server.prog_name, TCP_PROTO)) == NULL)
+    if ((g_fc_server.fc_bgpd_ctx6 = ncs6_create(g_fc_server.prog_name, TCP_PROTO)) == NULL)
     {
         DIAG_ERROR("create bgpd ncs failed\n");
         exit(-ENOMEM);
     }
 
     ncs6_setup(g_fc_server.fc_bgpd_ctx6,
-            g_fc_server.prog_addr6, FC_PORT, NULL, 0);
+               g_fc_server.prog_addr6, FC_PORT, NULL, 0);
     ncs6_timeout(g_fc_server.fc_bgpd_ctx6, 10, -1);
     // ncs6_setkeepalive(g_fc_server.fc_bgpd_ctx6, 10);
     ncs6_server_enable(g_fc_server.fc_bgpd_ctx6);
@@ -403,8 +405,7 @@ fc_ncs_server()
     }
 }
 
-    int
-fc_server_create(void)
+int fc_server_create(void)
 {
     FC_node_as_t meta = {0};
     FC_ht_node_as_t *node = NULL;
@@ -414,7 +415,7 @@ fc_server_create(void)
 
     meta.asn = g_fc_server.local_asn;
     node = htbl_meta_find(&g_fc_server.ht_as, &meta);
-    if (! node)
+    if (!node)
     {
         DIAG_ERROR("Cannot find AS %d!!!!!!!!\n", g_fc_server.local_asn);
         fprintf(stderr, "Cannot find AS %d!!!\n", g_fc_server.local_asn);
@@ -433,18 +434,16 @@ fc_server_create(void)
                      router->password, router->port);
             router = router->next;
         }
-        fc_multi_long_pull_server();
         break;
-    default:
-        fc_ncs_server();
     }
+    fc_multi_long_pull_server();
 
     return 0;
 }
 
-    static int
+static int
 fc_bm_sent_to_peer(const char *addr, const FC_msg_bm_t *bm,
-        char *buffer, int bufferlen)
+                   char *buffer, int bufferlen)
 {
     int ret = 0;
     int sockfd = 0;
@@ -459,8 +458,8 @@ fc_bm_sent_to_peer(const char *addr, const FC_msg_bm_t *bm,
     sockaddr.sin_family = AF_INET;
     sockaddr.sin_port = htons(FC_PORT);
     inet_pton(AF_INET, addr, &sockaddr.sin_addr);
-    if ((ret = connect(sockfd, (struct sockaddr*)&sockaddr,
-                    sizeof(sockaddr))) < 0)
+    if ((ret = connect(sockfd, (struct sockaddr *)&sockaddr,
+                       sizeof(sockaddr))) < 0)
     {
         perror("connect()");
         return -1;
@@ -468,7 +467,7 @@ fc_bm_sent_to_peer(const char *addr, const FC_msg_bm_t *bm,
 
     while (len != bufferlen)
     {
-        len = len + send(sockfd, buffer+len, bufferlen-len, 0);
+        len = len + send(sockfd, buffer + len, bufferlen - len, 0);
         printf("len = %d, bufferlen = %d\n", len, bufferlen);
     }
 
@@ -477,16 +476,14 @@ fc_bm_sent_to_peer(const char *addr, const FC_msg_bm_t *bm,
     return 0;
 }
 
-    static inline int
+static inline int
 fc_asn_is_offpath(u32 asn, const FC_msg_bm_t *bm)
 {
     int i = 0;
 
-    for (i=0; i<bm->fc_num; ++i)
+    for (i = 0; i < bm->fc_num; ++i)
     {
-        if (asn == bm->fclist[i].previous_asn
-                || asn == bm->fclist[i].current_asn
-                || asn == bm->fclist[i].nexthop_asn)
+        if (asn == bm->fclist[i].previous_asn || asn == bm->fclist[i].current_asn || asn == bm->fclist[i].nexthop_asn)
         {
             return 0;
         }
@@ -495,7 +492,7 @@ fc_asn_is_offpath(u32 asn, const FC_msg_bm_t *bm)
     return 1;
 }
 
-    static int
+static int
 fc_bm_find_server(uint32_t asn, char *ifaddr, char *ifname)
 {
     FC_node_as_t meta;
@@ -507,11 +504,11 @@ fc_bm_find_server(uint32_t asn, char *ifaddr, char *ifname)
     if (node)
     {
         memcpy(ifaddr, node->acs.ipv4[0].ifaddr,
-                strlen(node->acs.ipv4[0].ifaddr));
+               strlen(node->acs.ipv4[0].ifaddr));
         if (ifname)
         {
             memcpy(ifname, node->acs.ipv4[0].ifname,
-                    strlen(node->acs.ipv4[0].ifname));
+                   strlen(node->acs.ipv4[0].ifname));
         }
         return 0;
     }
@@ -519,15 +516,15 @@ fc_bm_find_server(uint32_t asn, char *ifaddr, char *ifname)
     return -1;
 }
 
-    static int
+static int
 fc_bm_broadcast_to_peer(int clisockfd, const FC_msg_bm_t *bm,
-        char *buffer, int bufferlen)
+                        char *buffer, int bufferlen)
 {
     printf("broadcast to peers start\n");
     int i = 0, ret = 0;
     u32 asn = 0;
 
-    for (i=0; i<g_fc_server.asns_num; ++i)
+    for (i = 0; i < g_fc_server.asns_num; ++i)
     {
         FC_node_as_t meta = {0};
         char ifaddr[INET6_ADDRSTRLEN] = {0};
@@ -552,7 +549,8 @@ fc_bm_broadcast_to_peer(int clisockfd, const FC_msg_bm_t *bm,
                 {
                     printf("remote-acs addr: %s\n", ifaddr);
                     fc_bm_sent_to_peer(ifaddr, bm, buffer, bufferlen);
-                } else
+                }
+                else
                 {
                     printf("Error: cannot find acs\n");
                 }
@@ -566,7 +564,8 @@ fc_bm_broadcast_to_peer(int clisockfd, const FC_msg_bm_t *bm,
                 {
                     printf("remote-acs addr: %s\n", ifaddr);
                     fc_bm_sent_to_peer(ifaddr, bm, buffer, bufferlen);
-                } else
+                }
+                else
                 {
                     printf("Error: cannot find acs\n");
                 }
@@ -597,18 +596,17 @@ fc_bm_broadcast_to_peer(int clisockfd, const FC_msg_bm_t *bm,
     return 0;
 }
 
-    int
-fc_server_pubkey_handler(int clisockfd, const char *buff, int len)
+int fc_server_pubkey_handler(int clisockfd, const char *buff, int len)
 {
     printf("TODO pubkey\n");
     return 0;
 }
 
-    static  int
+static int
 fc_server_topo_find_iface(FC_router_link_info_t *link_info,
-        u32 iface_index,
-        FC_router_iface_info_t **iface_info,
-        FC_router_iface_info_t **prev_iface_info)
+                          u32 iface_index,
+                          FC_router_iface_info_t **iface_info,
+                          FC_router_iface_info_t **prev_iface_info)
 {
     *iface_info = *prev_iface_info = link_info->iface_list;
     while (*iface_info)
@@ -624,11 +622,11 @@ fc_server_topo_find_iface(FC_router_link_info_t *link_info,
     return 0;
 }
 
-    static int
+static int
 fc_server_topo_find_router(FC_router_info_t *target_router,
-        u32 neighbor_asn,
-        FC_router_link_info_t **link_info,
-        FC_router_link_info_t **prev_link_info)
+                           u32 neighbor_asn,
+                           FC_router_link_info_t **link_info,
+                           FC_router_link_info_t **prev_link_info)
 {
     *prev_link_info = *link_info = target_router->links;
     while (*link_info)
@@ -644,21 +642,22 @@ fc_server_topo_find_router(FC_router_info_t *target_router,
     return 0;
 }
 
-    static int
+static int
 fc_server_topo_del_one_link(FC_router_link_info_t *link_info,
-        u32 iface_index)
+                            u32 iface_index)
 {
     FC_router_iface_info_t *prev_iface_info = NULL, *iface_info = NULL;
 
     fc_server_topo_find_iface(link_info,
-            iface_index, &iface_info, &prev_iface_info);
+                              iface_index, &iface_info, &prev_iface_info);
 
     if (iface_info)
     {
         if (prev_iface_info != iface_info)
         {
             prev_iface_info->next = iface_info->next;
-        } else
+        }
+        else
         {
             link_info->iface_list = iface_info->next;
         }
@@ -668,7 +667,7 @@ fc_server_topo_del_one_link(FC_router_link_info_t *link_info,
     return 0;
 }
 
-    static int
+static int
 fc_server_topo_del_one_neighbor(FC_router_link_info_t *link_info)
 {
     FC_router_iface_info_t *iface_info = NULL, *next_iface_info = NULL;
@@ -685,7 +684,7 @@ fc_server_topo_del_one_neighbor(FC_router_link_info_t *link_info)
     return 0;
 }
 
-    static int
+static int
 fc_server_topo_del_all_neighbors(FC_router_info_t *target_router)
 {
     FC_router_link_info_t *link_info = NULL, *next_link_info = NULL;
@@ -703,7 +702,7 @@ fc_server_topo_del_all_neighbors(FC_router_info_t *target_router)
 }
 
 /* used when destroying the fcs. */
-    static int
+static int
 fc_server_topo_del_all_routers()
 {
     FC_router_info_t *router_info = NULL, *next_router_info = NULL;
@@ -722,9 +721,9 @@ fc_server_topo_del_all_routers()
     return 0;
 }
 
-    static int
+static int
 fc_server_topo_del(FC_router_info_t *target_router,
-        u32 neighbor_num, const char *buff, int currlen)
+                   u32 neighbor_num, const char *buff, int currlen)
 {
     int i = 0, j = 0, k = 0;
     u32 neighbor_asn = 0, il_num = 0, iface_index = 0;
@@ -738,31 +737,31 @@ fc_server_topo_del(FC_router_info_t *target_router,
         return currlen;
     }
 
-    iface_list = (u32 *) malloc(sizeof(u32) * il_num);
+    iface_list = (u32 *)malloc(sizeof(u32) * il_num);
     FC_ASSERT_RETP(iface_list);
 
     // delete part neighbors of this bgp router
-    for (i=0; i<neighbor_num; ++i)
+    for (i = 0; i < neighbor_num; ++i)
     {
         // neighbor-asn
-        memcpy(&neighbor_asn, buff+currlen, sizeof(u32));
+        memcpy(&neighbor_asn, buff + currlen, sizeof(u32));
         neighbor_asn = ntohl(neighbor_asn);
         currlen += sizeof(u32);
         // il-num
-        memcpy(&il_num, buff+currlen, sizeof(u32));
+        memcpy(&il_num, buff + currlen, sizeof(u32));
         il_num = ntohl(il_num);
         currlen += sizeof(u32);
         // iface-list
         if (il_num != 0xFFFFFFFF)
         {
-            memcpy(iface_list, buff+currlen, sizeof(u32) * il_num);
+            memcpy(iface_list, buff + currlen, sizeof(u32) * il_num);
             currlen += sizeof(u32) * il_num;
         }
 
         // find the neighbor
         prev_link_info = link_info = target_router->links;
         fc_server_topo_find_router(target_router,
-                neighbor_asn, &link_info, &prev_link_info);
+                                   neighbor_asn, &link_info, &prev_link_info);
         if (link_info == NULL)
         {
             // no such neighbor
@@ -774,14 +773,16 @@ fc_server_topo_del(FC_router_info_t *target_router,
             if (prev_link_info)
             {
                 prev_link_info->next = link_info->next;
-            } else
+            }
+            else
             {
                 target_router->links = link_info->next;
             }
             fc_server_topo_del_one_neighbor(link_info);
-        } else
+        }
+        else
         {
-            for (k=0; k<il_num; ++k)
+            for (k = 0; k < il_num; ++k)
             {
                 // iface
                 u32 iface_index = ntohl(iface_list[k]);
@@ -795,9 +796,9 @@ fc_server_topo_del(FC_router_info_t *target_router,
     return 0;
 }
 
-    static int
+static int
 fc_server_topo_add(FC_router_info_t *target_router,
-        u32 neighbor_num, const char *buff, int currlen)
+                   u32 neighbor_num, const char *buff, int currlen)
 {
     int j = 0, k = 0, ret = 0;
     u32 neighbor_asn = 0, il_num = 0, iface_index = 0;
@@ -805,21 +806,21 @@ fc_server_topo_add(FC_router_info_t *target_router,
     FC_router_link_info_t *link_info = NULL, *prev_link_info = NULL;
     FC_router_iface_info_t *iface_info = NULL, *prev_iface_info = NULL;
 
-    for (j=0; j<neighbor_num; ++j)
+    for (j = 0; j < neighbor_num; ++j)
     {
         // neighbor-asn
-        memcpy(&neighbor_asn, buff+currlen, sizeof(u32));
+        memcpy(&neighbor_asn, buff + currlen, sizeof(u32));
         neighbor_asn = ntohl(neighbor_asn);
         currlen += sizeof(u32);
         // il-num
-        memcpy(&il_num, buff+currlen, sizeof(u32));
+        memcpy(&il_num, buff + currlen, sizeof(u32));
         il_num = ntohl(il_num);
         currlen += sizeof(u32);
 
         // find the neighbor
         prev_link_info = link_info = target_router->links;
         fc_server_topo_find_router(target_router,
-                neighbor_asn, &link_info, &prev_link_info);
+                                   neighbor_asn, &link_info, &prev_link_info);
         if (link_info == NULL)
         {
             // no such neighbor
@@ -828,7 +829,8 @@ fc_server_topo_add(FC_router_info_t *target_router,
             if (prev_link_info)
             {
                 prev_link_info->next = link_info;
-            } else
+            }
+            else
             {
                 target_router->links = link_info;
             }
@@ -836,13 +838,13 @@ fc_server_topo_add(FC_router_info_t *target_router,
         link_info->neighbor_asn = neighbor_asn;
 
         // iface-list
-        for (k=0; k<il_num; ++k)
+        for (k = 0; k < il_num; ++k)
         {
-            memcpy(&iface_index, buff+currlen, sizeof(u32));
+            memcpy(&iface_index, buff + currlen, sizeof(u32));
             iface_index = ntohl(iface_index);
             currlen += sizeof(u32);
             fc_server_topo_find_iface(link_info,
-                    iface_index, &iface_info, &prev_iface_info);
+                                      iface_index, &iface_info, &prev_iface_info);
             if (iface_info == NULL)
             {
                 // no such iface
@@ -852,7 +854,8 @@ fc_server_topo_add(FC_router_info_t *target_router,
                 if (prev_iface_info)
                 {
                     prev_iface_info->next = iface_info;
-                } else
+                }
+                else
                 {
                     link_info->iface_list = iface_info;
                 }
@@ -867,8 +870,7 @@ fc_server_topo_add(FC_router_info_t *target_router,
     return currlen;
 }
 
-    int
-fc_server_topo_handler(int clisockfd, const char *buff, int len)
+int fc_server_topo_handler(int clisockfd, const char *buff, int len)
 {
     printf("topo link information start\n");
 
@@ -881,24 +883,24 @@ fc_server_topo_handler(int clisockfd, const char *buff, int len)
     currlen = FC_HDR_GENERAL_LENGTH;
 
     // action
-    memcpy(&action, buff+currlen, sizeof(u8));
+    memcpy(&action, buff + currlen, sizeof(u8));
     currlen += sizeof(u8);
     // reserved
-    for (i=0; i<3; ++i)
+    for (i = 0; i < 3; ++i)
     {
-        memcpy(&reserved, buff+currlen, sizeof(u8));
+        memcpy(&reserved, buff + currlen, sizeof(u8));
         currlen += sizeof(u8);
     }
     // bgpid
-    memcpy(&bgpid, buff+currlen, sizeof(u32));
+    memcpy(&bgpid, buff + currlen, sizeof(u32));
     bgpid = ntohl(bgpid);
     currlen += sizeof(u32);
     // local-asn
-    memcpy(&local_asn, buff+currlen, sizeof(u32));
+    memcpy(&local_asn, buff + currlen, sizeof(u32));
     local_asn = ntohl(local_asn);
     currlen += sizeof(u32);
     // neighbor-num
-    memcpy(&neighbor_num, buff+currlen, sizeof(u32));
+    memcpy(&neighbor_num, buff + currlen, sizeof(u32));
     neighbor_num = ntohl(neighbor_num);
     currlen += sizeof(u32);
 
@@ -909,8 +911,8 @@ fc_server_topo_handler(int clisockfd, const char *buff, int len)
     }
     // g_fc_server.routers should be prepared in reading config
     for (target_router = g_fc_server.routers;
-            target_router != NULL;
-            target_router = target_router->next)
+         target_router != NULL;
+         target_router = target_router->next)
     {
         if (target_router->bgpid == bgpid)
         {
@@ -936,12 +938,12 @@ fc_server_topo_handler(int clisockfd, const char *buff, int len)
     {
     case FC_ACT_ADD:
         currlen = fc_server_topo_add(target_router,
-                neighbor_num, buff, currlen);
+                                     neighbor_num, buff, currlen);
         break;
     case FC_ACT_DEL:
         // TODO
         ret = fc_server_topo_del(target_router,
-                neighbor_num, buff, currlen);
+                                 neighbor_num, buff, currlen);
         break;
     default:
         printf("ERROR: Unkown action: %d for neighbor links\n", action);
@@ -952,42 +954,47 @@ fc_server_topo_handler(int clisockfd, const char *buff, int len)
 
     return 0;
 }
-    static int
+static int
 fc_bm_verify_fc(FC_msg_bm_t *bm)
 {
     char msg[BUFSIZ];
     int ret = 0;
     int msglen = 0;
     int i = 0, j = 0;
-    struct sockaddr_in *ip4;
-    struct sockaddr_in6 *ip6;
+    u32 previous_asn = 0, current_asn = 0, nexthop_asn = 0;
 
-    for (i=0; i<bm->fc_num; ++i)
+    for (i = 0; i < bm->fc_num; ++i)
     {
         memset(msg, 0, BUFSIZ);
         msglen = 0;
         // hash(prev_asn, curr_asn, next_asn, dst_ip)
         // asn
-        memcpy(msg + msglen, &(bm->fclist[i].previous_asn), sizeof(u32));
+        previous_asn = bm->fclist[i].previous_asn;
+        current_asn = bm->fclist[i].current_asn;
+        nexthop_asn = bm->fclist[i].nexthop_asn;
+        memcpy(msg + msglen, &previous_asn, sizeof(u32));
         msglen += sizeof(u32);
-        memcpy(msg + msglen, &(bm->fclist[i].current_asn), sizeof(u32));
+        memcpy(msg + msglen, &current_asn, sizeof(u32));
         msglen += sizeof(u32);
-        memcpy(msg + msglen, &(bm->fclist[i].nexthop_asn), sizeof(u32));
+        memcpy(msg + msglen, &nexthop_asn, sizeof(u32));
         msglen += sizeof(u32);
         // dst_ip
-        for (j=0; j<bm->dst_ip_num; ++j)
+        for (j = 0; j < bm->dst_ip_num; ++j)
         {
             if (bm->ipversion == IPV4)
             {
-                ip4 = (struct sockaddr_in*)&(bm->dst_ip[j].ip);
-                memcpy(msg+msglen, &(ip4->sin_addr), IP4_LENGTH);
+                u32 ip4 = ((struct sockaddr_in *)&(bm->dst_ip[j].ip))->sin_addr.s_addr;
+                memcpy(msg + msglen, &ip4, IP4_LENGTH);
                 msglen += IP4_LENGTH;
-            } else {
-                ip6 = (struct sockaddr_in6*)&(bm->dst_ip[j].ip);
-                memcpy(msg+msglen, &(ip6->sin6_addr), IP6_LENGTH);
+            }
+            else
+            {
+                struct sockaddr_in6 *ip6;
+                ip6 = (struct sockaddr_in6 *)&(bm->dst_ip[j].ip);
+                memcpy(msg + msglen, &(ip6->sin6_addr), IP6_LENGTH);
                 msglen += IP6_LENGTH;
             }
-            memcpy(msg+msglen, &bm->dst_ip[j].prefix_length, 1);
+            memcpy(msg + msglen, &bm->dst_ip[j].prefix_length, 1);
             msglen += 1;
         }
 
@@ -996,8 +1003,32 @@ fc_bm_verify_fc(FC_msg_bm_t *bm)
         meta.asn = bm->fclist[i].current_asn;
         node = htbl_meta_find(&g_fc_server.ht_as, &meta);
 
+        printf("g_fc_server.local_asn: %u, bm.local_asn: %u, node.asn: %u\n",
+               g_fc_server.local_asn, bm->local_asn, node->asn);
+        printf("g_fc_server.ski: ");
+        for (int k = 0; k < FC_SKI_LENGTH; ++k)
+        {
+            printf("%02X", g_fc_server.ski[k]);
+        }
+        printf("\n");
+        printf("bm.ski: ");
+        for (int k = 0; k < FC_SKI_LENGTH; ++k)
+        {
+            printf("%02X", bm->ski[k]);
+        }
+        printf("\033[42;31m node.ski: \033[0m");
+        for (int k = 0; k < FC_SKI_LENGTH; ++k)
+        {
+            printf("%02X", node->ski[k]);
+        }
+        printf("\n");
+
         ret = fc_ecdsa_verify(node->pubkey, msg, msglen,
-                bm->fclist[i].sig, bm->fclist[i].siglen);
+                              bm->fclist[i].sig, bm->fclist[i].siglen);
+        for (int kkk = 0; kkk < msglen; ++kkk)
+        {
+            printf("%02X", msg[kkk]);
+        }
         switch (ret)
         {
         case 1:
@@ -1014,8 +1045,8 @@ fc_bm_verify_fc(FC_msg_bm_t *bm)
     return 0;
 }
 
-    static int
-fc_gen_acl_linux(int clisockfd, FC_msg_bm_t *bm)
+static int
+fc_gen_acl_linux(int clisockfd, const FC_msg_bm_t *bm)
 {
     int i = 0, j = 0, ret = 0;
     int flag_offpath = 0;
@@ -1029,7 +1060,7 @@ fc_gen_acl_linux(int clisockfd, FC_msg_bm_t *bm)
     struct sockaddr_in6 sockaddr;
 
     fc_sock_get_addr_from_peer_fd(clisockfd, (struct sockaddr *)&sockaddr,
-            ipbuf, INET6_ADDRSTRLEN);
+                                  ipbuf, INET6_ADDRSTRLEN);
     if (strcmp("127.0.0.1", ipbuf) != 0)
     {
         asn = bm->fclist[0].nexthop_asn;
@@ -1043,30 +1074,31 @@ fc_gen_acl_linux(int clisockfd, FC_msg_bm_t *bm)
     printf("-=+=-# ifaddr %s, ifname %s #-=+=-\n", ifaddr, ifname);
     flag_offpath = fc_asn_is_offpath(g_fc_server.local_asn, bm);
 
-    inet_ntop(AF_INET, &(((struct sockaddr_in*)&(bm->dst_ip[0].ip))->sin_addr),
-            daddr, (socklen_t)sizeof(daddr));
+    inet_ntop(AF_INET, &(((struct sockaddr_in *)&(bm->dst_ip[0].ip))->sin_addr),
+              daddr, (socklen_t)sizeof(daddr));
 
-    for (i=0; i<bm->src_ip_num; ++i)
+    for (i = 0; i < bm->src_ip_num; ++i)
     {
         // TODO ipv6
-        inet_ntop(AF_INET, &(((struct sockaddr_in*)&(bm->src_ip[i].ip))->sin_addr),
-                saddr, (socklen_t)sizeof(saddr));
+        inet_ntop(AF_INET, &(((struct sockaddr_in *)&(bm->src_ip[i].ip))->sin_addr),
+                  saddr, (socklen_t)sizeof(saddr));
         char cmd[1000] = {0};
         if (flag_offpath) // filter: s->d
         {
-            for (j=FC_NFT_FILTER_CHAIN_START; j<FC_NFT_FILTER_CHAIN_END; ++j)
+            for (j = FC_NFT_FILTER_CHAIN_START; j < FC_NFT_FILTER_CHAIN_END; ++j)
             {
                 sprintf(cmd, "nft add rule inet filter %s "
-                        "ip saddr %s/%d ip daddr %s/%d drop",
+                             "ip saddr %s/%d ip daddr %s/%d drop",
                         g_fc_nft_chains[j],
                         saddr, bm->src_ip[0].prefix_length,
                         daddr, bm->dst_ip[0].prefix_length);
                 ret = system(cmd);
                 // printf("ret = %d, cmd: %s\n", ret, cmd);
             }
-        } else // filter: !a->d
+        }
+        else // filter: !a->d
         {
-            for (j=0; j<g_fc_server.nics_num; ++j)
+            for (j = 0; j < g_fc_server.nics_num; ++j)
             {
                 if (strcmp(g_fc_server.nics[j], ifname))
                 {
@@ -1077,18 +1109,18 @@ fc_gen_acl_linux(int clisockfd, FC_msg_bm_t *bm)
                     if (bm->fclist[0].nexthop_asn == g_fc_server.local_asn)
                     {
                         sprintf(cmd, "nft add rule inet filter %s "
-                                "oifname %s ip saddr %s/%d ip daddr %s/%d drop",
+                                     "oifname %s ip saddr %s/%d ip daddr %s/%d drop",
                                 g_fc_nft_chains[FC_NFT_FILTER_CHAIN_OUTPUT],
                                 g_fc_server.nics[j],
                                 saddr, bm->src_ip[0].prefix_length,
                                 daddr, bm->dst_ip[0].prefix_length);
-                    } else
+                    }
+                    else
                     {
                         sprintf(cmd, "nft add rule inet filter %s "
-                                "iifname %s ip saddr %s/%d ip daddr %s/%d drop",
-                                bm->fc_num > 1 ?
-                                g_fc_nft_chains[FC_NFT_FILTER_CHAIN_FORWARD]
-                                : g_fc_nft_chains[FC_NFT_FILTER_CHAIN_INPUT],
+                                     "iifname %s ip saddr %s/%d ip daddr %s/%d drop",
+                                bm->fc_num > 1 ? g_fc_nft_chains[FC_NFT_FILTER_CHAIN_FORWARD]
+                                               : g_fc_nft_chains[FC_NFT_FILTER_CHAIN_INPUT],
                                 g_fc_server.nics[j],
                                 saddr, bm->src_ip[0].prefix_length,
                                 daddr, bm->dst_ip[0].prefix_length);
@@ -1103,7 +1135,7 @@ fc_gen_acl_linux(int clisockfd, FC_msg_bm_t *bm)
     return 0;
 }
 
-    static int
+static int
 fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
 {
     int i = 0, j = 0, ret = 0, iface_index = 0, fc_index = 0;
@@ -1122,7 +1154,7 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
     int direction = 0; // 1 for in, 2 for out, 3 for both
 
     fc_sock_get_addr_from_peer_fd(clisockfd, (struct sockaddr *)&sockaddr,
-            ipbuf, INET6_ADDRSTRLEN);
+                                  ipbuf, INET6_ADDRSTRLEN);
 
     for (fc_index = 0; fc_index < bm->fc_num; ++fc_index)
     {
@@ -1134,32 +1166,34 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
     }
 
     // maybe can be removed as dst_ip_num is always 1
-    for (i=0; i<bm->dst_ip_num; ++i)
+    for (i = 0; i < bm->dst_ip_num; ++i)
     {
         if (bm->ipversion == 4)
         {
             inet_ntop(AF_INET,
-                    &(((struct sockaddr_in*)&(bm->dst_ip[i].ip))->sin_addr),
-                    daddr, (socklen_t)sizeof(daddr));
-        } else if (bm->ipversion == 6)
+                      &(((struct sockaddr_in *)&(bm->dst_ip[i].ip))->sin_addr),
+                      daddr, (socklen_t)sizeof(daddr));
+        }
+        else if (bm->ipversion == 6)
         {
             inet_ntop(AF_INET6,
-                    &(((struct sockaddr_in6*)&(bm->dst_ip[i].ip))->sin6_addr),
-                    daddr, (socklen_t)sizeof(daddr));
+                      &(((struct sockaddr_in6 *)&(bm->dst_ip[i].ip))->sin6_addr),
+                      daddr, (socklen_t)sizeof(daddr));
         }
         dprefixlen = bm->dst_ip[i].prefix_length;
-        for (j=0; j<bm->src_ip_num; ++j)
+        for (j = 0; j < bm->src_ip_num; ++j)
         {
             if (bm->ipversion == IPV4)
             {
                 inet_ntop(AF_INET,
-                        &(((struct sockaddr_in*)&(bm->src_ip[j].ip))->sin_addr),
-                        saddr, (socklen_t)sizeof(saddr));
-            } else if (bm->ipversion == IPV6)
+                          &(((struct sockaddr_in *)&(bm->src_ip[j].ip))->sin_addr),
+                          saddr, (socklen_t)sizeof(saddr));
+            }
+            else if (bm->ipversion == IPV6)
             {
                 inet_ntop(AF_INET6,
-                        &(((struct sockaddr_in6*)&(bm->src_ip[j].ip))->sin6_addr),
-                        saddr, (socklen_t)sizeof(saddr));
+                          &(((struct sockaddr_in6 *)&(bm->src_ip[j].ip))->sin6_addr),
+                          saddr, (socklen_t)sizeof(saddr));
             }
             sprefixlen = bm->src_ip[j].prefix_length;
             router_info = g_fc_server.routers;
@@ -1174,60 +1208,60 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
                     {
                         ht_aclinfo_t *item = NULL;
                         item = mln_hash_search(g_fc_server.ht_aclinfo,
-                                &iface_info->iface_index);
+                                               &iface_info->iface_index);
                         FC_ASSERT_RETP(item);
                         if (flag_offpath)
                         {
                             // offpath
                             printf("srcip: %s/%d, dstip: %s/%d, iface_index: %d,"
-                                    " direction: %s\n",
-                                    saddr, sprefixlen, daddr, dprefixlen,
-                                    iface_info->iface_index, "both");
+                                   " direction: %s\n",
+                                   saddr, sprefixlen, daddr, dprefixlen,
+                                   iface_info->iface_index, "both");
                             // h3c device has only dir=1: in, dir=2: out
                             py_apply_acl(&router_info->py_config,
-                                    item->acl_in_index, bm->ipversion,
-                                    saddr, sprefixlen, daddr, dprefixlen,
-                                    iface_info->iface_index, 1);
+                                         item->acl_in_index, bm->ipversion,
+                                         saddr, sprefixlen, daddr, dprefixlen,
+                                         iface_info->iface_index, 1);
                             py_apply_acl(&router_info->py_config,
-                                    item->acl_out_index, bm->ipversion,
-                                    saddr, sprefixlen, daddr, dprefixlen,
-                                    iface_info->iface_index, 2);
-                        } else
+                                         item->acl_out_index, bm->ipversion,
+                                         saddr, sprefixlen, daddr, dprefixlen,
+                                         iface_info->iface_index, 2);
+                        }
+                        else
                         {
-                            if (link_info->neighbor_asn
-                                    == bm->fclist[fc_index].nexthop_asn)
+                            if (link_info->neighbor_asn == bm->fclist[fc_index].nexthop_asn)
                             {
                                 direction = 1; // in
-                            } else if (link_info->neighbor_asn
-                                    == bm->fclist[fc_index].previous_asn)
+                            }
+                            else if (link_info->neighbor_asn == bm->fclist[fc_index].previous_asn)
                             {
                                 direction = 2;
-                            } else
+                            }
+                            else
                             {
                                 direction = 3;
                             }
 
                             // onpath
                             printf("srcip: %s/%d, dstip: %s/%d, "
-                                    "iface_index: %d, direction: %s\n",
-                                    saddr, sprefixlen, daddr, dprefixlen,
-                                    iface_info->iface_index,
-                                    direction == 3 ? "both" : (
-                                        direction == 1 ? "in" : "out"));
+                                   "iface_index: %d, direction: %s\n",
+                                   saddr, sprefixlen, daddr, dprefixlen,
+                                   iface_info->iface_index,
+                                   direction == 3 ? "both" : (direction == 1 ? "in" : "out"));
                             // h3c device has only dir=1: in, dir=2: out
                             if (direction & 0x1)
                             {
                                 py_apply_acl(&router_info->py_config,
-                                        item->acl_in_index, bm->ipversion,
-                                        saddr, sprefixlen, daddr, dprefixlen,
-                                        iface_info->iface_index, 1);
+                                             item->acl_in_index, bm->ipversion,
+                                             saddr, sprefixlen, daddr, dprefixlen,
+                                             iface_info->iface_index, 1);
                             }
                             if (direction & 0x2)
                             {
                                 py_apply_acl(&router_info->py_config,
-                                        item->acl_out_index, bm->ipversion,
-                                        saddr, sprefixlen, daddr, dprefixlen,
-                                        iface_info->iface_index, 2);
+                                             item->acl_out_index, bm->ipversion,
+                                             saddr, sprefixlen, daddr, dprefixlen,
+                                             iface_info->iface_index, 2);
                             }
                         }
                         iface_info = iface_info->next;
@@ -1242,7 +1276,7 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
     return 0;
 }
 
-    static int
+static int
 fc_gen_acl(int clisockfd, const FC_msg_bm_t *bm)
 {
 
@@ -1254,21 +1288,21 @@ fc_gen_acl(int clisockfd, const FC_msg_bm_t *bm)
     case FC_DP_MODE_H3C:
         fc_gen_acl_h3c(clisockfd, bm);
         break;
+    case FC_DP_MODE_NONE:
+        break;
     default:
         printf("NOT SUPPORTED DP MODE: %d\n",
-                g_fc_server.use_data_plane);
+               g_fc_server.use_data_plane);
         break;
     }
 
     return 0;
 }
 
-
 // buff is starting from bm's ipversion
 // msg_type: is broadcast msg
-    int
-fc_server_bm_handler(int clisockfd, char *buffer,
-        int bufferlen, int msg_type)
+int fc_server_bm_handler(int clisockfd, char *buffer,
+                         int bufferlen, int msg_type)
 {
     // remove header
     char buff_new_msg[BUFSIZ] = {0};
@@ -1287,10 +1321,12 @@ fc_server_bm_handler(int clisockfd, char *buffer,
     if (buff[0] == IPV4) // ipv4
     {
         ip_len = IP4_LENGTH;
-    } else if (buff[0] == IPV6) // ipv6
+    }
+    else if (buff[0] == IPV6) // ipv6
     {
         ip_len = IP6_LENGTH;
-    } else
+    }
+    else
     {
         DIAG_WARNING("Not supported now: %d\n", buff[0]);
         return -1;
@@ -1305,43 +1341,48 @@ fc_server_bm_handler(int clisockfd, char *buffer,
     bm.subversion = ntohl(bm.subversion);
 
     // src_ip
-    for (i=0; i<bm.src_ip_num; ++i)
+    for (i = 0; i < bm.src_ip_num; ++i)
     {
-        bm.src_ip[i].prefix_length = *(buff+cur+ip_len);
+        bm.src_ip[i].prefix_length = *(buff + cur + ip_len);
         if (bm.ipversion == IPV4)
         {
-            struct sockaddr_in* addr = (struct sockaddr_in*) &bm.src_ip[i].ip;
+            struct sockaddr_in *addr = (struct sockaddr_in *)&bm.src_ip[i].ip;
             addr->sin_family = AF_INET;
-            memcpy(&(addr->sin_addr), buff+cur, ip_len);
-        } else
+            memcpy(&(addr->sin_addr), buff + cur, ip_len);
+            //    addr->sin_addr.s_addr = ntohl(addr->sin_addr.s_addr);
+        }
+        else
         {
-            struct sockaddr_in6* addr = (struct sockaddr_in6*) &bm.src_ip[i].ip;
+            struct sockaddr_in6 *addr = (struct sockaddr_in6 *)&bm.src_ip[i].ip;
             addr->sin6_family = AF_INET6;
-            memcpy(&(addr->sin6_addr), buff+cur, ip_len);
+            memcpy(&(addr->sin6_addr), buff + cur, ip_len);
         }
         cur += ip_len + 1;
     }
 
     // dst_ip
-    for (i=0; i<bm.dst_ip_num; ++i)
+    for (i = 0; i < bm.dst_ip_num; ++i)
     {
-        bm.dst_ip[i].prefix_length = *(buff+cur+ip_len);
+        bm.dst_ip[i].prefix_length = *(buff + cur + ip_len);
         if (bm.ipversion == IPV4)
         {
-            struct sockaddr_in* addr = (struct sockaddr_in*) &bm.dst_ip[i].ip;
-            memcpy(&(addr->sin_addr), buff+cur, ip_len);
-        } else
+            struct sockaddr_in *addr = (struct sockaddr_in *)&bm.dst_ip[i].ip;
+            addr->sin_family = AF_INET;
+            memcpy(&(addr->sin_addr), buff + cur, ip_len);
+            //   addr->sin_addr.s_addr = ntohl(addr->sin_addr.s_addr);
+        }
+        else
         {
-            struct sockaddr_in6* addr = (struct sockaddr_in6*) &bm.dst_ip[i].ip;
-            memcpy(&(addr->sin6_addr), buff+cur, ip_len);
+            struct sockaddr_in6 *addr = (struct sockaddr_in6 *)&bm.dst_ip[i].ip;
+            memcpy(&(addr->sin6_addr), buff + cur, ip_len);
         }
         cur += ip_len + 1;
     }
 
     // fclist
-    for (i=0; i<bm.fc_num; ++i)
+    for (i = 0; i < bm.fc_num; ++i)
     {
-        memcpy(&bm.fclist[i], buff+cur, FC_HDR_FC_FIX_LENGTH);
+        memcpy(&bm.fclist[i], buff + cur, FC_HDR_FC_FIX_LENGTH);
         cur += FC_HDR_FC_FIX_LENGTH;
 
         bm.fclist[i].previous_asn = ntohl(bm.fclist[i].previous_asn);
@@ -1349,16 +1390,16 @@ fc_server_bm_handler(int clisockfd, char *buffer,
         bm.fclist[i].nexthop_asn = ntohl(bm.fclist[i].nexthop_asn);
         bm.fclist[i].siglen = ntohs(bm.fclist[i].siglen);
 
-        memcpy(bm.fclist[i].sig, buff+cur, bm.fclist[i].siglen);
+        memcpy(bm.fclist[i].sig, buff + cur, bm.fclist[i].siglen);
         cur += bm.fclist[i].siglen;
 
         printf("3 asn: %d, %d, %d, algo-id: %d, flags: %d, siglen: %d\n",
-                bm.fclist[i].previous_asn,
-                bm.fclist[i].current_asn,
-                bm.fclist[i].nexthop_asn,
-                bm.fclist[i].algo_id,
-                bm.fclist[i].flags,
-                bm.fclist[i].siglen);
+               bm.fclist[i].previous_asn,
+               bm.fclist[i].current_asn,
+               bm.fclist[i].nexthop_asn,
+               bm.fclist[i].algo_id,
+               bm.fclist[i].flags,
+               bm.fclist[i].siglen);
 
         if (bm.fclist[i].nexthop_asn == bm.fclist[i].previous_asn)
         {
@@ -1379,9 +1420,8 @@ fc_server_bm_handler(int clisockfd, char *buffer,
         // add signature for sending to peers
 
         printf("prikey_fname: %s\n", g_fc_server.prikey_fname);
-        fc_ecdsa_sign(g_fc_server.prikey, msg, cur,
-                &sigbuff, &sigbufflen);
-        memcpy(buff+cur, g_fc_server.ski, FC_SKI_LENGTH);
+        fc_ecdsa_sign(g_fc_server.prikey, msg, cur, &sigbuff, &sigbufflen);
+        memcpy(buff + cur, g_fc_server.ski, FC_SKI_LENGTH);
         memcpy(bm.ski, g_fc_server.ski, FC_SKI_LENGTH);
 
 #if 0
@@ -1408,59 +1448,57 @@ fc_server_bm_handler(int clisockfd, char *buffer,
         printf("\n");
 #endif
 
-        memcpy(buff+cur+FC_SKI_LENGTH, sigbuff, sigbufflen);
+        memcpy(buff + cur + FC_SKI_LENGTH, sigbuff, sigbufflen);
         bm.siglen = sigbufflen;
         sigbufflen = htons(sigbufflen);
         memcpy(&buff[FC_HDR_BM_SIGLEN_POS], &sigbufflen, sizeof(bm.siglen));
         memcpy(bm.signature, sigbuff, bm.siglen);
         OPENSSL_free(sigbuff);
         // broadcast to onpath nodes
-        buff_new_msg[1] = FC_MSG_BC;  // type: bc msg
+        buff_new_msg[1] = FC_MSG_BC; // type: bc msg
         fc_bm_broadcast_to_peer(clisockfd, &bm, buff_new_msg,
-                FC_HDR_GENERAL_LENGTH+cur+FC_SKI_LENGTH+bm.siglen);
-    } else if (msg_type == FC_MSG_BC)
+                                FC_HDR_GENERAL_LENGTH + cur + FC_SKI_LENGTH + bm.siglen);
+    }
+    else if (msg_type == FC_MSG_BC)
     {
         // verify and remove signature
         // SIGLEN MUST be 0 when verify SIGNATURE
         memset(&msg[FC_HDR_BM_SIGLEN_POS], 0, sizeof(16));
-        memcpy(bm.ski, buff+cur, FC_SKI_LENGTH);
-        memcpy(bm.signature, buff+cur+FC_SKI_LENGTH, bm.siglen);
+        memcpy(bm.ski, buff + cur, FC_SKI_LENGTH);
+        memcpy(bm.signature, buff + cur + FC_SKI_LENGTH, bm.siglen);
 
         /* TODO Don't know why does not need this pubkey. */
-#if 0
+#if 1
         FC_ht_node_as_t *node;
         FC_node_as_t meta = {0};
         meta.asn = bm.local_asn;
         node = htbl_meta_find(&g_fc_server.ht_as, &meta);
-#endif
-
-#if 0
         printf("g_fc_server.local_asn: %u, bm.local_asn: %u, node.asn: %u\n",
-                g_fc_server.local_asn, bm.local_asn, node->asn);
+               g_fc_server.local_asn, bm.local_asn, node->asn);
         printf("g_fc_server.ski: ");
-        for (int k=0; k<FC_SKI_LENGTH; ++k)
+        for (int k = 0; k < FC_SKI_LENGTH; ++k)
         {
             printf("%02X", g_fc_server.ski[k]);
         }
         printf("\n");
         printf("bm.ski: ");
-        for (int k=0; k<FC_SKI_LENGTH; ++k)
+        for (int k = 0; k < FC_SKI_LENGTH; ++k)
         {
             printf("%02X", bm.ski[k]);
         }
         printf("\n");
         printf("node.ski: ");
-        for (int k=0; k<FC_SKI_LENGTH; ++k)
+        for (int k = 0; k < FC_SKI_LENGTH; ++k)
         {
             printf("%02X", node->ski[k]);
         }
         printf("\n");
 #endif
 
-        // ret = fc_ecdsa_verify(node->pubkey,
-        ret = fc_ecdsa_verify(g_fc_server.pubkey,
-                msg, cur,
-                bm.signature, bm.siglen);
+        ret = fc_ecdsa_verify(node->pubkey,
+                              // ret = fc_ecdsa_verify(g_fc_server.pubkey,
+                              msg, cur,
+                              bm.signature, bm.siglen);
         switch (ret)
         {
         case 1:
@@ -1481,11 +1519,16 @@ fc_server_bm_handler(int clisockfd, char *buffer,
     return 0;
 }
 
-
-    int
-fc_server_handler(int clisockfd, char *buff, int buffsize, int recvlen)
+int fc_server_handler(int clisockfd, char *buff, int buffsize, int recvlen)
 {
     int bufflen = 0;
+
+    int i = 0;
+    for (i = 0; i < recvlen; i++)
+    {
+        printf("\033[5m%02X", (uint8_t)buff[i]);
+    }
+    printf("\033[0m");
 
     memcpy(&bufflen, &buff[2], sizeof(u16));
     bufflen = ntohs(bufflen);
@@ -1515,7 +1558,9 @@ fc_server_handler(int clisockfd, char *buff, int buffsize, int recvlen)
             DIAG_WARNING("Not support %d\n", buff[0]);
             return -1;
         }
-    } else {
+    }
+    else
+    {
         printf("recvlen: %d\n", recvlen);
         if (recvlen > 1)
         {
@@ -1527,7 +1572,7 @@ fc_server_handler(int clisockfd, char *buff, int buffsize, int recvlen)
     return 0;
 }
 
-    static inline int
+static inline int
 print_line(char ch, char *string)
 {
 
@@ -1548,7 +1593,7 @@ print_line(char ch, char *string)
     return 0;
 }
 
-    static inline void
+static inline void
 fc_welcome_banner()
 {
     print_line('*', "");
@@ -1560,7 +1605,7 @@ fc_welcome_banner()
     print_line('*', "");
 }
 
-    static inline void
+static inline void
 fc_help(void)
 {
     fc_welcome_banner();
@@ -1571,14 +1616,14 @@ fc_help(void)
     printf("\t-v                 Print FC Server version.\n");
 }
 
-    static void
+static void
 fc_parse_args(int argc, char **argv)
 {
     int opt = 0;
 
     while ((opt = getopt(argc, argv, "f:hv")) > 0)
     {
-        switch(opt)
+        switch (opt)
         {
         case 'f':
             memcpy(g_fc_server.config_fname, optarg, strlen(optarg));
@@ -1596,14 +1641,13 @@ fc_parse_args(int argc, char **argv)
         }
     }
 
-    if ( ! g_fc_server.config_fname || strlen(g_fc_server.config_fname) == 0)
+    if (!g_fc_server.config_fname || strlen(g_fc_server.config_fname) == 0)
     {
         g_fc_server.config_fname = strdup(FC_DEFAULT_CONFIG_FNAME);
     }
 }
 
-    int
-fc_main()
+int fc_main()
 {
     int ret = 0;
 
@@ -1635,8 +1679,7 @@ fc_main()
     return 0;
 }
 
-    void
-fc_server_destroy(int signum)
+void fc_server_destroy(int signum)
 {
     FC_router_info_t *router = NULL;
 
@@ -1702,8 +1745,7 @@ fc_server_destroy(int signum)
     }
 }
 
-    int
-main(int argc, char **argv)
+int main(int argc, char **argv)
 {
     g_fc_server.prog_name = FC_PROGRAM_NAME;
     g_fc_server.prog_addr4 = "0.0.0.0";
