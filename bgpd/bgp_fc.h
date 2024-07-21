@@ -266,7 +266,7 @@ extern int fc_hashtable_create(htbl_ctx_t *ht, htbl_ops_t *ops);
 extern int fc_hashtable_destroy(htbl_ctx_t *ht);
 
 /* SERVER */
-#define FC_PORT 23162
+#define FC_PORT 23160
 extern int fc_send_packet_to_fcserver(u8 ipversion, char *buff, int bufflen);
 
 extern int bgp_fc_init(struct bgp_master *bm);

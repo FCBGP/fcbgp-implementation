@@ -967,11 +967,11 @@ fc_bm_verify_fc(FC_msg_bm_t *bm)
     {
         memset(msg, 0, BUFSIZ);
         msglen = 0;
-        // hash(prev_asn, curr_asn, next_asn, dst_ip)
+        // hash(prev_asn, curr_asn, next_asn, dst_ip, prefixlen)
         // asn
-        previous_asn = bm->fclist[i].previous_asn;
-        current_asn = bm->fclist[i].current_asn;
-        nexthop_asn = bm->fclist[i].nexthop_asn;
+        previous_asn = ntohl(bm->fclist[i].previous_asn);
+        current_asn = ntohl(bm->fclist[i].current_asn);
+        nexthop_asn = ntohl(bm->fclist[i].nexthop_asn);
         memcpy(msg + msglen, &previous_asn, sizeof(u32));
         msglen += sizeof(u32);
         memcpy(msg + msglen, &current_asn, sizeof(u32));

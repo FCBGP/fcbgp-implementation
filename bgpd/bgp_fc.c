@@ -751,6 +751,12 @@ int fc_ecdsa_sign(EC_KEY *prikey, const char *const msg, int msglen,
         zlog_err("Cannot find such hash algorithm");
     }
 
+    zlog_debug("-----------digest----------------------------");
+    unsigned int haha = 0;
+    for(haha = 0; haha <digestlen; haha++) {
+        zlog_debug("%02X ", digest[haha]);
+    }
+
     keylen = ECDSA_size(prikey);
     *sigbuff = OPENSSL_malloc(keylen);
     ret = ECDSA_sign(0, digest, digestlen, *sigbuff, siglen, prikey);

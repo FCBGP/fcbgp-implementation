@@ -2156,15 +2156,18 @@ static int bgp_update_receive(struct peer *peer, bgp_size_t size)
                                 currbgp->ipsrcs[j].family)
                         {
                             wanted_src ++;
-                            memcpy(bmbuff+bmbufflen,
-                                    currbgp->ipsrcs[j].u.val,
-                                    currbgp->ipsrcs[j].prefixlen);
                             if (currbgp->ipsrcs[j].family == AF_INET)
                             {
+                                memcpy(bmbuff+bmbufflen,
+                                       currbgp->ipsrcs[j].u.val,
+                                       IP4_LENGTH);
                                 bmbufflen += IP4_LENGTH;
                             }
                             else if (currbgp->ipsrcs[j].family == AF_INET6)
                             {
+                                memcpy(bmbuff+bmbufflen,
+                                       currbgp->ipsrcs[j].u.val,
+                                       IP6_LENGTH);
                                 bmbufflen += IP6_LENGTH;
                             }
                             bmbuff[bmbufflen] =
@@ -2176,12 +2179,18 @@ static int bgp_update_receive(struct peer *peer, bgp_size_t size)
                 }
 
                 // dstip x.x.x.x/x but in bit fmt
-                memcpy(bmbuff+bmbufflen, fclist->ipprefix.u.val,
-                        fclist->ipprefix.prefixlen);
                 if (fclist->ipprefix.family == AF_INET)
+                {
+                    memcpy(bmbuff+bmbufflen, fclist->ipprefix.u.val,
+                           IP4_LENGTH);
                     bmbufflen += IP4_LENGTH;
+                }
                 else if (fclist->ipprefix.family == AF_INET6)
+                {
+                    memcpy(bmbuff+bmbufflen, fclist->ipprefix.u.val,
+                           IP6_LENGTH);
                     bmbufflen += IP6_LENGTH;
+                }
                 bmbuff[bmbufflen] = (u8)fclist->ipprefix.prefixlen;
                 bmbufflen += sizeof(u8);
                 // fclist

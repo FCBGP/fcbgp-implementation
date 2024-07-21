@@ -4790,13 +4790,13 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
     /* FC_BGP: Add FC patr attr. to BGP-UPDATE. */
     if (prefix_for_fc)
     {
-        int flag = 1;
         u32 previous_asn = (u32)from->as;
         u32 current_asn = (u32)peer->local_as;
         u32 nexthop_asn = (u32)peer->as;
 
         // I don't know why it cannot send out the packet to add this condition.
         /*
+        int flag = 1;
         struct assegment *asseg = NULL;
 
         if (aspath)
@@ -4821,7 +4821,7 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
                 prefix_for_fc->u.prefix,
 				prefix_for_fc->prefixlen);
 
-        if (flag)
+        // if (flag)
         {
             int i = 0, j = 0, ret = 0;
             int msglen = 0, fcbufflen = 0, fcnum = 0;
@@ -4851,17 +4851,21 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
             fc.current_asn = current_asn;
             fc.nexthop_asn = nexthop_asn;
 
+            previous_asn = htonl(previous_asn);
+            current_asn  = htonl(current_asn);
+            nexthop_asn  = htonl(nexthop_asn);
+
             memcpy(fc.ski, bm->ski, FC_SKI_LENGTH);
 
             fc.algo_id = 0x01;
             fc.flags = 0x00;
             fc.siglen = sizeof(fc.sig);
 
-            memcpy(msg+msglen, &fc.previous_asn, sizeof(u32));
+            memcpy(msg+msglen, &previous_asn, sizeof(u32));
             msglen += sizeof(u32);
-            memcpy(msg+msglen, &fc.current_asn, sizeof(u32));
+            memcpy(msg+msglen, &current_asn, sizeof(u32));
             msglen += sizeof(u32);
-            memcpy(msg+msglen, &fc.nexthop_asn, sizeof(u32));
+            memcpy(msg+msglen, &nexthop_asn, sizeof(u32));
             msglen += sizeof(u32);
 
             if (afi == AFI_IP) // ipv4
@@ -4876,9 +4880,14 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
                 msglen += sizeof(struct in6_addr);
             }
             prefixlen = (u8) prefix_for_fc->prefixlen;
-            zlog_debug("prefixlen: %u", prefixlen);
+            zlog_err("prefixlen: %u", prefixlen);
             memcpy(msg+msglen, &prefixlen, sizeof(u8));
             msglen += sizeof(u8);
+            unsigned int haha = 0;
+            zlog_debug("------------msg-----------");
+            for(haha=0; haha < msglen; haha++) {
+               zlog_debug("%02X  ", msg[haha]);
+            }
 
             ret = fc_ecdsa_sign(bm->prikey,
                     msg, msglen, &sigbuff, &sigbufflen);
@@ -4888,6 +4897,10 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
                 zlog_debug("fc_ecdsa_sign() failed");
             }
             fc.siglen = sigbufflen;
+            zlog_debug("------------sig-----------");
+            for(haha=0; haha<sigbufflen; haha++) {
+               zlog_debug("%02X  ", sigbuff[haha]);
+            }
             // 2. concat: fill packet
             stream_putc(s, BGP_ATTR_FLAG_OPTIONAL | BGP_ATTR_FLAG_TRANS
                     | BGP_ATTR_FLAG_EXTLEN);
