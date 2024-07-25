@@ -1730,11 +1730,9 @@ void fc_server_destroy(int signum)
         EC_KEY_free(g_fc_server.prikey);
         g_fc_server.prikey = NULL;
 
-        free(g_fc_server.prikey_fname);
-        g_fc_server.prikey_fname = NULL;
-
-        free(g_fc_server.certs_location);
-        g_fc_server.certs_location = NULL;
+        FC_MEM_FREE(g_fc_server.prikey_fname);
+        FC_MEM_FREE(g_fc_server.certs_location);
+        FC_MEM_FREE(g_fc_server.config_fname);
 
         printf("bye bye!\n");
         exit(EXIT_SUCCESS);

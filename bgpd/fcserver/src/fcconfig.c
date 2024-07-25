@@ -93,7 +93,7 @@ fc_cjson_root_ptr(const char *const fname)
     return root;
 }
 
-int fc_set_local_asn(uint32_t local_asn)
+int fc_cfg_set_local_asn(uint32_t local_asn)
 {
     g_fc_server.local_asn = local_asn;
     return 0;
@@ -148,6 +148,7 @@ int fc_cfg_set_log_mode(const char *const log_mode_str)
     char *modestr = NULL;
 
     size = strlen(log_mode_str);
+    modestr = malloc(size);
     memcpy(modestr, log_mode_str, size);
     FC_ASSERT_RETP(modestr);
     fc_utils_str_toupper(modestr, size);
@@ -237,7 +238,7 @@ fc_json_read_local_asn(const cJSON *const root)
     cJSON *elem = NULL;
     elem = cJSON_GetObjectItem(root, "local_asn");
     FC_ASSERT_RETP(elem);
-    fc_set_local_asn(elem->valueint);
+    fc_cfg_set_local_asn(elem->valueint);
 }
 
 static void
@@ -329,30 +330,11 @@ fc_json_read_certs_location(const cJSON *const root)
     fc_cfg_set_certs_location(elem->valuestring);
 }
 
-int fc_read_config(void)
+static void
+fc_json_read_private_key(const cJSON *const root)
 {
-    int i = 0, j = 0, ret = 0;
-    char *fpath = NULL;
-    cJSON *root = NULL, *asn_list = NULL, *elem = NULL;
-    cJSON *ipv4 = NULL, *ipv6 = NULL, *ifaddr = NULL, *ifname = NULL;
-    FC_node_as_t meta = {0};
-    FC_ht_node_as_t *node = NULL;
-
-    root = fc_cjson_root_ptr(g_fc_server.config_fname);
-    FC_ASSERT_RETP(root);
-
-    // optional configurations which have default values
-    fc_json_read_listen_port(root);
-    fc_json_read_hash_algo_id(root);
-    fc_json_read_log_mode(root);
-    fc_json_read_clear_fc_db(root); // clear fc db
-    fc_json_read_dp_mode(root);     // use data plane - none, linux(nftables), h3c, vpp
-
-    // local_asn
-    fc_json_read_local_asn(root);
-
-    fc_json_read_certs_location(root);
-    // private key
+    cJSON *elem = NULL;
+    const char *fpath = NULL;
     elem = cJSON_GetObjectItem(root, "private_key_fname");
     FC_ASSERT_RETP(elem);
     g_fc_server.prikey_fname = strdup(elem->valuestring);
@@ -360,11 +342,18 @@ int fc_read_config(void)
                             g_fc_server.prikey_fname);
     fc_read_eckey_from_file(fpath, 0, &g_fc_server.prikey);
     FC_MEM_FREE(fpath);
-    // router info list
+}
+
+static void
+fc_json_read_router_info_list(const cJSON *const root)
+{
+    int i = 0;
+    cJSON *elem = NULL;
+    cJSON *router_list = NULL, *router_info = NULL;
+    FC_router_info_t *curr_router = NULL, *next_router = NULL;
+
     if (g_fc_server.use_data_plane == FC_DP_MODE_H3C)
     {
-        cJSON *router_list = NULL, *router_info = NULL;
-        FC_router_info_t *curr_router = NULL, *next_router = NULL;
         router_list = cJSON_GetObjectItem(root, "router_info_list");
         FC_ASSERT_RETP(router_list);
         g_fc_server.routers_num = cJSON_GetArraySize(router_list);
@@ -401,14 +390,23 @@ int fc_read_config(void)
                    strlen(elem->valuestring));
         }
     }
+}
 
-    // as info list
+static void fc_json_read_as_info_list(const cJSON *const root)
+{
+    int i = 0, j = 0, ret = 0;
+    char *fpath = NULL;
+    cJSON *asn_list = NULL, *elem = NULL;
+    cJSON *ipv4 = NULL, *ipv6 = NULL, *ifaddr = NULL, *ifname = NULL;
+    cJSON *asn = NULL, *cert = NULL, *nics = NULL, *acs = NULL;
+    FC_node_as_t meta = {0};
+    FC_ht_node_as_t *node = NULL;
+
     asn_list = cJSON_GetObjectItem(root, "as_info_list");
     g_fc_server.asns_num = cJSON_GetArraySize(asn_list);
 
     for (i = 0; i < g_fc_server.asns_num; ++i)
     {
-        cJSON *asn = NULL, *cert = NULL, *nics = NULL, *acs = NULL;
         memset(&meta, 0, sizeof(meta));
         elem = cJSON_GetArrayItem(asn_list, i);
         if (g_fc_server.log_level >= FC_LOG_LEVEL_DEBUG)
@@ -486,9 +484,30 @@ int fc_read_config(void)
         }
         printf("====================================================\n");
     }
+}
+
+int fc_read_config(void)
+{
+    cJSON *root = NULL;
+
+    root = fc_cjson_root_ptr(g_fc_server.config_fname);
+    FC_ASSERT_RETP(root);
+
+    // necessary configurations
+    fc_json_read_local_asn(root);
+    fc_json_read_certs_location(root);
+    fc_json_read_private_key(root);
+    fc_json_read_router_info_list(root);
+    fc_json_read_as_info_list(root);
+
+    // optional configurations which have default values
+    fc_json_read_listen_port(root);
+    fc_json_read_hash_algo_id(root);
+    fc_json_read_log_mode(root);
+    fc_json_read_clear_fc_db(root); // clear fc db
+    fc_json_read_dp_mode(root);     // use data plane - none, linux(nftables), h3c, vpp
 
     cJSON_Delete(root);
-    FC_MEM_FREE(g_fc_server.config_fname);
 
     return 0;
 }

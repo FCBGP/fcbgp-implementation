@@ -17,12 +17,14 @@
 #define FC_CFG_DEFAULT_DP_MODE "NONE"
 #define FC_CFG_DEFAULT_CONFIG_FNAME "/etc/frr/assets/config.json"
 
-extern int fc_set_local_asn(uint32_t local_asn);
+// optional configurations which have default value
 extern int fc_cfg_set_listen_port(int listen_port);
 extern int fc_cfg_set_hash_algo_id(const char *const hash_algo_str);
 extern int fc_cfg_set_log_mode(const char *const dp_mode_str);
 extern int fc_cfg_set_db_clear(const char *const clear_fc_db_str);
 extern int fc_cfg_set_dp_mode(const char *const dp_mode_str);
+
+extern int fc_cfg_set_local_asn(uint32_t local_asn);
 
 extern int fc_read_config(void);
 

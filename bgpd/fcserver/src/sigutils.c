@@ -34,7 +34,7 @@ int fc_base64_encode(const unsigned char *msg, size_t length, char *b64msg)
 }
 
 static inline size_t
-fc_calc_decode_len(const char *b64msg)
+fc_calc_base64_decode_len(const char *b64msg)
 {
     size_t len = strlen(b64msg);
     size_t padding = 0;
@@ -50,7 +50,7 @@ fc_calc_decode_len(const char *b64msg)
 int fc_base64_decode(const char *b64msg, unsigned char **msg, size_t *length)
 {
     BIO *bio, *b64;
-    size_t decode_len = fc_calc_decode_len(b64msg);
+    size_t decode_len = fc_calc_base64_decode_len(b64msg);
 
     *msg = (unsigned char *)malloc(decode_len + 1);
     (*msg)[decode_len] = '\0';
