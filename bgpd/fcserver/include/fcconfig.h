@@ -9,27 +9,21 @@
 #define FCCONFIG_H
 
 #include "defines.h"
-#include "sigutils.h"
 
-enum {
-    FC_LOG_LEVEL_EMERG = 0,
-    FC_LOG_LEVEL_ERROR = 1,
-    FC_LOG_LEVEL_WARNING = 2,
-    FC_LOG_LEVEL_INFO = 3,
-    FC_LOG_LEVEL_DEBUG = 4,
-    FC_LOG_LEVEL_VERBOSE = 5,
-    FC_LOG_LEVEL_N
-};
+#define FC_CFG_DEFAULT_LISTEN_PORT 23160
+#define FC_CFG_DEFAULT_HASH_ALGO "SHA256"
+#define FC_CFG_DEFAULT_HASH_ALGO_ID FC_HASH_ALGO_SHA256
+#define FC_CFG_DEFAULT_LOG_LEVEL FC_LOG_LEVEL_INFO
+#define FC_CFG_DEFAULT_DP_MODE "NONE"
+#define FC_CFG_DEFAULT_CONFIG_FNAME "/etc/frr/assets/config.json"
 
-enum {
-    FC_DP_MODE_NONE,
-    FC_DP_MODE_LINUX,
-    FC_DP_MODE_VPP,
-    FC_DP_MODE_H3C,
-    FC_DP_MODE_N
-};
+extern int fc_set_local_asn(uint32_t local_asn);
+extern int fc_cfg_set_listen_port(int listen_port);
+extern int fc_cfg_set_hash_algo_id(const char *const hash_algo_str);
+extern int fc_cfg_set_log_mode(const char *const dp_mode_str);
+extern int fc_cfg_set_db_clear(const char *const clear_fc_db_str);
+extern int fc_cfg_set_dp_mode(const char *const dp_mode_str);
 
 extern int fc_read_config(void);
-extern int fc_set_log_mode(const char *mode_string);
 
 #endif // FCCONFIG_H

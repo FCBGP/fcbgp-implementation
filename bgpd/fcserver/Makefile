@@ -4,7 +4,7 @@ INCS_DIR = $(foreach i,$(LIBS_DIR),-I$(i))
 INCS_DIR += -Iinclude -I/usr/include/python3.10
 INCS_DIR += -I/usr/local/melon/include/
 
-SRC_fcs  = fcserver.c fcconfig.c dbutils.c sigutils.c hashutils.c pyutils.c
+SRC_fcs  = fcserver.c fcconfig.c dbutils.c sigutils.c hashutils.c pyutils.c strutils.c
 SRC_DIR = $(foreach i,$(SRC_fcs),src/$(i))
 
 SRC_libs  = libs/diaglib/libdiag.c libs/baselib/libstring.c

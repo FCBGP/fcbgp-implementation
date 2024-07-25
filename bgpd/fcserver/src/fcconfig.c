@@ -5,138 +5,14 @@
  * Description:  JSON UTILS
  ********************************************************************************/
 
-#include "fcconfig.h"
 #include "cJSON.h"
 
-/**
- * If the user forgets to remove the tail '/', we need to properly accept that.
- * @param path      path
- * @param filename  filename
- * @return          Return the combined fullpath
- * */
-static inline char *
-fc_combine_path(const char *path, const char *filename)
-{
-    size_t path_len = strlen(path);
-    size_t filename_len = strlen(filename);
-    size_t combined_len = path_len + filename_len + 2; // 2 for '/' and '\0'
-
-    char *combined_path = (char *)malloc(combined_len);
-    if (combined_path == NULL)
-    {
-        fprintf(stderr, "malloc for combined_path failed\n");
-        return NULL;
-    }
-    memset(combined_path, 0, combined_len);
-
-    memcpy(combined_path, path, strlen(path));
-    if (path_len > 0 && path[path_len - 1] != '/')
-    {
-        strcat(combined_path, "/");
-    }
-
-    strcat(combined_path, filename);
-
-    return combined_path;
-}
-
-/**
- * Generated the uppercase of string.
- * @param str   input string
- * @param size  input string size
- * @return      output the uppercase of input string.
- *              you're expected to free it to recycle the memory.
- * */
-static inline char *
-fc_utils_str_toupper(const char *str, int size)
-{
-    int i = 0;
-    char *outputstr = NULL;
-
-    outputstr = (char *)calloc(size + 1, sizeof(char));
-    if (outputstr)
-    {
-
-        for (i = 0; i < size; ++i)
-        {
-            outputstr[i] = toupper(str[i]);
-        }
-
-        outputstr[size] = '\0';
-    }
-
-    return outputstr;
-}
-
-int fc_cfg_set_dp_mode(const char *mode_string)
-{
-    int size = 0;
-    char *modestr = NULL;
-
-    size = strlen(mode_string);
-    modestr = fc_utils_str_toupper(mode_string, size);
-    FC_ASSERT_RETP(modestr);
-
-    g_fc_server.use_data_plane = FC_DP_MODE_NONE;
-    if (strcmp(modestr, "LINUX") == 0)
-    {
-        g_fc_server.use_data_plane = FC_DP_MODE_LINUX;
-    }
-    else if (strcmp(modestr, "VPP") == 0)
-    {
-        g_fc_server.use_data_plane = FC_DP_MODE_VPP;
-    }
-    else if (strcmp(modestr, "H3C") == 0)
-    {
-        g_fc_server.use_data_plane = FC_DP_MODE_H3C;
-    }
-    free(modestr);
-
-    return 0;
-}
-
-int fc_set_log_mode(const char *mode_string)
-{
-    int size = 0;
-    char *modestr = NULL;
-
-    size = strlen(mode_string);
-    modestr = fc_utils_str_toupper(mode_string, size);
-    FC_ASSERT_RETP(modestr);
-
-    g_fc_server.log_mode = FC_LOG_LEVEL_INFO;
-    if (strcmp(modestr, "EMERGE") == 0)
-    {
-        g_fc_server.log_mode = FC_LOG_LEVEL_EMERG;
-    }
-    else if (strcmp(modestr, "ERROR") == 0)
-    {
-        g_fc_server.log_mode = FC_LOG_LEVEL_ERROR;
-    }
-    else if (strcmp(modestr, "WARNING") == 0)
-    {
-        g_fc_server.log_mode = FC_LOG_LEVEL_WARNING;
-    }
-    else if (strcmp(modestr, "INFO") == 0)
-    {
-        g_fc_server.log_mode = FC_LOG_LEVEL_INFO;
-    }
-    else if (strcmp(modestr, "DEBUG"))
-    {
-        g_fc_server.log_mode = FC_LOG_LEVEL_DEBUG;
-    }
-    else if (strcmp(modestr, "VERBOSE"))
-    {
-        g_fc_server.log_mode = FC_LOG_LEVEL_VERBOSE;
-    }
-
-    free(modestr);
-
-    return 0;
-}
+#include "defines.h"
+#include "fcconfig.h"
+#include "strutils.h"
 
 static char *
-fc_read_file(const char *fname)
+fc_read_file(const char *const fname)
 {
     FILE *fp = NULL;
     long length = 0;
@@ -194,15 +70,15 @@ cleanup:
 }
 
 static inline void
-fc_cjson_print(const cJSON *root)
+fc_cjson_print(const cJSON *const root)
 {
     char *output = cJSON_Print(root);
     printf("%s\n", output);
-    free(output);
+    FC_MEM_FREE(output);
 }
 
 static inline cJSON *
-fc_cjson_root_ptr(const char *fname)
+fc_cjson_root_ptr(const char *const fname)
 {
     cJSON *root = NULL;
     char *content = fc_read_file(fname);
@@ -211,48 +87,253 @@ fc_cjson_root_ptr(const char *fname)
 
     if (content != NULL)
     {
-        free(content);
+        FC_MEM_FREE(content);
     }
 
     return root;
 }
 
-static int fc_fill_config_hash_algo_id()
+int fc_set_local_asn(uint32_t local_asn)
 {
-    if (!strcmp(g_fc_server.hash_algorithm, "sha256") ||
-        !strcmp(g_fc_server.hash_algorithm, "SHA256"))
+    g_fc_server.local_asn = local_asn;
+    return 0;
+}
+
+int fc_set_listen_port(int listen_port)
+{
+    if (listen_port <= 0 || listen_port > 65535)
+    {
+        g_fc_server.listen_port = listen_port;
+    }
+    return 0;
+}
+
+int fc_cfg_set_hash_algo_id(const char *const hash_algo_str)
+{
+    int size = 0;
+
+    memcpy(g_fc_server.hash_algorithm, hash_algo_str,
+           strlen(hash_algo_str));
+    size = strlen(g_fc_server.hash_algorithm);
+    fc_utils_str_toupper(g_fc_server.hash_algorithm, size);
+
+    if (strcmp(g_fc_server.hash_algorithm, "SHA256") == 0)
     {
         g_fc_server.hash_algorithm_id = FC_HASH_ALGO_SHA256;
     }
-    else if (!strcmp(g_fc_server.hash_algorithm, "sha1") ||
-             !strcmp(g_fc_server.hash_algorithm, "SHA1"))
+    else if (strcmp(g_fc_server.hash_algorithm, "SHA1") == 0)
     {
         g_fc_server.hash_algorithm_id = FC_HASH_ALGO_SHA1;
     }
-    else if (!strcmp(g_fc_server.hash_algorithm, "crc32") ||
-             !strcmp(g_fc_server.hash_algorithm, "CRC32"))
+    else if (strcmp(g_fc_server.hash_algorithm, "CRC32") == 0)
     {
         g_fc_server.hash_algorithm_id = FC_HASH_ALGO_CRC32;
     }
-    else if (!strcmp(g_fc_server.hash_algorithm, "md5") ||
-             !strcmp(g_fc_server.hash_algorithm, "MD5"))
+    else if (strcmp(g_fc_server.hash_algorithm, "MD5") == 0)
     {
         g_fc_server.hash_algorithm_id = FC_HASH_ALGO_MD5;
     }
     else
     {
-        g_fc_server.hash_algorithm_id = FC_HASH_ALGO_UNKNOWN;
+        memcpy(g_fc_server.hash_algorithm, FC_CFG_DEFAULT_HASH_ALGO,
+               strlen(FC_CFG_DEFAULT_HASH_ALGO));
+        g_fc_server.hash_algorithm_id = FC_CFG_DEFAULT_HASH_ALGO_ID;
+    }
+    return 0;
+}
+
+int fc_cfg_set_log_mode(const char *const log_mode_str)
+{
+    int size = 0;
+    char *modestr = NULL;
+
+    size = strlen(log_mode_str);
+    memcpy(modestr, log_mode_str, size);
+    FC_ASSERT_RETP(modestr);
+    fc_utils_str_toupper(modestr, size);
+
+    if (strcmp(modestr, "EMERGE") == 0)
+    {
+        g_fc_server.log_level = FC_LOG_LEVEL_EMERG;
+    }
+    else if (strcmp(modestr, "ERROR") == 0)
+    {
+        g_fc_server.log_level = FC_LOG_LEVEL_ERROR;
+    }
+    else if (strcmp(modestr, "WARNING") == 0)
+    {
+        g_fc_server.log_level = FC_LOG_LEVEL_WARNING;
+    }
+    else if (strcmp(modestr, "INFO") == 0)
+    {
+        g_fc_server.log_level = FC_LOG_LEVEL_INFO;
+    }
+    else if (strcmp(modestr, "DEBUG"))
+    {
+        g_fc_server.log_level = FC_LOG_LEVEL_DEBUG;
+    }
+    else if (strcmp(modestr, "VERBOSE"))
+    {
+        g_fc_server.log_level = FC_LOG_LEVEL_VERBOSE;
+    }
+    else
+    {
+        g_fc_server.log_level = FC_CFG_DEFAULT_LOG_LEVEL;
     }
 
+    free(modestr);
     return 0;
+}
+
+int fc_cfg_set_dp_mode(const char *const dp_mode_str)
+{
+    int size = 0;
+    char *modestr = NULL;
+    cJSON *elem = NULL;
+
+    size = strlen(dp_mode_str);
+    modestr = calloc(size + 1, sizeof(char));
+    FC_ASSERT_RETP(modestr);
+    memcpy(modestr, dp_mode_str, size);
+    fc_utils_str_toupper(modestr, size);
+
+    if (strcmp(modestr, "LINUX") == 0)
+    {
+        g_fc_server.use_data_plane = FC_DP_MODE_LINUX;
+    }
+    else if (strcmp(modestr, "VPP") == 0)
+    {
+        g_fc_server.use_data_plane = FC_DP_MODE_VPP;
+    }
+    else if (strcmp(modestr, "H3C") == 0)
+    {
+        g_fc_server.use_data_plane = FC_DP_MODE_H3C;
+    }
+    else
+    {
+        g_fc_server.use_data_plane = FC_DP_MODE_NONE;
+    }
+
+    free(modestr);
+
+    return 0;
+}
+
+int fc_cfg_set_certs_location(const char *const certs_location)
+{
+    if (g_fc_server.certs_location)
+    {
+        FC_MEM_FREE(g_fc_server.certs_location);
+    }
+
+    g_fc_server.certs_location = strdup(certs_location);
+
+    return 0;
+}
+
+static void
+fc_json_read_local_asn(const cJSON *const root)
+{
+    cJSON *elem = NULL;
+    elem = cJSON_GetObjectItem(root, "local_asn");
+    FC_ASSERT_RETP(elem);
+    fc_set_local_asn(elem->valueint);
+}
+
+static void
+fc_json_read_listen_port(const cJSON *const root)
+{
+    cJSON *elem = NULL;
+    elem = cJSON_GetObjectItem(root, "listen_port");
+    if (elem)
+    {
+        fc_set_listen_port(elem->valueint);
+    }
+    else
+    {
+        fc_set_listen_port(FC_CFG_DEFAULT_LISTEN_PORT);
+    }
+}
+
+static void
+fc_json_read_hash_algo_id(const cJSON *const root)
+{
+    cJSON *elem = NULL;
+
+    elem = cJSON_GetObjectItem(root, "hash_algorithm");
+    if (elem == NULL)
+    {
+        memcpy(g_fc_server.hash_algorithm, FC_CFG_DEFAULT_HASH_ALGO,
+               strlen(FC_CFG_DEFAULT_HASH_ALGO));
+        g_fc_server.hash_algorithm_id = FC_CFG_DEFAULT_HASH_ALGO_ID;
+        return;
+    }
+
+    fc_cfg_set_hash_algo_id(elem->valuestring);
+}
+
+static void
+fc_json_read_log_mode(const cJSON *const root)
+{
+    cJSON *elem = NULL;
+
+    elem = cJSON_GetObjectItem(root, "log_mode");
+    if (elem == NULL)
+    {
+        g_fc_server.log_level = FC_CFG_DEFAULT_LOG_LEVEL;
+    }
+    else
+    {
+        fc_cfg_set_log_mode(elem->valuestring);
+    }
+}
+
+static void
+fc_json_read_clear_fc_db(const cJSON *const root)
+{
+    cJSON *elem = NULL;
+
+    elem = cJSON_GetObjectItem(root, "clear_fc_db");
+    if (elem)
+    {
+        g_fc_server.clear_fc_db =
+            elem->type == cJSON_True ? true : false;
+    }
+    else
+    {
+        g_fc_server.clear_fc_db = true;
+    }
+}
+
+static void
+fc_json_read_dp_mode(const cJSON *const root)
+{
+    cJSON *elem = NULL;
+
+    elem = cJSON_GetObjectItem(root, "use_data_plane");
+    if (elem == NULL)
+    {
+        fc_cfg_set_dp_mode(FC_CFG_DEFAULT_DP_MODE);
+        return;
+    }
+
+    fc_cfg_set_dp_mode(elem->valuestring);
+}
+
+static void
+fc_json_read_certs_location(const cJSON *const root)
+{
+    cJSON *elem = NULL;
+    elem = cJSON_GetObjectItem(root, "certs_location");
+    FC_ASSERT_RETP(elem);
+    fc_cfg_set_certs_location(elem->valuestring);
 }
 
 int fc_read_config(void)
 {
     int i = 0, j = 0, ret = 0;
     char *fpath = NULL;
-    cJSON *root = NULL, *asn_list = NULL, *cert = NULL;
-    cJSON *elem = NULL, *asn = NULL, *acs = NULL, *nics = NULL;
+    cJSON *root = NULL, *asn_list = NULL, *elem = NULL;
     cJSON *ipv4 = NULL, *ipv6 = NULL, *ifaddr = NULL, *ifname = NULL;
     FC_node_as_t meta = {0};
     FC_ht_node_as_t *node = NULL;
@@ -260,34 +341,25 @@ int fc_read_config(void)
     root = fc_cjson_root_ptr(g_fc_server.config_fname);
     FC_ASSERT_RETP(root);
 
-    // local_asn
-    elem = cJSON_GetObjectItem(root, "local_asn");
-    g_fc_server.local_asn = elem->valueint;
-    // hash_alogrithm
-    elem = cJSON_GetObjectItem(root, "hash_algorithm");
-    g_fc_server.hash_algorithm = elem->valuestring;
-    fc_fill_config_hash_algo_id();
+    // optional configurations which have default values
+    fc_json_read_listen_port(root);
+    fc_json_read_hash_algo_id(root);
+    fc_json_read_log_mode(root);
+    fc_json_read_clear_fc_db(root); // clear fc db
+    fc_json_read_dp_mode(root);     // use data plane - none, linux(nftables), h3c, vpp
 
-    // log_mode
-    elem = cJSON_GetObjectItem(root, "log_mode");
-    fc_set_log_mode(elem->valuestring);
-    // clear fc db
-    elem = cJSON_GetObjectItem(root, "clear_fc_db");
-    g_fc_server.clear_fc_db = elem->type == cJSON_True ? true : false;
-    // use data plane - nftables
-    elem = cJSON_GetObjectItem(root, "use_data_plane");
-    fc_cfg_set_dp_mode(elem->valuestring);
-    // certs location
-    elem = cJSON_GetObjectItem(root, "certs_location");
-    g_fc_server.certs_location = strdup(elem->valuestring);
+    // local_asn
+    fc_json_read_local_asn(root);
+
+    fc_json_read_certs_location(root);
     // private key
     elem = cJSON_GetObjectItem(root, "private_key_fname");
+    FC_ASSERT_RETP(elem);
     g_fc_server.prikey_fname = strdup(elem->valuestring);
     fpath = fc_combine_path(g_fc_server.certs_location,
                             g_fc_server.prikey_fname);
     fc_read_eckey_from_file(fpath, 0, &g_fc_server.prikey);
-    free(fpath);
-    fpath = NULL;
+    FC_MEM_FREE(fpath);
     // router info list
     if (g_fc_server.use_data_plane == FC_DP_MODE_H3C)
     {
@@ -303,7 +375,7 @@ int fc_read_config(void)
             curr_router->next = next_router;
             g_fc_server.routers = curr_router;
             router_info = cJSON_GetArrayItem(router_list, i);
-            if (g_fc_server.log_mode >= FC_LOG_LEVEL_DEBUG)
+            if (g_fc_server.log_level >= FC_LOG_LEVEL_DEBUG)
             {
                 fc_cjson_print(router_info);
             }
@@ -336,17 +408,22 @@ int fc_read_config(void)
 
     for (i = 0; i < g_fc_server.asns_num; ++i)
     {
+        cJSON *asn = NULL, *cert = NULL, *nics = NULL, *acs = NULL;
         memset(&meta, 0, sizeof(meta));
         elem = cJSON_GetArrayItem(asn_list, i);
-        if (g_fc_server.log_mode >= FC_LOG_LEVEL_DEBUG)
+        if (g_fc_server.log_level >= FC_LOG_LEVEL_DEBUG)
         {
             fc_cjson_print(elem);
         }
 
         asn = cJSON_GetObjectItem(elem, "asn");
+        FC_ASSERT_RETP(asn);
         cert = cJSON_GetObjectItem(elem, "cert");
+        FC_ASSERT_RETP(cert);
         nics = cJSON_GetObjectItem(elem, "nics");
+        FC_ASSERT_RETP(nics);
         acs = cJSON_GetObjectItem(elem, "acs");
+        FC_ASSERT_RETP(acs);
 
         meta.asn = asn->valueint;
         memcpy(meta.cert, cert->valuestring, strlen(cert->valuestring));
@@ -364,8 +441,7 @@ int fc_read_config(void)
             g_fc_server.pubkey = meta.pubkey;
             memcpy(g_fc_server.ski, meta.ski, FC_SKI_LENGTH);
         }
-        free(fpath);
-        fpath = NULL;
+        FC_MEM_FREE(fpath);
 
         g_fc_server.nics_num = cJSON_GetArraySize(nics);
         for (j = 0; j < g_fc_server.nics_num; ++j)
@@ -412,8 +488,7 @@ int fc_read_config(void)
     }
 
     cJSON_Delete(root);
-    free(g_fc_server.config_fname);
-    g_fc_server.config_fname = NULL;
+    FC_MEM_FREE(g_fc_server.config_fname);
 
     return 0;
 }

@@ -1,5 +1,6 @@
 {
     "local_asn": 10,
+    "listen_port": 23160,
     "hash_algorithm": "SHA256",
     "log_mode": "debug",
     "clear_fc_db": true,

@@ -17,6 +17,8 @@
 
 #include "bgpd/bgp_fc.h"
 
+FC_config_t fc_config = {0};
+
 /* HASHTABLE UTILS */
 static void *
 fc_as_node_create(void)
@@ -446,7 +448,7 @@ fc_combine_path(const char *path, const char *filename)
     return combined_path;
 }
 
-static int fc_fill_config_hash_algo_id(const char *hash_algorithm,
+static int fc_set_hash_algo_id(const char *hash_algorithm,
                                        int *hash_algorithm_id)
 {
     if (!strcmp(hash_algorithm, "sha256") ||
@@ -484,7 +486,7 @@ fc_json_read_config(struct bgp_master *bm)
     int i, as_num = 0, ret = 0;
     const char *fpath = NULL, *fname = NULL;
     char *fullpath = NULL;
-    json_object *root = NULL, *certs_location = NULL;
+    json_object *root = NULL, *certs_location = NULL, *jlisten_port = NULL;
     json_object *private_key_fname = NULL, *certificate_fname = NULL;
     json_object *as_info_list = NULL, *as_info = NULL;
     json_object *asn = NULL, *cert = NULL, *hash_algorithm = NULL;
@@ -496,9 +498,27 @@ fc_json_read_config(struct bgp_master *bm)
         return -1;
     }
 
+    jlisten_port = json_object_object_get(root, "listen_port");
+    if (jlisten_port)
+    {
+        fc_config.fc_listen_port = json_object_get_int(jlisten_port);
+    }
+    else
+    {
+        fc_config.fc_listen_port = FC_CFG_DEFAULT_LISTEN_PORT;
+    }
+
     hash_algorithm = json_object_object_get(root, "hash_algorithm");
-    const char *tmp_str = json_object_get_string(hash_algorithm);
-    fc_fill_config_hash_algo_id(tmp_str, &bm->hash_algorithm_id);
+    if (hash_algorithm)
+    {
+
+        const char *tmp_str = json_object_get_string(hash_algorithm);
+        fc_set_hash_algo_id(tmp_str, &bm->hash_algorithm_id);
+    }
+    else
+    {
+        fc_set_hash_algo_id(FC_CFG_DEFAULT_HASH_ALGO, &bm->hash_algorithm_id);
+    }
 
     certs_location = json_object_object_get(root, "certs_location");
     fpath = json_object_get_string(certs_location);
@@ -753,7 +773,8 @@ int fc_ecdsa_sign(EC_KEY *prikey, const char *const msg, int msglen,
 
     zlog_debug("-----------digest----------------------------");
     unsigned int haha = 0;
-    for(haha = 0; haha <digestlen; haha++) {
+    for (haha = 0; haha < digestlen; haha++)
+    {
         zlog_debug("%02X ", digest[haha]);
     }
 
@@ -803,7 +824,7 @@ fc_send_packet_to_fcserver4(char *buff, int bufflen)
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
     sockaddr.sin_family = AF_INET;
-    sockaddr.sin_port = htons(FC_PORT);
+    sockaddr.sin_port = htons(fc_config.fc_listen_port);
     inet_pton(AF_INET, "127.0.0.1", &sockaddr.sin_addr);
 
     ret = connect(sockfd, (struct sockaddr *)&sockaddr, sizeof(sockaddr));
@@ -836,7 +857,7 @@ fc_send_packet_to_fcserver6(char *buff, int bufflen)
     sockfd = socket(AF_INET6, SOCK_STREAM, 0);
 
     sockaddr.sin6_family = AF_INET6;
-    sockaddr.sin6_port = htons(FC_PORT);
+    sockaddr.sin6_port = htons(fc_config.fc_listen_port);
     inet_pton(AF_INET6, "::1", &sockaddr.sin6_addr);
 
     ret = connect(sockfd, (struct sockaddr *)&sockaddr, sizeof(sockaddr));

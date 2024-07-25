@@ -141,7 +141,7 @@ fc_mlp_server_sock()
     // bind
     socklen = sizeof(struct sockaddr_in6);
     sockaddr.sin6_family = AF_INET6;
-    sockaddr.sin6_port = htons(FC_PORT);
+    sockaddr.sin6_port = htons(g_fc_server.listen_port);
     inet_pton(AF_INET6, g_fc_server.prog_addr6,
               (struct sockaddr_in6 *)&sockaddr.sin6_addr);
     socklen = sizeof(struct sockaddr_in6);
@@ -391,7 +391,7 @@ fc_ncs_server()
     }
 
     ncs6_setup(g_fc_server.fc_bgpd_ctx6,
-               g_fc_server.prog_addr6, FC_PORT, NULL, 0);
+               g_fc_server.prog_addr6, g_fc_server.listen_port, NULL, 0);
     ncs6_timeout(g_fc_server.fc_bgpd_ctx6, 10, -1);
     // ncs6_setkeepalive(g_fc_server.fc_bgpd_ctx6, 10);
     ncs6_server_enable(g_fc_server.fc_bgpd_ctx6);
@@ -456,7 +456,7 @@ fc_bm_sent_to_peer(const char *addr, const FC_msg_bm_t *bm,
         return -1;
     }
     sockaddr.sin_family = AF_INET;
-    sockaddr.sin_port = htons(FC_PORT);
+    sockaddr.sin_port = htons(g_fc_server.listen_port);
     inet_pton(AF_INET, addr, &sockaddr.sin_addr);
     if ((ret = connect(sockfd, (struct sockaddr *)&sockaddr,
                        sizeof(sockaddr))) < 0)
@@ -1011,11 +1011,11 @@ fc_bm_verify_fc(FC_msg_bm_t *bm)
             printf("%02X", g_fc_server.ski[k]);
         }
         printf("\n");
-        printf("bm.ski: ");
-        for (int k = 0; k < FC_SKI_LENGTH; ++k)
-        {
-            printf("%02X", bm->ski[k]);
-        }
+        // printf("bm.ski: ");
+        // for (int k = 0; k < FC_SKI_LENGTH; ++k)
+        // {
+        //     printf("%02X", bm->ski[k]);
+        // }
         printf("\n");
         printf("\033[42;31m node.ski: \033[0m");
         for (int k = 0; k < FC_SKI_LENGTH; ++k)
@@ -1520,12 +1520,11 @@ int fc_server_handler(int clisockfd, char *buff, int buffsize, int recvlen)
 {
     int bufflen = 0;
 
-    int i = 0;
-    for (i = 0; i < recvlen; i++)
-    {
-        printf("\033[5m%02X", (uint8_t)buff[i]);
-    }
-    printf("\033[0m");
+    // for (int i = 0; i < recvlen; i++)
+    // {
+    //     printf("\033[5m%02X", (uint8_t)buff[i]);
+    // }
+    // printf("\033[0m");
 
     memcpy(&bufflen, &buff[2], sizeof(u16));
     bufflen = ntohs(bufflen);
@@ -1640,7 +1639,7 @@ fc_parse_args(int argc, char **argv)
 
     if (!g_fc_server.config_fname || strlen(g_fc_server.config_fname) == 0)
     {
-        g_fc_server.config_fname = strdup(FC_DEFAULT_CONFIG_FNAME);
+        g_fc_server.config_fname = strdup(FC_CFG_DEFAULT_CONFIG_FNAME);
     }
 }
 
@@ -1661,12 +1660,12 @@ int fc_main()
 
     fc_read_config();
 
-    if (g_fc_server.log_mode > FC_LOG_LEVEL_INFO)
+    if (g_fc_server.log_level > FC_LOG_LEVEL_INFO)
     {
         htbl_display(&g_fc_server.ht_as);
     }
 
-    diag_level_set(g_fc_server.log_mode);
+    diag_level_set(g_fc_server.log_level);
 
     fc_init_crypto_env(&g_fc_server);
 

@@ -243,6 +243,13 @@ typedef struct FC_msg_bm_new_s
     u8 new_signature[80];
 } FC_msg_bm_new_t;
 
+typedef struct FC_config_s
+{
+    int fc_listen_port;
+} FC_config_t;
+
+extern FC_config_t fc_config;
+
 /* SIG */
 extern int fc_read_eckey_from_file(int is_pub_key, EC_KEY **pkey);
 extern int fc_read_eckey_from_filepath(const char *file,
@@ -266,7 +273,8 @@ extern int fc_hashtable_create(htbl_ctx_t *ht, htbl_ops_t *ops);
 extern int fc_hashtable_destroy(htbl_ctx_t *ht);
 
 /* SERVER */
-#define FC_PORT 23160
+#define FC_CFG_DEFAULT_LISTEN_PORT 23160
+#define FC_CFG_DEFAULT_HASH_ALGO "SHA256"
 extern int fc_send_packet_to_fcserver(u8 ipversion, char *buff, int bufflen);
 
 extern int bgp_fc_init(struct bgp_master *bm);

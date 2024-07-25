@@ -1,7 +1,5 @@
 # TODO
 
-- [ ] TCP fds & config.json with aer configuration
-- [ ] TCP listen port 23160 => 23162
 - [ ] Interface list for Binding Message.
 - [ ] ThreadPool for bm sent.
 

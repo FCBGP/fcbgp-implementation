@@ -1,7 +1,20 @@
 # CHANGELOG
 
+## 2024.07.22
+
+- [x] v0.1.6
+- [x] FCServer listen TCP port 23160 => 23162
+- [x] supported SHA1\MD5\CRC32 hash algorithms.
+
+## 2024.05.23
+
+- [x] v0.1.5
+- [x] basically test fcserver version for h3c
+- [x] TCP fds & config.json with aer configuration
+
 ## 2023.12.29
 
+- [x] v0.1.4
 - [x] It uses the same public key for all. SKI is reserved.
 - [ ] THIS WILL NOT BE IMPLEMENTED. <s>Destination prefix in BGP-UPDATE is not using `MP_REACH_NLRI` to encapsulate. So there can only be one prefix each time. It means you could add with `network x.x.x.x/plen` manually. But as ipv4 uses `NLRI` which we don't want to use again, we would never change code here.</s>
 

@@ -24,7 +24,7 @@
 #define STR(x) #x
 #define FC_MAJOR_VERSION STR(0)
 #define FC_MINOR_VERSION STR(1)
-#define FC_PATCH_VERSION STR(4)
+#define FC_PATCH_VERSION STR(6)
 #define FC_PRJ_VERSION FC_MAJOR_VERSION "." FC_MINOR_VERSION "." FC_PATCH_VERSION
 #define FC_VERSION_STR "FC Server V" FC_PRJ_VERSION \
                        " compiled at " __DATE__ " " __TIME__ ""
@@ -51,6 +51,26 @@
 
 enum
 {
+    FC_LOG_LEVEL_EMERG = 0,
+    FC_LOG_LEVEL_ERROR = 1,
+    FC_LOG_LEVEL_WARNING = 2,
+    FC_LOG_LEVEL_INFO = 3,
+    FC_LOG_LEVEL_DEBUG = 4,
+    FC_LOG_LEVEL_VERBOSE = 5,
+    FC_LOG_LEVEL_N
+};
+
+enum
+{
+    FC_DP_MODE_LINUX,
+    FC_DP_MODE_VPP,
+    FC_DP_MODE_H3C,
+    FC_DP_MODE_NONE,
+    FC_DP_MODE_N
+};
+
+enum
+{
     FC_MSG_BASE = 0,
     FC_MSG_PUBKEY = 1, // pubkey information, not implement, from RPKI.
     FC_MSG_BGPD = 2,   // broadcast message from BGP router to FCS
@@ -68,7 +88,6 @@ enum
 
 enum
 {
-    FC_HASH_ALGO_UNKNOWN,
     FC_HASH_ALGO_SHA256,
     FC_HASH_ALGO_SHA1,
     FC_HASH_ALGO_MD5,
@@ -83,6 +102,7 @@ enum
             fprintf(stderr, "%s:%d error: ret is not 0.  " \
                             "msg: %s\n",                   \
                     __func__, __LINE__, msg);              \
+            exit(-1);                                      \
         }                                                  \
     } while (0)
 
@@ -95,6 +115,7 @@ enum
         {                                                     \
             fprintf(stderr, "%s:%d error: pointer is NULL\n", \
                     __func__, __LINE__);                      \
+            exit(-1);                                         \
         }                                                     \
     } while (0)
 
@@ -105,7 +126,18 @@ enum
         {                                                   \
             fprintf(stderr, "[%s:%d] ERROR: memory leak\n", \
                     __func__, __LINE__);                    \
+            exit(-1);                                       \
         }                                                   \
+    } while (0)
+
+#define FC_MEM_FREE(ptr)    \
+    do                  \
+    {                   \
+        if (ptr)        \
+        {               \
+            free(ptr);  \
+            ptr = NULL; \
+        }               \
     } while (0)
 
 struct prefix
@@ -287,12 +319,12 @@ typedef struct FC_server_s
     char *prog_name;
     char *prog_addr4;
     char *prog_addr6;
-    u8 log_mode;
+    u8 log_level;
     bool clear_fc_db;
     int use_data_plane;
     u32 local_asn;
-    
-    char *hash_algorithm;
+
+    char hash_algorithm[64];
     int hash_algorithm_id;
 
     u8 asns_num; /* as-ip totoal num, of course it's number of AS */
@@ -302,6 +334,7 @@ typedef struct FC_server_s
     htbl_ctx_t ht_prefix;
 
     int sockfd;
+    int listen_port;
     int epollfd;
 
     int routers_num;
