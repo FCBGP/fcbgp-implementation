@@ -65,10 +65,11 @@ $ sudo chmod 777 /opt/log
 ## config.json
 
 - `local_asn`: The AS number of current bgp located.
-- `listen_port`: The listen port of FCServer. Default is `23160`.
+- `listen_port`: The listen port of FCServer. Default is `23160` if it is using wrong port or not set.
 - `hash_algorithm`: Specify HASH algorithm, including `SHA256`, `SHA1`, `MD5`, `CRC32`. Default is `SHA256`.
 - `log_mode`: For diaglib in fcserver. `debug`, `info`. Default is `info`.
 - `clear_fc_db`: `true` or `false`. Default is `true`. Clear the fc.db before running.
+- `fc_db_fname`: Specify the absolute path of fc.db. Default is `/etc/frr/assets/fc.db`.
 - `use_data_plane`: See Section Data Plane for more information. Default is `none`.
 - `router_info_list`: All the BGP routers of current AS. used when `use-data-plane` is `h3c`
     - `bgpid`: BGP-ID.

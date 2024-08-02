@@ -7,6 +7,7 @@
  *  and also distinguish it with getsockopt.
  ********************************************************************************/
 
+#include <stdbool.h>
 #include <Python.h>
 #include <arpa/inet.h>
 #include <ctype.h>
@@ -312,10 +313,10 @@ fc_mlp_server_epoll()
                  * we must read whatever data is available completely,
                  * as we are running in edge-triggered mode
                  * and won't get a notification again for the same data */
-                char buff[BUFSIZ] = {0};
+                char buff[FC_BUFF_SIZE] = {0};
                 int recvlen = 0, done = 0;
                 ret = fc_mlp_server_epoll_recv(events[i].data.fd, buff,
-                                               BUFSIZ, &recvlen, &done);
+                                               FC_BUFF_SIZE, &recvlen, &done);
                 if (ret != FC_ERR_SERVER_NOERR)
                 {
                     return ret;
@@ -324,7 +325,7 @@ fc_mlp_server_epoll()
                 // process the data
                 printf("fd: %d, recvlen: %d\n",
                        events[i].data.fd, recvlen);
-                fc_server_handler(events[i].data.fd, buff, BUFSIZ, recvlen);
+                fc_server_handler(events[i].data.fd, buff, FC_BUFF_SIZE, recvlen);
 
                 if (done)
                 {
@@ -476,20 +477,22 @@ fc_bm_sent_to_peer(const char *addr, const FC_msg_bm_t *bm,
     return 0;
 }
 
-static inline int
+static inline bool
 fc_asn_is_offpath(u32 asn, const FC_msg_bm_t *bm)
 {
     int i = 0;
 
     for (i = 0; i < bm->fc_num; ++i)
     {
-        if (asn == bm->fclist[i].previous_asn || asn == bm->fclist[i].current_asn || asn == bm->fclist[i].nexthop_asn)
+        if (asn == bm->fclist[i].previous_asn ||
+            asn == bm->fclist[i].current_asn ||
+            asn == bm->fclist[i].nexthop_asn)
         {
-            return 0;
+            return false;
         }
     }
 
-    return 1;
+    return true;
 }
 
 static int
@@ -957,7 +960,7 @@ int fc_server_topo_handler(int clisockfd, const char *buff, int len)
 static int
 fc_bm_verify_fc(FC_msg_bm_t *bm)
 {
-    char msg[BUFSIZ];
+    char msg[FC_BUFF_SIZE];
     int ret = 0;
     int msglen = 0;
     int i = 0, j = 0;
@@ -965,7 +968,7 @@ fc_bm_verify_fc(FC_msg_bm_t *bm)
 
     for (i = 0; i < bm->fc_num; ++i)
     {
-        memset(msg, 0, BUFSIZ);
+        memset(msg, 0, FC_BUFF_SIZE);
         msglen = 0;
         // hash(prev_asn, curr_asn, next_asn, dst_ip, prefixlen)
         // asn
@@ -1046,7 +1049,7 @@ static int
 fc_gen_acl_linux(int clisockfd, const FC_msg_bm_t *bm)
 {
     int i = 0, j = 0, ret = 0;
-    int flag_offpath = 0;
+    bool flag_offpath = false;
     char ifaddr[INET6_ADDRSTRLEN] = {0}, ifname[FC_MAX_SIZE] = {0};
     char saddr[INET6_ADDRSTRLEN] = {0};
     char daddr[INET6_ADDRSTRLEN] = {0};
@@ -1137,7 +1140,7 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
 {
     int i = 0, j = 0, ret = 0, iface_index = 0, fc_index = 0;
     u32 asn = 0;
-    int flag_offpath = 1;
+    bool flag_offpath = 0;
     FC_router_info_t *router_info = NULL;
     FC_router_link_info_t *link_info = NULL;
     FC_router_iface_info_t *iface_info = NULL;
@@ -1157,7 +1160,7 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
     {
         if (bm->fclist[fc_index].current_asn == g_fc_server.local_asn)
         {
-            flag_offpath = 0;
+            flag_offpath = false;
             break;
         }
     }
@@ -1302,7 +1305,7 @@ int fc_server_bm_handler(int clisockfd, char *buffer,
                          int bufferlen, int msg_type)
 {
     // remove header
-    char buff_new_msg[BUFSIZ] = {0};
+    char buff_new_msg[FC_BUFF_SIZE] = {0};
     memcpy(buff_new_msg, buffer, bufferlen);
     char *buff = buff_new_msg + FC_HDR_GENERAL_LENGTH;
 
@@ -1311,27 +1314,39 @@ int fc_server_bm_handler(int clisockfd, char *buffer,
     int cur = 0;
     int ret = 0;
     int ip_len = 0;
-    char msg[BUFSIZ] = {0};
+    char msg[FC_BUFF_SIZE] = {0};
     unsigned char *sigbuff = NULL;
     unsigned int sigbufflen = 0;
 
-    if (buff[0] == IPV4) // ipv4
+    switch (buff[0]) // bmversion
     {
+    case FC_BM_VERSION: // current bm version
+        break;
+    default:
+        fprintf(stderr, "Not supported BM version: %d\n", buff[0]);
+        return -1;
+    }
+
+    // ipversion
+    switch (buff[1])
+    {
+    case IPV4: // ipv4
         ip_len = IP4_LENGTH;
-    }
-    else if (buff[0] == IPV6) // ipv6
-    {
+        break;
+    case IPV6: // ipv6
         ip_len = IP6_LENGTH;
-    }
-    else
-    {
-        DIAG_WARNING("Not supported now: %d\n", buff[0]);
+        break;
+    default:
+        fprintf(stderr, "Not supported IP version now: %d\n", buff[1]);
         return -1;
     }
 
     cur += FC_HDR_BM_FIX_LENGTH;
     memcpy(&bm, buff, cur);
 
+    bm.src_ip_num = ntohs(bm.src_ip_num);
+    bm.dst_ip_num = ntohs(bm.dst_ip_num);
+    bm.fc_num = ntohs(bm.fc_num);
     bm.siglen = ntohs(bm.siglen);
     bm.local_asn = ntohl(bm.local_asn);
     bm.version = ntohl(bm.version);
@@ -1494,8 +1509,7 @@ int fc_server_bm_handler(int clisockfd, char *buffer,
 
         // ret = fc_ecdsa_verify(node->pubkey,
         ret = fc_ecdsa_verify(g_fc_server.pubkey,
-                              msg, cur,
-                              bm.signature, bm.siglen);
+                              msg, cur, bm.signature, bm.siglen);
         switch (ret)
         {
         case 1:
@@ -1528,7 +1542,8 @@ int fc_server_handler(int clisockfd, char *buff, int buffsize, int recvlen)
 
     memcpy(&bufflen, &buff[2], sizeof(u16));
     bufflen = ntohs(bufflen);
-    printf("bufflen: %d, recvlen: %d\n", bufflen, recvlen);
+    printf("bufflen: %d, recvlen: %d, fc-version: %d\n",
+           bufflen, recvlen, buff[0]);
 
     if (buff[0] == FC_VERSION)
     {
@@ -1536,15 +1551,12 @@ int fc_server_handler(int clisockfd, char *buff, int buffsize, int recvlen)
         {
         case FC_MSG_PUBKEY: // pubkey
             DIAG_WARNING("Not support pubkey\n");
-            // TODO length
             fc_server_pubkey_handler(clisockfd, buff, recvlen);
             return 0;
         case FC_MSG_BGPD: // bm
-                          // TODO length
             fc_server_bm_handler(clisockfd, buff, recvlen, FC_MSG_BGPD);
             break;
         case FC_MSG_BC: // broadcast msg
-                        // TODO length
             fc_server_bm_handler(clisockfd, buff, recvlen, FC_MSG_BC);
             break;
         case FC_MSG_TOPO:
@@ -1724,15 +1736,22 @@ void fc_server_destroy(int signum)
         fc_hashtable_destroy(&g_fc_server.ht_prefix);
         ht_aclinfo_destroy(g_fc_server.ht_aclinfo);
 
-        EC_KEY_free(g_fc_server.pubkey);
-        g_fc_server.pubkey = NULL;
+        if (g_fc_server.pubkey)
+        {
+            EC_KEY_free(g_fc_server.pubkey);
+            g_fc_server.pubkey = NULL;
+        }
 
-        EC_KEY_free(g_fc_server.prikey);
-        g_fc_server.prikey = NULL;
+        if (g_fc_server.prikey)
+        {
+            EC_KEY_free(g_fc_server.prikey);
+            g_fc_server.prikey = NULL;
+        }
 
         FC_MEM_FREE(g_fc_server.prikey_fname);
         FC_MEM_FREE(g_fc_server.certs_location);
         FC_MEM_FREE(g_fc_server.config_fname);
+        FC_MEM_FREE(g_fc_server.fc_db_fname);
 
         printf("bye bye!\n");
         exit(EXIT_SUCCESS);

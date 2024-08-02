@@ -34,6 +34,11 @@
 #define FC_EPOLL_MAX_EVENTS 32
 #define FC_SOCK_BACKLOG 32
 
+#define FC_BM_PATH_NODE_TYPE_ONPATH 0x00
+#define FC_BM_PATH_NODE_TYPE_OFFPATH 0x80
+#define FC_BM_UPDATE_TYPE_ADD 0x00
+#define FC_BM_UPDATE_TYPE_DEL 0x40
+
 extern int fc_main();
 extern int fc_server_create(void);
 extern void fc_server_destroy(int signum);

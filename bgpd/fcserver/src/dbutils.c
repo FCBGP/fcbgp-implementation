@@ -59,13 +59,13 @@ int fc_db_exec(sqlite3 *db, const char *sql,
 
 int fc_db_write_bm(const FC_msg_bm_t *bm)
 {
-    char sql[BUFSIZ] = {0};
+    char *sql = calloc(FC_BUFF_SIZE, sizeof(char));
     // base64 encode
-    char buff_src_ip[FC_BUFF_SIZE] = {0};
-    char buff_dst_ip[FC_BUFF_SIZE] = {0};
-    char buff_fclist[FC_BUFF_SIZE] = {0};
+    char *buff_src_ip = calloc(FC_BUFF_SIZE, sizeof(char));
+    char *buff_dst_ip = calloc(FC_BUFF_SIZE, sizeof(char));
+    char *buff_fclist = calloc(FC_BUFF_SIZE, sizeof(char));
     char buff_ski[FC_BUFF_SIZE256] = {0};
-    char buff_signature[FC_BUFF_SIZE] = {0};
+    char buff_signature[BUFSIZ] = {0};
     // char buff[BUFSIZ] = {0};
     int cur = 0, i = 0;
     socklen_t socklen;
@@ -114,7 +114,6 @@ int fc_db_write_bm(const FC_msg_bm_t *bm)
 
     // base64 encode dst_ip
     cur = 0;
-    // memset(buff_dst_ip, 0, BUFSIZ);
     for (i = 0; i < bm->dst_ip_num; ++i)
     {
         if (bm->ipversion == IPV4)
@@ -189,21 +188,53 @@ int fc_db_write_bm(const FC_msg_bm_t *bm)
     cur = 0;
     for (int j = 0; j < bm->siglen; ++j)
     {
-        snprintf(buff_signature + cur, FC_BUFF_SIZE, "%02X",
+        snprintf(buff_signature + cur, BUFSIZ, "%02X",
                  bm->signature[j]);
         cur += 2;
-        FC_MEM_CHECK(cur >= FC_BUFF_SIZE);
+        FC_MEM_CHECK(cur >= BUFSIZ);
     }
     printf("signature: %s\n", buff_signature);
-    snprintf(sql, BUFSIZ,
-             "INSERT INTO fcs VALUES(%u, %u, %u, %u, %u, %u, %u, %u, %u, "
-             "%u, '%s', '%s', '%s', '%s', '%s')",
-             bm->ipversion, bm->type, bm->action, bm->fc_num,
-             bm->src_ip_num, bm->dst_ip_num, bm->siglen, bm->local_asn,
-             bm->version, bm->subversion, buff_src_ip, buff_dst_ip,
+    /*
+                 "bmversion INT NOT NULL,"
+                 "ipversion INT NOT NULL,"
+                 "flags INT NOT NULL,"
+                 "algoid INT NOT NULL,"
+                 "src_ip_num INT NOT NULL,"
+                 "dst_ip_num INT NOT NULL,"
+                 "fc_num INT NOT NULL,"
+                 "siglen INT NOT NULL,"
+                 "local_asn INT NOT NULL,"
+                 "version INT NOT NULL,"
+                 "subversion INT NOT NULL,"
+                 "src_ip VARCHAR NOT NULL,"
+                 "dst_ip VARCHAR NOT NULL,"
+                 "fclist VARCHAR NOT NULL,"
+                 "ski CHAR(20) NOT NULL,"
+                 "signature VARCHAR NOT NULL)");
+                 */
+    snprintf(sql, FC_BUFF_SIZE,
+             "INSERT INTO fcs (bmversion, ipversion, flags, algoid, "
+             "src_ip_num, dst_ip_num, fc_num, siglen, "
+             "local_asn, version, subversion, "
+             "src_ip, dst_ip, "
+             "fclist, ski, signature)"
+             "VALUES(%u, %u, %u, %u, "
+             "%u, %u, %u, %u, "
+             "%u, %u, %u, "
+             "'%s', '%s', "
+             "'%s', '%s', '%s')",
+             bm->bmversion, bm->ipversion, bm->flags, bm->algoid,
+             bm->src_ip_num, bm->dst_ip_num, bm->fc_num, bm->siglen,
+             bm->local_asn, bm->version, bm->subversion,
+             buff_src_ip, buff_dst_ip,
              buff_fclist, buff_ski, buff_signature);
     printf("SQL: %s\n", sql);
     fc_db_exec(g_fc_server.db, sql, fc_db_store_bm_handler, NULL);
+
+    FC_MEM_FREE(sql);
+    FC_MEM_FREE(buff_src_ip);
+    FC_MEM_FREE(buff_dst_ip);
+    FC_MEM_FREE(buff_fclist);
 
     return 0;
 }
@@ -218,7 +249,7 @@ void fc_db_init(sqlite3 **db)
 {
     char sql[BUFSIZ];
 
-    fc_db_open(db, FC_DB_NAME);
+    fc_db_open(db, g_fc_server.fc_db_fname);
 
     if (g_fc_server.clear_fc_db)
     {
@@ -230,21 +261,22 @@ void fc_db_init(sqlite3 **db)
 
     bzero(sql, BUFSIZ);
     sprintf(sql, "CREATE TABLE fcs("
+                 "bmversion INT NOT NULL,"
                  "ipversion INT NOT NULL,"
-                 "type INT NOT NULL,"
-                 "action INT NOT NULL,"
-                 "fc_num INT NOT NULL,"
+                 "flags INT NOT NULL,"
+                 "algoid INT NOT NULL,"
                  "src_ip_num INT NOT NULL,"
                  "dst_ip_num INT NOT NULL,"
+                 "fc_num INT NOT NULL,"
                  "siglen INT NOT NULL,"
                  "local_asn INT NOT NULL,"
                  "version INT NOT NULL,"
                  "subversion INT NOT NULL,"
-                 "src_ip CHAR(1024) NOT NULL,"
-                 "dst_ip CHAR(1024) NOT NULL,"
-                 "fclist CHAR(2048) NOT NULL,"
+                 "src_ip VARCHAR NOT NULL,"
+                 "dst_ip VARCHAR NOT NULL,"
+                 "fclist VARCHAR NOT NULL,"
                  "ski CHAR(20) NOT NULL,"
-                 "signature CHAR(1024) NOT NULL)");
+                 "signature VARCHAR NOT NULL)");
     printf("sql: %s\n", sql);
     fc_db_exec(*db, sql, NULL, NULL);
     // bzero(sql, 1024);

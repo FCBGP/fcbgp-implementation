@@ -2097,7 +2097,9 @@ static int bgp_update_receive(struct peer *peer, bgp_size_t size)
 
             if (check_flag)
             {
+                u8 bmversion = FC_BM_VERSION;
                 u8 ipversion = 0;
+                u16 fc_num = fclist->size;
                 bmbuff[bmbufflen ++] = FC_VERSION;          // version
                 bmbuff[bmbufflen ++] = FC_MSG_BGPD;         // type
                 memset(bmbuff+bmbufflen, 0, sizeof(u16));    // length
@@ -2111,24 +2113,28 @@ static int bgp_update_receive(struct peer *peer, bgp_size_t size)
                 {
                     ipversion = IPV6;
                 }
+                bmbuff[bmbufflen++] = bmversion;             // bmversion
                 bmbuff[bmbufflen++] = ipversion;             // ipversion
-                bmbuff[bmbufflen++] = FC_NODE_TYPE_ONPATH;   // node's type
-                bmbuff[bmbufflen++] = FC_ACTION_ADD_UPDATE;  // action
-                bmbuff[bmbufflen++] = fclist->size;          // fc_num
-
+                bmbuff[bmbufflen++] = FC_NODE_TYPE_ONPATH |  // node's type
+                                      FC_ACTION_ADD_UPDATE;  // action
+                bmbuff[bmbufflen++] = FC_ALGO_ID;            // algo id
                 int fc_bm_srcipnum_pos = bmbufflen;
-                bmbuff[bmbufflen] = 0; // src_ip_num
-                bmbufflen += sizeof(u8);
-                bmbuff[bmbufflen] = 1; // dst_ip_num
-                bmbufflen += sizeof(u8);
-                memset(bmbuff+bmbufflen, 0, sizeof(u16)); // siglen
+                bmbuff[bmbufflen] = 0;                       // src_ip_num
                 bmbufflen += sizeof(u16);
-                local_asn = htonl(peer->local_as);  // local asn
+                int fc_bm_dstipnum_pos = bmbufflen;          // dst_ip_num
+                bmbuff[bmbufflen] = 0;
+                bmbufflen += sizeof(u16);
+                fc_num = htons(fc_num);                      // fc_num
+                memcpy(bmbuff+bmbufflen, &fc_num, sizeof(u16));
+                bmbufflen += sizeof(u16);
+                bmbuff[bmbufflen] = 0;                       // siglen
+                bmbufflen += sizeof(u16);
+                local_asn = htonl(peer->local_as);           // local asn
                 memcpy(bmbuff+bmbufflen, &local_asn, sizeof(u32));
                 bmbufflen += sizeof(u32);
-                memset(bmbuff+bmbufflen, 0, sizeof(u32)); // version
+                memset(bmbuff+bmbufflen, 0, sizeof(u32));    // version
                 bmbufflen += sizeof(u32);
-                memset(bmbuff+bmbufflen, 0, sizeof(u32)); // subversion
+                memset(bmbuff+bmbufflen, 0, sizeof(u32));    // subversion
                 bmbufflen += sizeof(u32);
                 // srcip
                 // find current bgp
@@ -2148,14 +2154,14 @@ static int bgp_update_receive(struct peer *peer, bgp_size_t size)
 
                 if (currbgp)
                 {
-                    int wanted_src = 0;
+                    int wanted_src_ip_num = 0;
                     for (j=0; j<currbgp->ipsrcs_size; ++j)
                     {
                         /* only ipv4 or ipv6 is needed, not both */
                         if (fclist->ipprefix.family ==
                                 currbgp->ipsrcs[j].family)
                         {
-                            wanted_src ++;
+                            wanted_src_ip_num ++;
                             if (currbgp->ipsrcs[j].family == AF_INET)
                             {
                                 memcpy(bmbuff+bmbufflen,
@@ -2175,7 +2181,9 @@ static int bgp_update_receive(struct peer *peer, bgp_size_t size)
                             bmbufflen += sizeof(u8);
                         }
                     }
-                    bmbuff[fc_bm_srcipnum_pos] = wanted_src;
+                    wanted_src_ip_num = htons(wanted_src_ip_num);
+                    memcpy(bmbuff+fc_bm_srcipnum_pos,
+                           &wanted_src_ip_num, sizeof(u16));
                 }
 
                 // dstip x.x.x.x/x but in bit fmt
@@ -2193,6 +2201,8 @@ static int bgp_update_receive(struct peer *peer, bgp_size_t size)
                 }
                 bmbuff[bmbufflen] = (u8)fclist->ipprefix.prefixlen;
                 bmbufflen += sizeof(u8);
+                u16 dstipnum = htons(1);
+                memcpy(bmbuff+fc_bm_dstipnum_pos, &dstipnum, sizeof(u16));
                 // fclist
                 memcpy(bmbuff+bmbufflen, fcbuff, fclist->length);
                 bmbufflen += fclist->length;

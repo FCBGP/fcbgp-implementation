@@ -58,6 +58,7 @@ typedef uint64_t  u64;
 #define TCP_PROTO                       0x06
 
 #define FC_VERSION                      1
+#define FC_BM_VERSION                   1
 #define FC_BUFF_SIZE                    1000007
 #define FCSRV_HTBL_BUCKETS_SIZE         1000007
 #define FCSRV_MAX_LINK_AS               256
@@ -74,27 +75,31 @@ typedef uint64_t  u64;
 #define FC_MSG_BGPD                     2
 #define FC_MSG_BC                       3
 
-#define FC_NODE_TYPE_ONPATH             1
-#define FC_NODE_TYPE_OFFPATH            2
+#define FC_NODE_TYPE_ONPATH             0x00
+#define FC_NODE_TYPE_OFFPATH            0x80
 
-#define FC_ACTION_ADD_UPDATE            1
-#define FC_ACTION_DEL_WITHDRAW          2
+#define FC_ACTION_ADD_UPDATE            0x00
+#define FC_ACTION_DEL_WITHDRAW          0x40
+
+#define FC_ALGO_ID                      0x01
 
 #define FC_CONFIG_FILE "/etc/frr/assets/config.json"
 
-#define FC_ASSERT_RET(ret)                                     \
+#define FC_ASSERT_RET(ret)                                  \
     do {                                                    \
         if (ret != 0) {                                     \
             fprintf(stderr, "%s:%d error: ret is not 0\n",  \
                     __func__, __LINE__);                    \
+            exit(-1);                                       \
         }                                                   \
     } while (0)                                             \
 
-#define FC_ASSERT_RETP(retp)                                       \
+#define FC_ASSERT_RETP(retp)                                    \
     do {                                                        \
         if (pret == 0) {                                        \
             fprintf(stderr, "%s:%d error: pointer is NULL\n",   \
                     __func__, __LINE__);                        \
+            exit(-1);                                           \
         }                                                       \
     } while (0)
 
@@ -216,14 +221,16 @@ typedef struct FC_msg_hdr_st
 
 typedef struct FC_msg_bm_st
 {
-    u8 ipversion;       // IPV4 for ipv4, IPV6 for ipv6
-    u8 type;            // 0 for onpath nodes, 1 for offpath
-    u8 action;          // 0 for add/update, 1 for del/withdraw
-    u8 fc_num;          // num of fc in fclist, boundary
-    u8 src_ip_num;      // src ip prefix num, boundary
-    u8 dst_ip_num;      // dst ip prefix num, boundary
+    u8 bmversion;  // version 0
+    u8 ipversion;  // 4 for ipv4, 6 for ipv6
+    u8 flags;       // 1st bit, 0x00 for onpath nodes, 0x80 for offpath,
+                    // 2nd bit, 0x00 for add/update, 0x40 for del/withdraw
+    u8 algoid;     // 0 for add/update, 1 for del/withdraw
+    u16 src_ip_num; // src ip prefix num, boundary
+    u16 dst_ip_num; // dst ip prefix num, boundary
+    u16 fc_num;     // num of fc in fclist, boundary
     u16 siglen;
-    u32 local_asn;      // local as number
+    u32 local_asn; // local as number
     u32 version;
     u32 subversion;
     FC_ip_t src_ip[FCSRV_MAX_SRC_PREFIX];

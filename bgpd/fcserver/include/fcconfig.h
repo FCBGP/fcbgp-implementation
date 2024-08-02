@@ -16,6 +16,7 @@
 #define FC_CFG_DEFAULT_LOG_LEVEL FC_LOG_LEVEL_INFO
 #define FC_CFG_DEFAULT_DP_MODE "NONE"
 #define FC_CFG_DEFAULT_CONFIG_FNAME "/etc/frr/assets/config.json"
+#define FC_CFG_DEFAULT_DB_NAME "/etc/frr/assets/fc.db"
 
 // optional configurations which have default value
 extern int fc_cfg_set_listen_port(int listen_port);

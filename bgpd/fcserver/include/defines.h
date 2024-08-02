@@ -23,17 +23,18 @@
 
 #define STR(x) #x
 #define FC_MAJOR_VERSION STR(0)
-#define FC_MINOR_VERSION STR(1)
-#define FC_PATCH_VERSION STR(6)
+#define FC_MINOR_VERSION STR(2)
+#define FC_PATCH_VERSION STR(0)
 #define FC_PRJ_VERSION FC_MAJOR_VERSION "." FC_MINOR_VERSION "." FC_PATCH_VERSION
 #define FC_VERSION_STR "FC Server V" FC_PRJ_VERSION \
                        " compiled at " __DATE__ " " __TIME__ ""
 #define FC_SSL_VERSION "OpenSSL 3.0.2 15 Mar 2022"
 
 #define FC_VERSION 1
-#define FC_BUFF_SIZE 1024
+#define FC_BM_VERSION 1
+#define FC_BUFF_SIZE 1000007
 #define FC_BUFF_SIZE256 256
-#define FCSRV_HTBL_BUCKETS_SIZE 1023
+#define FCSRV_HTBL_BUCKETS_SIZE 1000007
 #define FCSRV_MAX_LINK_AS 256
 #define FCSRV_MAX_SRC_PREFIX 256
 
@@ -43,10 +44,9 @@
 
 #define FC_HDR_GENERAL_LENGTH 4
 #define FC_HDR_FC_FIX_LENGTH 36
-#define FC_HDR_BM_FIX_LENGTH 20
-#define FC_HDR_BM_SIGLEN_POS 6
+#define FC_HDR_BM_FIX_LENGTH 24
+#define FC_HDR_BM_SIGLEN_POS 10
 
-#define FC_DB_NAME "/etc/frr/assets/fc.db"
 #define FC_NFT_PROG_POS "/usr/sbin/nft"
 
 enum
@@ -261,12 +261,14 @@ typedef struct FC_msg_hdr_st
 
 typedef struct FC_msg_bm_st
 {
+    u8 bmversion;  // version 0
     u8 ipversion;  // 4 for ipv4, 6 for ipv6
-    u8 type;       // 0 for onpath nodes, 1 for offpath
-    u8 action;     // 0 for add/update, 1 for del/withdraw
-    u8 fc_num;     // num of fc in fclist, boundary
-    u8 src_ip_num; // src ip prefix num, boundary
-    u8 dst_ip_num; // dst ip prefix num, boundary
+    u8 flags;       // 1st bit, 0x00 for onpath nodes, 0x80 for offpath,
+                    // 2nd bit, 0x00 for add/update, 0x40 for del/withdraw
+    u8 algoid;     // 0 for add/update, 1 for del/withdraw
+    u16 src_ip_num; // src ip prefix num, boundary
+    u16 dst_ip_num; // dst ip prefix num, boundary
+    u16 fc_num;     // num of fc in fclist, boundary
     u16 siglen;
     u32 local_asn; // local as number
     u32 version;
@@ -342,6 +344,7 @@ typedef struct FC_server_s
     mln_hash_t *ht_aclinfo;
 
     ncs6_ctx_t *fc_bgpd_ctx6;
+    char *fc_db_fname;
     char *config_fname;
     char *prikey_fname;
     char *certs_location;

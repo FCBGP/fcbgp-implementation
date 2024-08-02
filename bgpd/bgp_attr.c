@@ -4823,7 +4823,7 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
 
         // if (flag)
         {
-            int i = 0, j = 0, ret = 0;
+            int i = 0, j = 0;
             int msglen = 0, fcbufflen = 0, fcnum = 0;
             u8 prefixlen = 0;
             size_t fclist_sizep = 0, length = 0;
@@ -4880,7 +4880,6 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
                 msglen += sizeof(struct in6_addr);
             }
             prefixlen = (u8) prefix_for_fc->prefixlen;
-            zlog_err("prefixlen: %u", prefixlen);
             memcpy(msg+msglen, &prefixlen, sizeof(u8));
             msglen += sizeof(u8);
             unsigned int haha = 0;
@@ -4889,6 +4888,7 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
                zlog_debug("%02X  ", msg[haha]);
             }
 
+            int ret = 0;
             ret = fc_ecdsa_sign(bm->prikey,
                     msg, msglen, &sigbuff, &sigbufflen);
             if (ret > 0)

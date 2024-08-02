@@ -1,9 +1,22 @@
 # CHANGELOG
 
+## 2024.08.02
+
+- [x] v0.2.0
+- [x] `fc_db_fname` in config.json
+- [x] incrementing src prefix size in FCserver.
+- [x] changing FC BM msg format.
+
+## 2024.08.02
+
+- [x] v0.1.7
+- [x] incrementing bgpd max src prefix size.
+
 ## 2024.07.22
 
 - [x] v0.1.6
 - [x] FCServer listen TCP port 23160 => 23162
+- [x] self-defined listen port
 - [x] supported SHA1\MD5\CRC32 hash algorithms.
 
 ## 2024.05.23

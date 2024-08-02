@@ -103,6 +103,8 @@ int fc_set_listen_port(int listen_port)
 {
     if (listen_port <= 0 || listen_port > 65535)
     {
+        g_fc_server.listen_port = FC_CFG_DEFAULT_LISTEN_PORT;
+    } else {
         g_fc_server.listen_port = listen_port;
     }
     return 0;
@@ -239,6 +241,21 @@ fc_json_read_local_asn(const cJSON *const root)
     elem = cJSON_GetObjectItem(root, "local_asn");
     FC_ASSERT_RETP(elem);
     fc_cfg_set_local_asn(elem->valueint);
+}
+
+static void
+fc_json_read_fc_db_fname(const cJSON *const root)
+{
+    cJSON *elem = NULL;
+    elem = cJSON_GetObjectItem(root, "fc_db_fname");
+    if (elem)
+    {
+        g_fc_server.fc_db_fname = strdup(elem->valuestring);
+    }
+    else
+    {
+        g_fc_server.fc_db_fname = strdup(FC_CFG_DEFAULT_DB_NAME);
+    }
 }
 
 static void
@@ -392,7 +409,7 @@ fc_json_read_router_info_list(const cJSON *const root)
     }
 }
 
-static void fc_json_read_as_info_list(const cJSON *const root)
+static int fc_json_read_as_info_list(const cJSON *const root)
 {
     int i = 0, j = 0, ret = 0;
     char *fpath = NULL;
@@ -484,10 +501,13 @@ static void fc_json_read_as_info_list(const cJSON *const root)
         }
         printf("====================================================\n");
     }
+
+    return 0;
 }
 
 int fc_read_config(void)
 {
+    int ret = 0;
     cJSON *root = NULL;
 
     root = fc_cjson_root_ptr(g_fc_server.config_fname);
@@ -501,11 +521,12 @@ int fc_read_config(void)
     fc_json_read_as_info_list(root);
 
     // optional configurations which have default values
+    fc_json_read_fc_db_fname(root);
     fc_json_read_listen_port(root);
     fc_json_read_hash_algo_id(root);
     fc_json_read_log_mode(root);
-    fc_json_read_clear_fc_db(root); // clear fc db
-    fc_json_read_dp_mode(root);     // use data plane - none, linux(nftables), h3c, vpp
+    fc_json_read_clear_fc_db(root);
+    fc_json_read_dp_mode(root);     // none, linux(nftables), h3c, vpp
 
     cJSON_Delete(root);
 
