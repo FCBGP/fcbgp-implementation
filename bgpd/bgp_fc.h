@@ -58,8 +58,8 @@ typedef uint64_t  u64;
 #define TCP_PROTO                       0x06
 
 #define FC_VERSION                      1
-#define FC_BUFF_SIZE                    2048
-#define FCSRV_HTBL_BUCKETS_SIZE         1023
+#define FC_BUFF_SIZE                    1000007
+#define FCSRV_HTBL_BUCKETS_SIZE         1000007
 #define FCSRV_MAX_LINK_AS               256
 #define FCSRV_MAX_SRC_PREFIX            256
 

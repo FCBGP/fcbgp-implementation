@@ -351,7 +351,7 @@ struct as_confed {
 struct bgp {
 #ifdef USE_FC
     int ipsrcs_size;
-#define FC_MAX_PREFIX_SIZE 1024
+#define FC_MAX_PREFIX_SIZE 1000007
     struct prefix ipsrcs[FC_MAX_PREFIX_SIZE];
 #endif
 	/* AS number of this BGP instance.  */
