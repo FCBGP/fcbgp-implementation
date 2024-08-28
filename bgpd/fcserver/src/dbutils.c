@@ -59,6 +59,7 @@ int fc_db_exec(sqlite3 *db, const char *sql,
 
 int fc_db_write_bm(const FC_msg_bm_t *bm)
 {
+    printf("\033[35m### WRITE TO DB START ###\033[0m\n");
     char *sql = calloc(FC_BUFF_SIZE, sizeof(char));
     // base64 encode
     char *buff_src_ip = calloc(FC_BUFF_SIZE, sizeof(char));
@@ -106,7 +107,7 @@ int fc_db_write_bm(const FC_msg_bm_t *bm)
         snprintf(buff_src_ip + cur, FC_BUFF_SIZE, "/%d,",
                  bm->src_ip[i].prefix_length);
         cur += strlen(buff_src_ip + cur);
-        FC_MEM_CHECK(cur >= FC_BUFF_SIZE);
+        FC_MEM_CHECK(cur < FC_BUFF_SIZE);
     }
     printf("src-ip: %s\n", buff_src_ip);
 
@@ -130,7 +131,7 @@ int fc_db_write_bm(const FC_msg_bm_t *bm)
         snprintf(buff_dst_ip + cur, FC_BUFF_SIZE,
                  "/%d,", bm->dst_ip[i].prefix_length);
         cur += strlen(buff_dst_ip + cur);
-        FC_MEM_CHECK(cur >= FC_BUFF_SIZE);
+        FC_MEM_CHECK(cur < FC_BUFF_SIZE);
     }
     printf("dst-ip: %s\n", buff_dst_ip);
     // fc_base64_encode(buff, cur, buff_dst_ip);
@@ -147,7 +148,7 @@ int fc_db_write_bm(const FC_msg_bm_t *bm)
         cur += 8 * 3 + 3;
         for (int j = 0; j < 20; ++j)
         {
-            snprintf(buff_fclist + cur, BUFSIZ, "%02X",
+            snprintf(buff_fclist + cur, FC_BUFF_SIZE, "%02X",
                      bm->fclist[i].ski[j]);
             cur += 2;
         }
@@ -165,7 +166,7 @@ int fc_db_write_bm(const FC_msg_bm_t *bm)
         snprintf(buff_fclist + cur, FC_BUFF_SIZE, ",");
         cur += 1;
         // printf("i: %d, curlen: %d, fclist: %s\n", i, cur, buff_fclist);
-        FC_MEM_CHECK(cur >= FC_BUFF_SIZE);
+        FC_MEM_CHECK(cur < FC_BUFF_SIZE);
     }
     // fc_base64_encode(buff, cur, buff_fclist);
 
@@ -180,9 +181,9 @@ int fc_db_write_bm(const FC_msg_bm_t *bm)
     for (int j = 0; j < 20; ++j)
     {
         snprintf(buff_ski + cur, FC_BUFF_SIZE256, "%02X",
-                 bm->fclist[i].ski[j]);
+                 bm->ski[j]);
         cur += 2;
-        FC_MEM_CHECK(cur >= FC_BUFF_SIZE256);
+        FC_MEM_CHECK(cur < FC_BUFF_SIZE256);
     }
     // signature
     cur = 0;
@@ -191,7 +192,7 @@ int fc_db_write_bm(const FC_msg_bm_t *bm)
         snprintf(buff_signature + cur, BUFSIZ, "%02X",
                  bm->signature[j]);
         cur += 2;
-        FC_MEM_CHECK(cur >= BUFSIZ);
+        FC_MEM_CHECK(cur < BUFSIZ);
     }
     printf("signature: %s\n", buff_signature);
     /*
@@ -236,6 +237,7 @@ int fc_db_write_bm(const FC_msg_bm_t *bm)
     FC_MEM_FREE(buff_dst_ip);
     FC_MEM_FREE(buff_fclist);
 
+    printf("\033[35m### WRITE TO DB END ###\033[0m\n");
     return 0;
 }
 

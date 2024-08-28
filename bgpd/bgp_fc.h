@@ -221,7 +221,7 @@ typedef struct FC_msg_hdr_st
 
 typedef struct FC_msg_bm_st
 {
-    u8 bmversion;  // version 0
+    u8 bmversion;
     u8 ipversion;  // 4 for ipv4, 6 for ipv6
     u8 flags;       // 1st bit, 0x00 for onpath nodes, 0x80 for offpath,
                     // 2nd bit, 0x00 for add/update, 0x40 for del/withdraw

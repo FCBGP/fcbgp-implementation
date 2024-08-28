@@ -7,11 +7,11 @@
  *  and also distinguish it with getsockopt.
  ********************************************************************************/
 
-#include <stdbool.h>
 #include <Python.h>
 #include <arpa/inet.h>
 #include <ctype.h>
 #include <netinet/in.h>
+#include <stdbool.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <time.h>
@@ -290,7 +290,7 @@ fc_mlp_server_epoll()
             {
                 /* an error has occured on this fd,
                  * or the socket is not ready for reading */
-                DIAG_ERROR("epoll error\n");
+                fprintf(stderr, "epoll error\n");
                 /* closing the descriptor will make epoll remove it
                  * from the set of fds which are monitored. */
                 close(events[i].data.fd);
@@ -334,6 +334,7 @@ fc_mlp_server_epoll()
                     /* closing the descriptor will make epoll remove it
                      * from the set of fds which are monitored. */
                     close(events[i].data.fd);
+                    printf("#################################################\n\n\n");
                 }
             }
         }
@@ -387,7 +388,8 @@ fc_ncs_server()
 {
     if ((g_fc_server.fc_bgpd_ctx6 = ncs6_create(g_fc_server.prog_name, TCP_PROTO)) == NULL)
     {
-        DIAG_ERROR("create bgpd ncs failed\n");
+        DIAG_ERROR("Create bgpd ncs failed\n");
+        fprintf(stderr, "Create bgpd ncs failed\n");
         exit(-ENOMEM);
     }
 
@@ -728,7 +730,7 @@ static int
 fc_server_topo_del(FC_router_info_t *target_router,
                    u32 neighbor_num, const char *buff, int currlen)
 {
-    int i = 0, j = 0, k = 0;
+    int i = 0, k = 0;
     u32 neighbor_asn = 0, il_num = 0, iface_index = 0;
     u32 *iface_list = NULL;
     FC_router_link_info_t *link_info = NULL, *prev_link_info = NULL;
@@ -788,7 +790,7 @@ fc_server_topo_del(FC_router_info_t *target_router,
             for (k = 0; k < il_num; ++k)
             {
                 // iface
-                u32 iface_index = ntohl(iface_list[k]);
+                iface_index = ntohl(iface_list[k]);
                 fc_server_topo_del_one_link(link_info, iface_index);
             }
         }
@@ -957,10 +959,11 @@ int fc_server_topo_handler(int clisockfd, const char *buff, int len)
 
     return 0;
 }
+
 static int
 fc_bm_verify_fc(FC_msg_bm_t *bm)
 {
-    char msg[FC_BUFF_SIZE];
+    u8 msg[FC_BUFF_SIZE];
     int ret = 0;
     int msglen = 0;
     int i = 0, j = 0;
@@ -972,9 +975,9 @@ fc_bm_verify_fc(FC_msg_bm_t *bm)
         msglen = 0;
         // hash(prev_asn, curr_asn, next_asn, dst_ip, prefixlen)
         // asn
-        previous_asn = ntohl(bm->fclist[i].previous_asn);
-        current_asn = ntohl(bm->fclist[i].current_asn);
-        nexthop_asn = ntohl(bm->fclist[i].nexthop_asn);
+        previous_asn = htonl(bm->fclist[i].previous_asn);
+        current_asn = htonl(bm->fclist[i].current_asn);
+        nexthop_asn = htonl(bm->fclist[i].nexthop_asn);
         memcpy(msg + msglen, &previous_asn, sizeof(u32));
         msglen += sizeof(u32);
         memcpy(msg + msglen, &current_asn, sizeof(u32));
@@ -1001,6 +1004,13 @@ fc_bm_verify_fc(FC_msg_bm_t *bm)
             msglen += 1;
         }
 
+        printf("raw msg for verify fc: ");
+        for (int k = 0; k < msglen; ++k)
+        {
+            printf("%02X", msg[k]);
+        }
+        printf("\n");
+
         FC_ht_node_as_t *node;
         FC_node_as_t meta = {0};
         meta.asn = bm->fclist[i].current_asn;
@@ -1014,13 +1024,13 @@ fc_bm_verify_fc(FC_msg_bm_t *bm)
             printf("%02X", g_fc_server.ski[k]);
         }
         printf("\n");
-        // printf("bm.ski: ");
-        // for (int k = 0; k < FC_SKI_LENGTH; ++k)
-        // {
-        //     printf("%02X", bm->ski[k]);
-        // }
+        printf("bm.ski: ");
+        for (int k = 0; k < FC_SKI_LENGTH; ++k)
+        {
+            printf("%02X", bm->ski[k]);
+        }
         printf("\n");
-        printf("\033[42;31m node.ski: \033[0m");
+        printf("node.ski: ");
         for (int k = 0; k < FC_SKI_LENGTH; ++k)
         {
             printf("%02X", node->ski[k]);
@@ -1299,17 +1309,102 @@ fc_gen_acl(int clisockfd, const FC_msg_bm_t *bm)
     return 0;
 }
 
+static void fc_bm_print(const FC_msg_bm_t *bm)
+{
+    int i = 0, j = 0;
+    struct sockaddr_in *in4 = NULL;
+    struct sockaddr_in6 *in6 = NULL;
+    char ipstr[INET6_ADDRSTRLEN];
+    printf("bm version: %d\n", bm->bmversion);
+    printf("ip version: %d\n", bm->ipversion);
+    printf("flags: %02X\n", bm->flags);
+    printf("algoid: %d\n", bm->algoid);
+    printf("src ip prefix num: %d\n", bm->src_ip_num);
+    printf("dst ip prefix num: %d\n", bm->dst_ip_num);
+    printf("fc num: %d\n", bm->fc_num);
+    printf("siglen: %d\n", bm->siglen);
+    printf("local_asn: %08X\n", bm->local_asn);
+    printf("version: %08X\n", bm->version);
+    printf("subversion: %08X\n", bm->subversion);
+
+    printf("src ip prefix:\n");
+    for (i = 0; i < bm->src_ip_num; ++i)
+    {
+        memset(ipstr, 0, INET6_ADDRSTRLEN);
+        printf("  idx: %d, ", i);
+        switch (bm->ipversion)
+        {
+        case IPV4:
+            inet_ntop(AF_INET,
+                      &((struct sockaddr_in *)&bm->src_ip[i].ip)->sin_addr,
+                      ipstr, sizeof(struct sockaddr_in));
+            printf("%s/%d\n", ipstr, bm->src_ip[i].prefix_length);
+            break;
+        case IPV6:
+            inet_ntop(AF_INET6,
+                      &((struct sockaddr_in6 *)&bm->src_ip[i].ip)->sin6_addr,
+                      ipstr, sizeof(struct sockaddr_in6));
+            printf("%s/%d\n", ipstr, bm->src_ip[i].prefix_length);
+            break;
+        }
+    }
+    printf("dst ip prefix:\n");
+    for (i = 0; i < bm->dst_ip_num; ++i)
+    {
+        memset(ipstr, 0, INET6_ADDRSTRLEN);
+        printf("  idx: %d, ", i);
+        switch (bm->ipversion)
+        {
+        case IPV4:
+            inet_ntop(AF_INET,
+                      &((struct sockaddr_in *)&bm->dst_ip[i].ip)->sin_addr,
+                      ipstr, sizeof(struct sockaddr_in));
+            printf("%s/%d\n", ipstr, bm->dst_ip[i].prefix_length);
+            break;
+        case IPV6:
+            inet_ntop(AF_INET6,
+                      &((struct sockaddr_in6 *)&bm->dst_ip[i].ip)->sin6_addr,
+                      ipstr, sizeof(struct sockaddr_in6));
+            printf("%s/%d\n", ipstr, bm->dst_ip[i].prefix_length);
+            break;
+        }
+    }
+    printf("fc list:\n");
+    for (i = 0; i < bm->dst_ip_num; ++i)
+    {
+        printf("  idx: %d, 3 asn: %d, %d, %d, algo-id: %d, flags: %d, siglen: %d sig: ",
+               i,
+               bm->fclist[i].previous_asn,
+               bm->fclist[i].current_asn,
+               bm->fclist[i].nexthop_asn,
+               bm->fclist[i].algo_id,
+               bm->fclist[i].flags,
+               bm->fclist[i].siglen);
+
+        for (int k = 0; k < bm->fclist[i].siglen; ++k)
+        {
+            printf("%02X", bm->fclist[i].sig[k]);
+        }
+        printf("\n");
+    }
+    printf("ski: ");
+    for (i = 0; i < FC_SKI_LENGTH; ++i)
+    {
+        printf("%02X", bm->ski[i]);
+    }
+    printf("\n");
+}
+
 // buff is starting from bm's ipversion
 // msg_type: is broadcast msg
 int fc_server_bm_handler(int clisockfd, char *buffer,
                          int bufferlen, int msg_type)
 {
-    // remove header
     char buff_new_msg[FC_BUFF_SIZE] = {0};
     memcpy(buff_new_msg, buffer, bufferlen);
     char *buff = buff_new_msg + FC_HDR_GENERAL_LENGTH;
 
-    u32 i = 0;
+    int i = 0;
     FC_msg_bm_t bm = {0};
     int cur = 0;
     int ret = 0;
@@ -1318,12 +1413,13 @@ int fc_server_bm_handler(int clisockfd, char *buffer,
     unsigned char *sigbuff = NULL;
     unsigned int sigbufflen = 0;
 
-    switch (buff[0]) // bmversion
+    // bmversion
+    switch (buff[0])
     {
     case FC_BM_VERSION: // current bm version
         break;
     default:
-        fprintf(stderr, "Not supported BM version: %d\n", buff[0]);
+        fprintf(stderr, "BM version %d is not supported\n", buff[0]);
         return -1;
     }
 
@@ -1337,7 +1433,7 @@ int fc_server_bm_handler(int clisockfd, char *buffer,
         ip_len = IP6_LENGTH;
         break;
     default:
-        fprintf(stderr, "Not supported IP version now: %d\n", buff[1]);
+        fprintf(stderr, "IP version %d is not supported now\n", buff[1]);
         return -1;
     }
 
@@ -1356,18 +1452,21 @@ int fc_server_bm_handler(int clisockfd, char *buffer,
     for (i = 0; i < bm.src_ip_num; ++i)
     {
         bm.src_ip[i].prefix_length = *(buff + cur + ip_len);
-        if (bm.ipversion == IPV4)
+        switch (bm.ipversion)
         {
-            struct sockaddr_in *addr = (struct sockaddr_in *)&bm.src_ip[i].ip;
-            addr->sin_family = AF_INET;
-            memcpy(&(addr->sin_addr), buff + cur, ip_len);
-            //    addr->sin_addr.s_addr = ntohl(addr->sin_addr.s_addr);
-        }
-        else
-        {
-            struct sockaddr_in6 *addr = (struct sockaddr_in6 *)&bm.src_ip[i].ip;
-            addr->sin6_family = AF_INET6;
-            memcpy(&(addr->sin6_addr), buff + cur, ip_len);
+        case IPV4:
+            struct sockaddr_in *in4 = (struct sockaddr_in *)&bm.src_ip[i].ip;
+            in4->sin_family = AF_INET;
+            memcpy(&(in4->sin_addr), buff + cur, ip_len);
+            //    in4->sin_addr.s_addr = ntohl(in4->sin_addr.s_addr);
+            break;
+        case IPV6:
+            struct sockaddr_in6 *in6 = (struct sockaddr_in6 *)&bm.src_ip[i].ip;
+            in6->sin6_family = AF_INET6;
+            memcpy(&(in6->sin6_addr), buff + cur, ip_len);
+            break;
+        default:
+            break;
         }
         cur += ip_len + 1;
     }
@@ -1376,17 +1475,20 @@ int fc_server_bm_handler(int clisockfd, char *buffer,
     for (i = 0; i < bm.dst_ip_num; ++i)
     {
         bm.dst_ip[i].prefix_length = *(buff + cur + ip_len);
-        if (bm.ipversion == IPV4)
+        switch (bm.ipversion)
         {
-            struct sockaddr_in *addr = (struct sockaddr_in *)&bm.dst_ip[i].ip;
-            addr->sin_family = AF_INET;
-            memcpy(&(addr->sin_addr), buff + cur, ip_len);
-            //   addr->sin_addr.s_addr = ntohl(addr->sin_addr.s_addr);
-        }
-        else
-        {
-            struct sockaddr_in6 *addr = (struct sockaddr_in6 *)&bm.dst_ip[i].ip;
-            memcpy(&(addr->sin6_addr), buff + cur, ip_len);
+        case IPV4:
+            struct sockaddr_in *in4 = (struct sockaddr_in *)&bm.dst_ip[i].ip;
+            in4->sin_family = AF_INET;
+            memcpy(&(in4->sin_addr), buff + cur, ip_len);
+            //   in4->sin_addr.s_addr = ntohl(in4->sin_addr.s_addr);
+            break;
+        case IPV6:
+            struct sockaddr_in6 *in6 = (struct sockaddr_in6 *)&bm.dst_ip[i].ip;
+            memcpy(&(in6->sin6_addr), buff + cur, ip_len);
+            break;
+        default:
+            break;
         }
         cur += ip_len + 1;
     }
@@ -1394,28 +1496,43 @@ int fc_server_bm_handler(int clisockfd, char *buffer,
     // fclist
     for (i = 0; i < bm.fc_num; ++i)
     {
-        memcpy(&bm.fclist[i], buff + cur, FC_HDR_FC_FIX_LENGTH);
-        cur += FC_HDR_FC_FIX_LENGTH;
-
-        bm.fclist[i].previous_asn = ntohl(bm.fclist[i].previous_asn);
-        bm.fclist[i].current_asn = ntohl(bm.fclist[i].current_asn);
-        bm.fclist[i].nexthop_asn = ntohl(bm.fclist[i].nexthop_asn);
-        bm.fclist[i].siglen = ntohs(bm.fclist[i].siglen);
-
+        u16 siglen = 0;
+        u32 asn = 0;
+        // pasn
+        memcpy(&asn, buff + cur, sizeof(u32));
+        cur += sizeof(u32);
+        bm.fclist[i].previous_asn = ntohl(asn);
+        // casn
+        memcpy(&asn, buff + cur, sizeof(u32));
+        cur += sizeof(u32);
+        bm.fclist[i].current_asn = ntohl(asn);
+        // nasn
+        memcpy(&asn, buff + cur, sizeof(u32));
+        cur += sizeof(u32);
+        bm.fclist[i].nexthop_asn = ntohl(asn);
+        // ski
+        memcpy(bm.fclist[i].ski, buff + cur, FC_SKI_LENGTH);
+        cur += FC_SKI_LENGTH;
+        // algo_id
+        memcpy(&bm.fclist[i].algo_id, buff + cur, sizeof(u8));
+        cur += sizeof(u8);
+        // flags
+        memcpy(&bm.fclist[i].flags, buff + cur, sizeof(u8));
+        cur += sizeof(u8);
+        // siglen
+        memcpy(&siglen, buff + cur, sizeof(u16));
+        cur += sizeof(u16);
+        bm.fclist[i].siglen = ntohs(siglen);
+        // sig
         memcpy(bm.fclist[i].sig, buff + cur, bm.fclist[i].siglen);
         cur += bm.fclist[i].siglen;
 
-        printf("3 asn: %d, %d, %d, algo-id: %d, flags: %d, siglen: %d\n",
-               bm.fclist[i].previous_asn,
-               bm.fclist[i].current_asn,
-               bm.fclist[i].nexthop_asn,
-               bm.fclist[i].algo_id,
-               bm.fclist[i].flags,
-               bm.fclist[i].siglen);
-
         if (bm.fclist[i].nexthop_asn == bm.fclist[i].previous_asn)
         {
-            printf("not needed fclist\n");
+            fprintf(stderr, "Not needed fclist, 3 asns: %08X %08X %08X\n",
+                    bm.fclist[i].previous_asn,
+                    bm.fclist[i].current_asn,
+                    bm.fclist[i].nexthop_asn);
             return -1;
         }
     }
@@ -1430,36 +1547,10 @@ int fc_server_bm_handler(int clisockfd, char *buffer,
     if (msg_type == FC_MSG_BGPD)
     {
         // add signature for sending to peers
-
         printf("prikey_fname: %s\n", g_fc_server.prikey_fname);
         fc_ecdsa_sign(g_fc_server.prikey, msg, cur, &sigbuff, &sigbufflen);
         memcpy(buff + cur, g_fc_server.ski, FC_SKI_LENGTH);
         memcpy(bm.ski, g_fc_server.ski, FC_SKI_LENGTH);
-
-#if 0
-        printf("buff_new.ski: ");
-        u8 tmp_ski[FC_SKI_LENGTH];
-        memcpy(tmp_ski, buff_new_msg+FC_HDR_GENERAL_LENGTH+cur, FC_SKI_LENGTH);
-        for (int k=0; k<FC_SKI_LENGTH; ++k)
-        {
-            printf("%02X", tmp_ski[k]);
-        }
-        printf("\n");
-        printf("buff.ski: ");
-        memcpy(tmp_ski, buff+cur, FC_SKI_LENGTH);
-        for (int k=0; k<FC_SKI_LENGTH; ++k)
-        {
-            printf("%02X", tmp_ski[k]);
-        }
-        printf("\n");
-        printf("g_fc_server.ski: ");
-        for (int k=0; k<FC_SKI_LENGTH; ++k)
-        {
-            printf("%02X", g_fc_server.ski[k]);
-        }
-        printf("\n");
-#endif
-
         memcpy(buff + cur + FC_SKI_LENGTH, sigbuff, sigbufflen);
         bm.siglen = sigbufflen;
         sigbufflen = htons(sigbufflen);
@@ -1524,6 +1615,7 @@ int fc_server_bm_handler(int clisockfd, char *buffer,
         }
     }
 
+    fc_bm_print(&bm);
     fc_gen_acl(clisockfd, &bm);
     fc_db_write_bm(&bm);
 
@@ -1532,8 +1624,9 @@ int fc_server_bm_handler(int clisockfd, char *buffer,
 
 int fc_server_handler(int clisockfd, char *buff, int buffsize, int recvlen)
 {
+    printf("\033[35m### Process One Packet Start ###\n\033[0m");
+   
     int bufflen = 0;
-
     // for (int i = 0; i < recvlen; i++)
     // {
     //     printf("\033[5m%02X", (uint8_t)buff[i]);
@@ -1550,7 +1643,7 @@ int fc_server_handler(int clisockfd, char *buff, int buffsize, int recvlen)
         switch (buff[1])
         {
         case FC_MSG_PUBKEY: // pubkey
-            DIAG_WARNING("Not support pubkey\n");
+            printf("Not support pubkey\n");
             fc_server_pubkey_handler(clisockfd, buff, recvlen);
             return 0;
         case FC_MSG_BGPD: // bm
@@ -1563,7 +1656,7 @@ int fc_server_handler(int clisockfd, char *buff, int buffsize, int recvlen)
             fc_server_topo_handler(clisockfd, buff, recvlen);
             break;
         default:
-            DIAG_WARNING("Not support %d\n", buff[0]);
+            printf("Not support %d\n", buff[0]);
             return -1;
         }
     }
@@ -1575,7 +1668,7 @@ int fc_server_handler(int clisockfd, char *buff, int buffsize, int recvlen)
             printf("FC HDR VERSION: %d\n", buff[0]);
         }
     }
-    printf("#################################################\n\n");
+    printf("\033[35m### Process One Packet End ###\n\033[0m");
 
     return 0;
 }

@@ -10,6 +10,7 @@
 #include "defines.h"
 #include "fcconfig.h"
 #include "strutils.h"
+#include "sigutils.h"
 
 static char *
 fc_read_file(const char *const fname)
@@ -192,7 +193,6 @@ int fc_cfg_set_dp_mode(const char *const dp_mode_str)
 {
     int size = 0;
     char *modestr = NULL;
-    cJSON *elem = NULL;
 
     size = strlen(dp_mode_str);
     modestr = calloc(size + 1, sizeof(char));
@@ -351,7 +351,7 @@ static void
 fc_json_read_private_key(const cJSON *const root)
 {
     cJSON *elem = NULL;
-    const char *fpath = NULL;
+    char *fpath = NULL;
     elem = cJSON_GetObjectItem(root, "private_key_fname");
     FC_ASSERT_RETP(elem);
     g_fc_server.prikey_fname = strdup(elem->valuestring);
@@ -507,7 +507,6 @@ static int fc_json_read_as_info_list(const cJSON *const root)
 
 int fc_read_config(void)
 {
-    int ret = 0;
     cJSON *root = NULL;
 
     root = fc_cjson_root_ptr(g_fc_server.config_fname);

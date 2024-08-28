@@ -24,7 +24,7 @@
 #define STR(x) #x
 #define FC_MAJOR_VERSION STR(0)
 #define FC_MINOR_VERSION STR(2)
-#define FC_PATCH_VERSION STR(0)
+#define FC_PATCH_VERSION STR(1)
 #define FC_PRJ_VERSION FC_MAJOR_VERSION "." FC_MINOR_VERSION "." FC_PATCH_VERSION
 #define FC_VERSION_STR "FC Server V" FC_PRJ_VERSION \
                        " compiled at " __DATE__ " " __TIME__ ""
@@ -122,7 +122,7 @@ enum
 #define FC_MEM_CHECK(expr)                                  \
     do                                                      \
     {                                                       \
-        if (expr)                                           \
+        if (!(expr))                                        \
         {                                                   \
             fprintf(stderr, "[%s:%d] ERROR: memory leak\n", \
                     __func__, __LINE__);                    \
@@ -130,14 +130,14 @@ enum
         }                                                   \
     } while (0)
 
-#define FC_MEM_FREE(ptr)    \
-    do                  \
-    {                   \
-        if (ptr)        \
-        {               \
-            free(ptr);  \
-            ptr = NULL; \
-        }               \
+#define FC_MEM_FREE(ptr) \
+    do                   \
+    {                    \
+        if (ptr)         \
+        {                \
+            free(ptr);   \
+            ptr = NULL;  \
+        }                \
     } while (0)
 
 struct prefix
@@ -159,7 +159,7 @@ typedef struct FC_s
     u32 previous_asn;
     u32 current_asn; // current asn
     u32 nexthop_asn;
-    u8 ski[20];
+    u8 ski[FC_SKI_LENGTH];
     u8 algo_id;
     u8 flags;
     u16 siglen;
@@ -261,11 +261,11 @@ typedef struct FC_msg_hdr_st
 
 typedef struct FC_msg_bm_st
 {
-    u8 bmversion;  // version 0
-    u8 ipversion;  // 4 for ipv4, 6 for ipv6
+    u8 bmversion;   // FC_BM_VERSION
+    u8 ipversion;   // 4 for ipv4, 6 for ipv6
     u8 flags;       // 1st bit, 0x00 for onpath nodes, 0x80 for offpath,
                     // 2nd bit, 0x00 for add/update, 0x40 for del/withdraw
-    u8 algoid;     // 0 for add/update, 1 for del/withdraw
+    u8 algoid;      // 0 for add/update, 1 for del/withdraw
     u16 src_ip_num; // src ip prefix num, boundary
     u16 dst_ip_num; // dst ip prefix num, boundary
     u16 fc_num;     // num of fc in fclist, boundary

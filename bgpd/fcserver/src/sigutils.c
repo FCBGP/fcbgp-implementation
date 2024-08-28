@@ -299,7 +299,7 @@ int fc_ecdsa_sign(EC_KEY *prikey, const char *const msg, int msglen,
     if (ret != 0)
     {
         fprintf(stderr, "Error: cannot find such hash algorithm: %s",
-                 g_fc_server.hash_algorithm);
+                g_fc_server.hash_algorithm);
     }
 
     keylen = ECDSA_size(prikey);
@@ -322,28 +322,36 @@ int fc_ecdsa_verify(EC_KEY *pubkey, const char *const msg, int msglen,
         fprintf(stderr, "Error: cannot find such hash algorithm: %s\n",
                 g_fc_server.hash_algorithm);
     }
-    // unsigned int haha = 0;
-    // printf("------------msg-----------------------------msglen: %d\n", msglen);
-    // for(haha=0; haha < msglen; haha++) {
-    //     printf("%02X ", (unsigned char) msg[haha]);
-    //     if(haha %8 == 0) {
-    //         printf("\n");
-    //     }
-    // }
-    // printf("------------sig-----------------------------siglen: %d\n", siglen);
-    // for(haha=0; haha < siglen; haha++) {
-    //     printf("%02X ", (unsigned char) sigbuff[haha]);
-    //     if(haha %8 == 0) {
-    //         printf("\n");
-    //     }
-    // }
-    // printf("-------------hash----------------------------digestlen: %d\n", digestlen);
-    // for(haha=0; haha < digestlen; haha++) {
-    //     printf("%02X ", (unsigned char) digest[haha]);
-    //     if(haha %8 == 0) {
-    //         printf("\n");
-    //     }
-    // }
+
+    unsigned int haha = 0;
+    printf("\n------------msg-----------------------------msglen: %d\n", msglen);
+    for (haha = 0; haha < msglen; haha++)
+    {
+        printf("%02X ", (unsigned char)msg[haha]);
+        if ((haha + 1) % 16 == 0)
+        {
+            printf("\n");
+        }
+    }
+    printf("\n------------sig-----------------------------siglen: %d\n", siglen);
+    for (haha = 0; haha < siglen; haha++)
+    {
+        printf("%02X ", (unsigned char)sigbuff[haha]);
+        if ((haha + 1) % 16 == 0)
+        {
+            printf("\n");
+        }
+    }
+    printf("\n-------------hash----------------------------digestlen: %d\n", digestlen);
+    for (haha = 0; haha < digestlen; haha++)
+    {
+        printf("%02X ", (unsigned char)digest[haha]);
+        if ((haha + 1) % 16 == 0)
+        {
+            printf("\n");
+        }
+    }
+    printf("\n");
     ret = ECDSA_verify(0, digest, digestlen, sigbuff, siglen, pubkey);
 
     return ret;
