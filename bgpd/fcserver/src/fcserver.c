@@ -1370,7 +1370,7 @@ static void fc_bm_print(const FC_msg_bm_t *bm)
         }
     }
     printf("fc list:\n");
-    for (i = 0; i < bm->dst_ip_num; ++i)
+    for (i = 0; i < bm->fc_num; ++i)
     {
         printf("  idx: %d, 3 asn: %d, %d, %d, algo-id: %d, flags: %d, siglen: %d sig: ",
                i,

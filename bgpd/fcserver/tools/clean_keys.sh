@@ -5,4 +5,4 @@
 # Version:     1.0.0
 # Description:
 
-rm -f *.key *.csr *.crt *.cert *.pem
+rm -f *.key *.csr *.crt *.cert *.pem *.bin
