@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## 2024.08.30
+
+- [x] v0.2.1
+- [x] update key tools. It can gen ec public key and query the ski and public key from *.cert
+- [x] refactor the bm msg process. Divide the big function into small functions according to bm msg analysis.
+- [x] fix EC Key bug. The hardcoded the EC Key has been removed. Now it uses the right EC Key for signing and verifying.
+
 ## 2024.08.02
 
 - [x] v0.2.0
