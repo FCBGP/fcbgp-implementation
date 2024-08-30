@@ -249,8 +249,8 @@ fc_hash(const char *const msg, int msglen,
         unsigned char *digest,
         unsigned int *digestlen)
 {
-    struct timespec sts = {0}, ets = {0};
-    timespec_get(&sts, TIME_UTC);
+    // struct timespec sts = {0}, ets = {0};
+    // timespec_get(&sts, TIME_UTC);
     switch (g_fc_server.hash_algorithm_id)
     {
     case FC_HASH_ALGO_SHA256:
@@ -273,17 +273,17 @@ fc_hash(const char *const msg, int msglen,
         printf("I don't know what algorithm should I use.");
         return -1;
     }
-    timespec_get(&ets, TIME_UTC);
-    long tvsec = (long)(ets.tv_sec - sts.tv_sec);
-    long tvnsec = (long)(ets.tv_nsec - sts.tv_nsec);
-    if (tvnsec < 0)
-    {
-        tvnsec = 1 + tvnsec;
-        tvsec--;
-    }
-    printf("\e[31mHASH FUNC TIME START %ld.%09ld s\e[0m\n", sts.tv_sec, sts.tv_nsec);
-    printf("\e[31mHASH FUNC TIME END   %ld.%09ld s\e[0m\n", ets.tv_sec, ets.tv_nsec);
-    printf("\e[31mTIME SPENT IN HASH   %ld.%09ld s\e[0m\n", tvsec, tvnsec);
+    // timespec_get(&ets, TIME_UTC);
+    // long tvsec = (long)(ets.tv_sec - sts.tv_sec);
+    // long tvnsec = (long)(ets.tv_nsec - sts.tv_nsec);
+    // if (tvnsec < 0)
+    // {
+    //     tvnsec = 1 + tvnsec;
+    //     tvsec--;
+    // }
+    // printf("\e[31mHASH FUNC TIME START %ld.%09ld s\e[0m\n", sts.tv_sec, sts.tv_nsec);
+    // printf("\e[31mHASH FUNC TIME END   %ld.%09ld s\e[0m\n", ets.tv_sec, ets.tv_nsec);
+    // printf("\e[31mTIME SPENT IN HASH   %ld.%09ld s\e[0m\n", tvsec, tvnsec);
     return 0;
 }
 

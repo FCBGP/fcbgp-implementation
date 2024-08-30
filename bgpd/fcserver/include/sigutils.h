@@ -25,6 +25,13 @@
 
 #include "defines.h"
 
+enum
+{
+    VERIFY_ERROR = -1,
+    VERIFY_FAIL = 0,
+    VERIFY_OK = 1,
+};
+
 extern int fc_init_crypto_env(FC_server_t *fcserver);
 extern int fc_get_ecpubkey_and_ski(u32 asn, const char *fpath,
                                    EC_KEY **eckey, u8 *ecski);
