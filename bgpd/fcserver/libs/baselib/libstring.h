@@ -1,7 +1,9 @@
 #ifndef _LIBSTRING_H_
 #define _LIBSTRING_H_
 
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
+#endif // _GNU_SOURCE
 
 #include "libtypes.h"
 

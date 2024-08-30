@@ -27,7 +27,6 @@
 #include <pthread.h>
 #include <unistd.h>
 
-#include "libncs6.h"
 #include "defines.h"
 
 #define FC_PROGRAM_NAME "fcserver"

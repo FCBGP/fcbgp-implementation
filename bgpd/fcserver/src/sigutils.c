@@ -73,7 +73,7 @@ int fc_base64_decode(const char *b64msg, unsigned char **msg, size_t *length)
 }
 
 static int
-fc_sha_encode(const char *const msg, int msglen, unsigned char *digest,
+fc_sha_encode(const unsigned char *const msg, int msglen, unsigned char *digest,
               unsigned int *digest_len, const char *sha_hash_algo)
 {
     int ret = 1;
@@ -143,15 +143,22 @@ error:
 }
 
 static int
-fc_sha1_encode(const char *const msg, int msglen, unsigned char *digest,
-               unsigned int *digest_len)
+fc_md5_encode(const unsigned char *const msg, int msglen,
+              unsigned char *digest, unsigned int *digest_len)
+{
+    return fc_sha_encode(msg, msglen, digest, digest_len, "MD5");
+}
+
+static int
+fc_sha1_encode(const unsigned char *const msg, int msglen,
+               unsigned char *digest, unsigned int *digest_len)
 {
     return fc_sha_encode(msg, msglen, digest, digest_len, "SHA1");
 }
 
 static int
-fc_sha256_encode(const char *const msg, int msglen, unsigned char *digest,
-                 unsigned int *digest_len)
+fc_sha256_encode(const unsigned char *const msg, int msglen,
+                 unsigned char *digest, unsigned int *digest_len)
 {
     return fc_sha_encode(msg, msglen, digest, digest_len, "SHA256");
 }
@@ -246,9 +253,8 @@ int fc_read_eckey_from_file(const char *fpath, FC_KEY_TYPE key_type, EC_KEY **pk
 }
 
 static int
-fc_hash(const char *const msg, int msglen,
-        unsigned char *digest,
-        unsigned int *digestlen)
+fc_hash(const unsigned char *const msg, int msglen,
+        unsigned char *digest, unsigned int *digestlen)
 {
     // struct timespec sts = {0}, ets = {0};
     // timespec_get(&sts, TIME_UTC);
@@ -261,17 +267,16 @@ fc_hash(const char *const msg, int msglen,
         fc_sha1_encode(msg, msglen, digest, digestlen);
         break;
     case FC_HASH_ALGO_MD5:
-        strmd5sum(msg, digest, msglen);
-        *digestlen = 16;
+        fc_md5_encode(msg, msglen, digest, digestlen);
         break;
     case FC_HASH_ALGO_CRC32:
         uint32_t res = 0;
-        res = crc32_run(0, msg, msglen);
+        res = crc32_run(0, (char *)msg, msglen);
         memcpy(digest, &res, 4);
         *digestlen = 4;
         break;
     default:
-        printf("I don't know what algorithm should I use.");
+        printf("Unknown Algorithm ID: %d.\n", g_fc_server.hash_algorithm_id);
         return -1;
     }
     // timespec_get(&ets, TIME_UTC);
@@ -288,7 +293,7 @@ fc_hash(const char *const msg, int msglen,
     return 0;
 }
 
-int fc_ecdsa_sign(EC_KEY *prikey, const char *const msg, int msglen,
+int fc_ecdsa_sign(EC_KEY *prikey, const unsigned char *const msg, int msglen,
                   unsigned char **sigbuff, unsigned int *siglen)
 {
     unsigned char digest[EVP_MAX_MD_SIZE] = {0};
@@ -310,7 +315,7 @@ int fc_ecdsa_sign(EC_KEY *prikey, const char *const msg, int msglen,
     return ret;
 }
 
-int fc_ecdsa_verify(EC_KEY *pubkey, const char *const msg, int msglen,
+int fc_ecdsa_verify(EC_KEY *pubkey, const unsigned char *const msg, int msglen,
                     const unsigned char *sigbuff, unsigned int siglen)
 {
     unsigned char digest[EVP_MAX_MD_SIZE] = {0};

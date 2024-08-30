@@ -22,7 +22,6 @@
 #include "fcserver.h"
 #include "hashutils.h"
 #include "libdiag.h"
-#include "libncs6.h"
 #include "nftutils.h"
 #include "pyutils.h"
 #include "sigutils.h"
@@ -411,37 +410,6 @@ atexit:
     close(g_fc_server.epollfd);
 
     return -1;
-}
-
-static int fc_server_handler_ncs(ncs6_ctx_t *ctx)
-{
-    (void)ctx;
-    return 0;
-}
-
-static void
-fc_ncs_server()
-{
-    if ((g_fc_server.fc_bgpd_ctx6 = ncs6_create(g_fc_server.prog_name, TCP_PROTO)) == NULL)
-    {
-        DIAG_ERROR("Create bgpd ncs failed\n");
-        fprintf(stderr, "Create bgpd ncs failed\n");
-        exit(-ENOMEM);
-    }
-
-    ncs6_setup(g_fc_server.fc_bgpd_ctx6,
-               g_fc_server.prog_addr6, g_fc_server.listen_port, NULL, 0);
-    ncs6_timeout(g_fc_server.fc_bgpd_ctx6, 10, -1);
-    // ncs6_setkeepalive(g_fc_server.fc_bgpd_ctx6, 10);
-    ncs6_server_enable(g_fc_server.fc_bgpd_ctx6);
-    ncs6_server_register(g_fc_server.fc_bgpd_ctx6, fc_server_handler_ncs);
-    ncs6_manager_start(g_fc_server.fc_bgpd_ctx6);
-    printf("fc_server : AS %d is ready!!!\n", g_fc_server.local_asn);
-
-    while (1)
-    {
-        sleep(1);
-    }
 }
 
 int fc_server_create(void)
@@ -843,7 +811,6 @@ fc_server_topo_add(FC_router_info_t *target_router,
 {
     int j = 0, k = 0, ret = 0;
     u32 neighbor_asn = 0, il_num = 0, iface_index = 0;
-    u32 *iface_list = NULL;
     FC_router_link_info_t *link_info = NULL, *prev_link_info = NULL;
     FC_router_iface_info_t *iface_info = NULL, *prev_iface_info = NULL;
 
@@ -919,7 +886,6 @@ int fc_server_topo_handler(int clisockfd, const char *buff, int len)
     u8 action = 0, reserved = 0;
     u32 bgpid = 0, local_asn = 0, neighbor_num = 0;
     FC_router_info_t *target_router = NULL;
-    FC_router_link_info_t *link_info = NULL;
 
     currlen = FC_HDR_GENERAL_LENGTH;
 
@@ -993,7 +959,7 @@ int fc_server_topo_handler(int clisockfd, const char *buff, int len)
 
     printf("topo link information end\n");
 
-    return 0;
+    return ret;
 }
 
 static int
@@ -1163,14 +1129,11 @@ fc_gen_acl_linux(int clisockfd, const FC_msg_bm_t *bm)
 static int
 fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
 {
-    int i = 0, j = 0, ret = 0, iface_index = 0, fc_index = 0;
-    u32 asn = 0;
+    int i = 0, j = 0, ret = 0, fc_index = 0;
     bool flag_offpath = 0;
     FC_router_info_t *router_info = NULL;
     FC_router_link_info_t *link_info = NULL;
     FC_router_iface_info_t *iface_info = NULL;
-    char ifaddr[INET6_ADDRSTRLEN] = {0};
-    char ifname[FC_MAX_SIZE] = {0};
     char saddr[INET6_ADDRSTRLEN] = {0};
     char daddr[INET6_ADDRSTRLEN] = {0};
     int sprefixlen = 0, dprefixlen = 0;
@@ -1298,7 +1261,7 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
         }
     }
 
-    return 0;
+    return ret;
 }
 
 static int
@@ -1350,14 +1313,16 @@ static void fc_bm_print(const FC_msg_bm_t *bm)
         switch (bm->ipversion)
         {
         case IPV4:
+            in4 = (struct sockaddr_in *)&bm->src_ip[i].ip;
             inet_ntop(AF_INET,
-                      &((struct sockaddr_in *)&bm->src_ip[i].ip)->sin_addr,
+                      &in4->sin_addr,
                       ipstr, sizeof(struct sockaddr_in));
             printf("%s/%d\n", ipstr, bm->src_ip[i].prefix_length);
             break;
         case IPV6:
+            in6 = (struct sockaddr_in6 *)&bm->src_ip[i].ip;
             inet_ntop(AF_INET6,
-                      &((struct sockaddr_in6 *)&bm->src_ip[i].ip)->sin6_addr,
+                      &in6->sin6_addr,
                       ipstr, sizeof(struct sockaddr_in6));
             printf("%s/%d\n", ipstr, bm->src_ip[i].prefix_length);
             break;
@@ -1396,9 +1361,9 @@ static void fc_bm_print(const FC_msg_bm_t *bm)
                bm->fclist[i].flags,
                bm->fclist[i].siglen);
 
-        for (int k = 0; k < bm->fclist[i].siglen; ++k)
+        for (j = 0; j < bm->fclist[i].siglen; ++j)
         {
-            printf("%02X", bm->fclist[i].sig[k]);
+            printf("%02X", bm->fclist[i].sig[j]);
         }
         printf("\n");
     }
@@ -1536,7 +1501,7 @@ fc_msg_bm_decap_fclist(FC_msg_bm_t *bm, const char *buff, int currlen)
 
 static int
 fc_msg_bm_bgpd_handler(int clisockfd, FC_msg_bm_t *bm, char *buffer,
-                       const char *msg, const char *buff, int currlen)
+                       const unsigned char *msg, char *buff, int currlen)
 {
     unsigned char *sigbuff = NULL;
     unsigned int sigbufflen = 0;
@@ -1561,13 +1526,12 @@ fc_msg_bm_bgpd_handler(int clisockfd, FC_msg_bm_t *bm, char *buffer,
     buffer[1] = FC_MSG_BC;
     u16 new_length = htons(FC_HDR_GENERAL_LENGTH + currlen);
     memcpy(&buffer[2], &new_length, sizeof(u16));
-    fc_bm_broadcast_to_peer(clisockfd, &bm, buffer,
-                            FC_HDR_GENERAL_LENGTH + currlen);
+    fc_bm_broadcast_to_peer(clisockfd, bm, buffer, FC_HDR_GENERAL_LENGTH + currlen);
     return 0;
 }
 
 static int
-fc_msg_bm_bc_handler(FC_msg_bm_t *bm, const char *msg,
+fc_msg_bm_bc_handler(FC_msg_bm_t *bm, const unsigned char *msg,
                      const char *buff, int currlen)
 {
     int k = 0, ret = 0;
@@ -1621,9 +1585,9 @@ int fc_server_bm_handler(int clisockfd, char *buffer,
                          int bufferlen, int msg_type)
 {
     FC_msg_bm_t bm = {0};
-    char msg[FC_BUFF_SIZE] = {0};
+    unsigned char msg[FC_BUFF_SIZE] = {0};
     int curlen = 0, ret = 0, ip_addr_len = 0;
-    const char *buff = buffer + FC_HDR_GENERAL_LENGTH;
+    char *buff = buffer + FC_HDR_GENERAL_LENGTH;
 
     // bmversion
     switch (buff[0])
@@ -1851,14 +1815,6 @@ void fc_server_destroy(int signum)
 
         // close all routers
         fc_server_topo_del_all_routers();
-
-        // close the advanced fcs if used
-        if (g_fc_server.fc_bgpd_ctx6)
-        {
-            ncs6_manager_stop(g_fc_server.fc_bgpd_ctx6);
-            ncs6_destroy(g_fc_server.fc_bgpd_ctx6);
-            g_fc_server.fc_bgpd_ctx6 = NULL;
-        }
 
         // close the low level fcs if used
         if (g_fc_server.sockfd)

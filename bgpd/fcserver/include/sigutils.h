@@ -52,12 +52,12 @@ extern int fc_base64_decode(const char *b64msg,
                             unsigned char **msg,
                             size_t *length);
 extern int fc_ecdsa_sign(EC_KEY *prikey,
-                         const char *const msg,
+                         const unsigned char *const msg,
                          int msglen,
                          unsigned char **sigbuff,
                          unsigned int *siglen);
 extern int fc_ecdsa_verify(EC_KEY *pubkey,
-                           const char *const msg,
+                           const unsigned char *const msg,
                            int msglen,
                            const unsigned char *sigbuff,
                            unsigned int siglen);

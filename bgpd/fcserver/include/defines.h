@@ -19,12 +19,11 @@
 #include <sys/epoll.h>
 
 #include "libhtable.h"
-#include "libncs6.h"
 
 #define STR(x) #x
 #define FC_MAJOR_VERSION STR(0)
 #define FC_MINOR_VERSION STR(2)
-#define FC_PATCH_VERSION STR(1)
+#define FC_PATCH_VERSION STR(2)
 #define FC_PRJ_VERSION FC_MAJOR_VERSION "." FC_MINOR_VERSION "." FC_PATCH_VERSION
 #define FC_VERSION_STR "FC Server V" FC_PRJ_VERSION \
                        " compiled at " __DATE__ " " __TIME__ ""
@@ -345,7 +344,6 @@ typedef struct FC_server_s
     FC_router_info_t *routers;
     mln_hash_t *ht_aclinfo;
 
-    ncs6_ctx_t *fc_bgpd_ctx6;
     char *fc_db_fname;
     char *config_fname;
     char *prikey_fname;

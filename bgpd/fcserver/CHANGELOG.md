@@ -2,6 +2,11 @@
 
 ## 2024.08.30
 
+- [x] v0.2.2
+- [x] clear compile warnings.
+
+## 2024.08.30
+
 - [x] v0.2.1
 - [x] update key tools. It can gen ec public key and query the ski and public key from *.cert
 - [x] refactor the bm msg process. Divide the big function into small functions according to bm msg analysis.

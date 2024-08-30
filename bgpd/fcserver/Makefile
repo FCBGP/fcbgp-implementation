@@ -8,9 +8,9 @@ SRC_fcs  = fcserver.c fcconfig.c dbutils.c sigutils.c hashutils.c pyutils.c stru
 SRC_DIR = $(foreach i,$(SRC_fcs),src/$(i))
 
 SRC_libs  = libs/diaglib/libdiag.c libs/baselib/libstring.c
-SRC_libs += libs/cJSONlib/cJSON.c libs/ncs6lib/libncs6.c
+SRC_libs += libs/cJSONlib/cJSON.c
 SRC_libs += libs/htablelib/libhtable.c libs/baselib/liblist.c
-SRC_libs += libs/baselib/libcrc32.c libs/md5lib/libmd5.c
+SRC_libs += libs/baselib/libcrc32.c
 CC := gcc
 
 CFLAGS += -L/usr/lib/python3.10/config-3.10-x86_64-linux-gnu -L/usr/local/melon/lib/

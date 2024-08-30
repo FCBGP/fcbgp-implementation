@@ -14,8 +14,8 @@
 extern "C" {
 #endif /* __cplusplus */
 
-    extern inline char *fc_combine_path(const char *const path, const char *const filename);
-    extern inline void fc_utils_str_toupper(char *str, const int size);
+    extern char *fc_combine_path(const char *const path, const char *const filename);
+    extern void fc_utils_str_toupper(char *str, const int size);
 
 #ifdef __cplusplus
 }
