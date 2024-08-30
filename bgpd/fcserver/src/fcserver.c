@@ -1584,24 +1584,19 @@ fc_msg_bm_bc_handler(FC_msg_bm_t *bm, const char *msg,
     }
     printf("\n");
 
-    /* TODO Don't know why does not need this pubkey. */
-#if 0
-        FC_ht_node_as_t *node;
-        FC_node_as_t meta = {0};
-        meta.asn = bm->local_asn;
-        node = htbl_meta_find(&g_fc_server.ht_as, &meta);
-        printf("node asn: %u, ski: ", node->asn);
-        for (int k = 0; k < FC_SKI_LENGTH; ++k)
-        {
-            printf("%02X", node->ski[k]);
-        }
-        printf("\n");
-        ret = fc_ecdsa_verify(node->pubkey,
-                              msg, currlen, bm->signature, bm->siglen);
-#else
-    ret = fc_ecdsa_verify(g_fc_server.pubkey, msg, currlen,
-                          bm->signature, bm->siglen);
-#endif
+    FC_ht_node_as_t *node;
+    FC_node_as_t meta = {0};
+    meta.asn = bm->local_asn;
+    node = htbl_meta_find(&g_fc_server.ht_as, &meta);
+    printf("node asn: %u, ski: ", node->asn);
+    for (int k = 0; k < FC_SKI_LENGTH; ++k)
+    {
+        printf("%02X", node->ski[k]);
+    }
+    printf("\n");
+    ret = fc_ecdsa_verify(node->pubkey,
+                          msg, currlen, bm->signature, bm->siglen);
+
     switch (ret)
     {
     case 1:
@@ -1633,7 +1628,7 @@ int fc_server_bm_handler(int clisockfd, char *buffer,
     // bmversion
     switch (buff[0])
     {
-    case FC_BM_VERSION: // current bm version
+    case FC_MSG_BM_VERSION: // current bm version
         break;
     default:
         fprintf(stderr, "BM version %d is not supported\n", buff[0]);
@@ -1705,7 +1700,7 @@ int fc_server_handler(int clisockfd, char *buff, int buffsize, int recvlen)
     printf("bufflen: %d, recvlen: %d, fc-version: %d\n",
            bufflen, recvlen, buff[0]);
 
-    if (buff[0] == FC_VERSION)
+    if (buff[0] == FC_MSG_VERSION)
     {
         switch (buff[1])
         {
@@ -1838,8 +1833,6 @@ int fc_main()
     }
 
     diag_level_set(g_fc_server.log_level);
-
-    fc_init_crypto_env(&g_fc_server);
 
     ret = fc_server_create();
     FC_ASSERT_RET(ret);

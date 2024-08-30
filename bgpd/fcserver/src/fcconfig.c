@@ -9,8 +9,8 @@
 
 #include "defines.h"
 #include "fcconfig.h"
-#include "strutils.h"
 #include "sigutils.h"
+#include "strutils.h"
 
 static char *
 fc_read_file(const char *const fname)
@@ -105,7 +105,9 @@ int fc_set_listen_port(int listen_port)
     if (listen_port <= 0 || listen_port > 65535)
     {
         g_fc_server.listen_port = FC_CFG_DEFAULT_LISTEN_PORT;
-    } else {
+    }
+    else
+    {
         g_fc_server.listen_port = listen_port;
     }
     return 0;
@@ -357,7 +359,7 @@ fc_json_read_private_key(const cJSON *const root)
     g_fc_server.prikey_fname = strdup(elem->valuestring);
     fpath = fc_combine_path(g_fc_server.certs_location,
                             g_fc_server.prikey_fname);
-    fc_read_eckey_from_file(fpath, 0, &g_fc_server.prikey);
+    fc_read_eckey_from_file(fpath, FC_KEY_TYPE_PRIVATE, &g_fc_server.prikey);
     FC_MEM_FREE(fpath);
 }
 
@@ -525,7 +527,7 @@ int fc_read_config(void)
     fc_json_read_hash_algo_id(root);
     fc_json_read_log_mode(root);
     fc_json_read_clear_fc_db(root);
-    fc_json_read_dp_mode(root);     // none, linux(nftables), h3c, vpp
+    fc_json_read_dp_mode(root); // none, linux(nftables), h3c, vpp
 
     cJSON_Delete(root);
 

@@ -216,12 +216,13 @@ int fc_get_ecpubkey_and_ski(u32 asn, const char *fpath,
     return 0;
 }
 
-int fc_read_eckey_from_file(const char *fpath, int is_pub_key, EC_KEY **pkey)
+int fc_read_eckey_from_file(const char *fpath, FC_KEY_TYPE key_type, EC_KEY **pkey)
 {
     FILE *fp = NULL;
 
-    if (is_pub_key)
+    switch (key_type)
     {
+    case FC_KEY_TYPE_PUBLIC:
         if ((fp = fopen(fpath, "rb")) == NULL)
         {
             perror("fopen()");
@@ -229,15 +230,15 @@ int fc_read_eckey_from_file(const char *fpath, int is_pub_key, EC_KEY **pkey)
         }
 
         *pkey = PEM_read_EC_PUBKEY(fp, NULL, NULL, NULL);
-    }
-    else
-    {
+        break;
+    case FC_KEY_TYPE_PRIVATE:
         if ((fp = fopen(fpath, "rb")) == NULL)
         {
             perror("fopen()");
             return -1;
         }
         *pkey = PEM_read_ECPrivateKey(fp, NULL, NULL, NULL);
+        break;
     }
     fclose(fp);
 
@@ -314,7 +315,7 @@ int fc_ecdsa_verify(EC_KEY *pubkey, const char *const msg, int msglen,
 {
     unsigned char digest[EVP_MAX_MD_SIZE] = {0};
     unsigned int digestlen = 0;
-    int ret = 0;
+    int i = 0, ret = 0;
 
     ret = fc_hash(msg, msglen, digest, &digestlen);
     if (ret != 0)
@@ -323,30 +324,34 @@ int fc_ecdsa_verify(EC_KEY *pubkey, const char *const msg, int msglen,
                 g_fc_server.hash_algorithm);
     }
 
-    unsigned int haha = 0;
-    printf("\n------------msg-----------------------------msglen: %d\n", msglen);
-    for (haha = 0; haha < msglen; haha++)
+    printf("\n------------msg-----------------------------msglen: %d\n",
+           msglen);
+    for (i = 0; i < msglen; i++)
     {
-        printf("%02X ", (unsigned char)msg[haha]);
-        if ((haha + 1) % 16 == 0)
+        printf("%02X ", (unsigned char)msg[i]);
+        if ((i + 1) % 16 == 0)
         {
             printf("\n");
         }
     }
-    printf("\n------------sig-----------------------------siglen: %d\n", siglen);
-    for (haha = 0; haha < siglen; haha++)
+    printf("\n");
+    printf("------------sig-----------------------------siglen : % d\n ",
+           siglen);
+    for (i = 0; i < siglen; i++)
     {
-        printf("%02X ", (unsigned char)sigbuff[haha]);
-        if ((haha + 1) % 16 == 0)
+        printf("%02X ", (unsigned char)sigbuff[i]);
+        if ((i + 1) % 16 == 0)
         {
             printf("\n");
         }
     }
-    printf("\n-------------hash----------------------------digestlen: %d\n", digestlen);
-    for (haha = 0; haha < digestlen; haha++)
+    printf("\n");
+    printf("-------------hash----------------------------digestlen : % d\n ",
+           digestlen);
+    for (i = 0; i < digestlen; i++)
     {
-        printf("%02X ", (unsigned char)digest[haha]);
-        if ((haha + 1) % 16 == 0)
+        printf("%02X ", (unsigned char)digest[i]);
+        if ((i + 1) % 16 == 0)
         {
             printf("\n");
         }
@@ -355,14 +360,4 @@ int fc_ecdsa_verify(EC_KEY *pubkey, const char *const msg, int msglen,
     ret = ECDSA_verify(0, digest, digestlen, sigbuff, siglen, pubkey);
 
     return ret;
-}
-
-int fc_init_crypto_env(FC_server_t *fcserver)
-{
-    const char *public_key_fname = "/etc/frr/assets/eccpri256.pem";
-    const char *private_key_fname = "/etc/frr/assets/eccpri256.key";
-    fc_read_eckey_from_file(public_key_fname, 1, &fcserver->pubkey);
-    fc_read_eckey_from_file(private_key_fname, 0, &fcserver->prikey);
-
-    return 0;
 }

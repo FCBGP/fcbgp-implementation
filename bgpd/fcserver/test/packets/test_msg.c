@@ -28,19 +28,19 @@ extern "C"
     {
         int ret = 0;
         char *fpath = "/etc/frr/assets/10.key";
-        ret = fc_read_eckey_from_file(fpath, 0 /* is_pubkey */, prikey10);
+        ret = fc_read_eckey_from_file(fpath, FC_KEY_TYPE_PRIVATE, prikey10);
         FC_ASSERT_RET(ret);
 
         fpath = "/etc/frr/assets/10.cert";
-        ret = fc_read_eckey_from_file(fpath, 1 /* is_pubkey */, pubkey10);
+        ret = fc_read_eckey_from_file(fpath, FC_KEY_TYPE_PUBLIC, pubkey10);
         FC_ASSERT_RET(ret);
 
         fpath = "/etc/frr/assets/20.key";
-        ret = fc_read_eckey_from_file(fpath, 0 /* is_pubkey */, prikey20);
+        ret = fc_read_eckey_from_file(fpath, FC_KEY_TYPE_PRIVATE, prikey20);
         FC_ASSERT_RET(ret);
 
         fpath = "/etc/frr/assets/20.cert";
-        ret = fc_read_eckey_from_file(fpath, 1 /* is_pubkey */, pubkey20);
+        ret = fc_read_eckey_from_file(fpath, FC_KEY_TYPE_PUBLIC, pubkey20);
         FC_ASSERT_RET(ret);
 
         return 0;

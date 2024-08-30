@@ -30,13 +30,15 @@
                        " compiled at " __DATE__ " " __TIME__ ""
 #define FC_SSL_VERSION "OpenSSL 3.0.2 15 Mar 2022"
 
-#define FC_VERSION 1
-#define FC_BM_VERSION 1
+
 #define FC_BUFF_SIZE 1000007
 #define FC_BUFF_SIZE256 256
 #define FCSRV_HTBL_BUCKETS_SIZE 1000007
 #define FCSRV_MAX_LINK_AS 256
 #define FCSRV_MAX_SRC_PREFIX 256
+
+#define FC_MSG_VERSION 1
+#define FC_MSG_BM_VERSION 1
 
 #define FC_SKI_LENGTH 20
 #define FC_MAX_SIZE 256
@@ -261,7 +263,7 @@ typedef struct FC_msg_hdr_st
 
 typedef struct FC_msg_bm_st
 {
-    u8 bmversion;   // FC_BM_VERSION
+    u8 bmversion;   // FC_MSG_BM_VERSION
     u8 ipversion;   // 4 for ipv4, 6 for ipv6
     u8 flags;       // 1st bit, 0x00 for onpath nodes, 0x80 for offpath,
                     // 2nd bit, 0x00 for add/update, 0x40 for del/withdraw

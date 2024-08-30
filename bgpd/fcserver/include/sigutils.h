@@ -27,23 +27,39 @@
 
 enum
 {
-    VERIFY_ERROR = -1,
-    VERIFY_FAIL = 0,
-    VERIFY_OK = 1,
+    FC_VERIFY_ERROR = -1,
+    FC_VERIFY_FAIL = 0,
+    FC_VERIFY_OK = 1,
 };
 
-extern int fc_init_crypto_env(FC_server_t *fcserver);
-extern int fc_get_ecpubkey_and_ski(u32 asn, const char *fpath,
-                                   EC_KEY **eckey, u8 *ecski);
+typedef enum
+{
+    FC_KEY_TYPE_PRIVATE = 0,
+    FC_KEY_TYPE_PUBLIC = 1,
+} FC_KEY_TYPE;
+
+extern int fc_get_ecpubkey_and_ski(u32 asn,
+                                   const char *fpath,
+                                   EC_KEY **eckey,
+                                   u8 *ecski);
 extern int fc_read_eckey_from_file(const char *fpath,
-                                   int is_pub_key, EC_KEY **pkey);
+                                   FC_KEY_TYPE key_type,
+                                   EC_KEY **pkey);
 extern int fc_base64_encode(const unsigned char *msg,
-                            size_t length, char *b64msg);
-extern int fc_base64_decode(const char *b64msg, unsigned char **msg,
+                            size_t length,
+                            char *b64msg);
+extern int fc_base64_decode(const char *b64msg,
+                            unsigned char **msg,
                             size_t *length);
-extern int fc_ecdsa_sign(EC_KEY *prikey, const char *const msg, int msglen,
-                         unsigned char **sigbuff, unsigned int *siglen);
-extern int fc_ecdsa_verify(EC_KEY *pubkey, const char *const msg, int msglen,
-                           const unsigned char *sigbuff, unsigned int siglen);
+extern int fc_ecdsa_sign(EC_KEY *prikey,
+                         const char *const msg,
+                         int msglen,
+                         unsigned char **sigbuff,
+                         unsigned int *siglen);
+extern int fc_ecdsa_verify(EC_KEY *pubkey,
+                           const char *const msg,
+                           int msglen,
+                           const unsigned char *sigbuff,
+                           unsigned int siglen);
 
 #endif // SIGUTILS_H
