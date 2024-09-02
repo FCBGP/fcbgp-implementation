@@ -514,13 +514,6 @@ int fc_read_config(void)
     root = fc_cjson_root_ptr(g_fc_server.config_fname);
     FC_ASSERT_RETP(root);
 
-    // necessary configurations
-    fc_json_read_local_asn(root);
-    fc_json_read_certs_location(root);
-    fc_json_read_private_key(root);
-    fc_json_read_router_info_list(root);
-    fc_json_read_as_info_list(root);
-
     // optional configurations which have default values
     fc_json_read_fc_db_fname(root);
     fc_json_read_listen_port(root);
@@ -528,6 +521,14 @@ int fc_read_config(void)
     fc_json_read_log_mode(root);
     fc_json_read_clear_fc_db(root);
     fc_json_read_dp_mode(root); // none, linux(nftables), h3c, vpp
+
+    // necessary configurations
+    fc_json_read_local_asn(root);
+    fc_json_read_certs_location(root);
+    fc_json_read_private_key(root);
+    fc_json_read_router_info_list(root);
+    fc_json_read_as_info_list(root);
+
 
     cJSON_Delete(root);
 

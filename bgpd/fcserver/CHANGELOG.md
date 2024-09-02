@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 2024.09.02
+- [x] v0.2.3
+- [x] fix h3c netconf delivery.
+
 ## 2024.08.30
 
 - [x] v0.2.2

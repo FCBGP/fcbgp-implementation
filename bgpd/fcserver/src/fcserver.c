@@ -1267,6 +1267,7 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
 static int
 fc_gen_acl(int clisockfd, const FC_msg_bm_t *bm)
 {
+    printf("### Gen ACL START ###\n");
 
     switch (g_fc_server.use_data_plane)
     {
@@ -1283,6 +1284,8 @@ fc_gen_acl(int clisockfd, const FC_msg_bm_t *bm)
                g_fc_server.use_data_plane);
         break;
     }
+
+    printf("### Gen ACL ENDED ###\n");
 
     return 0;
 }
