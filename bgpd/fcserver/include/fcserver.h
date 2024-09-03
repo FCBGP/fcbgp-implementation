@@ -38,6 +38,10 @@
 #define FC_BM_UPDATE_TYPE_ADD 0x00
 #define FC_BM_UPDATE_TYPE_DEL 0x40
 
+#define FC_TOPO_DIRECTION_IN 0x01
+#define FC_TOPO_DIRECTION_OUT 0x02
+#define FC_TOPO_DIRECTION_BOTH 0x03
+
 extern int fc_main();
 extern int fc_server_create(void);
 extern void fc_server_destroy(int signum);

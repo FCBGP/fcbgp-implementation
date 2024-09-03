@@ -44,19 +44,22 @@ def nc_exec(nconn, config_xml):
     print("*" * 25, 'CMD', "*" * 25)
     print(config_xml)
     print("*" * 25, 'RET', "*" * 25)
-    config_xml = etree.fromstring(config_xml)
-    ret = nconn.edit_config(target="running", config=config_xml)
-    print(ret)
+    try:
+      config_xml = etree.fromstring(config_xml)
+      ret = nconn.edit_config(target="running", config=config_xml)
+      print(ret)
+    except Exception as e:
+      print(e)
     print("*" * 25, 'END', "*" * 25)
 
 
 # acl [ipv6] advanecd 3999
 # ipversion: 1 for ipv4, 2 for ipv6
-def acl_setup(nconn, group_type, group_index):
+def acl_setup(nconn, group_type, group_index, operation="merge"):
     config_xml = f"""
     <config xmlns:xc="urn:ietf:params:xml:ns:netconf:base:1.0">
       <top xmlns="http://www.h3c.com/netconf/config:1.0">
-        <ACL>
+        <ACL xc:operation="{operation}">
           <NamedGroups>
             <Group>
               <GroupType>{group_type}</GroupType>
@@ -79,14 +82,24 @@ def ipv4_prefix_to_mask(ip: str, prefixlen: int) -> str:
         mask_int >>= 8
     return '.'.join(mask_octets)
 
+def ipv4_prefix_to_reversed_mask(ip: str, prefixlen: int) -> str:
+    mask_int = (0xFFFFFFFF << (32 - prefixlen)) & 0xFFFFFFFF
+    inverted_mask_int = ~mask_int & 0xFFFFFFFF
+    inverted_mask_octets = []
+    for i in range(4):
+        inverted_mask_octets.insert(0, str(inverted_mask_int & 0xFF))
+        inverted_mask_int >>= 8
+    return '.'.join(inverted_mask_octets)
+
 def acl_v4_rule(nconn, group_index, rule_id, action,
-        srcip, src_prefixlen, dstip, dst_prefixlen):
-    src_mask = ipv4_prefix_to_mask(srcip, src_prefixlen)
-    dst_mask = ipv4_prefix_to_mask(dstip, dst_prefixlen)
+        srcip, src_prefixlen, dstip, dst_prefixlen, operation="merge"):
+    # As H3C says, H3C router requires reversed prefix length.
+    src_mask = ipv4_prefix_to_reversed_mask(srcip, src_prefixlen)
+    dst_mask = ipv4_prefix_to_reversed_mask(dstip, dst_prefixlen)
     config_xml = f"""
     <config xmlns:xc="urn:ietf:params:xml:ns:netconf:base:1.0">
       <top xmlns="http://www.h3c.com/netconf/config:1.0">
-        <ACL xc:operation="merge">
+        <ACL xc:operation="{operation}">
           <IPv4NamedAdvanceRules>
             <Rule>
               <GroupIndex>{group_index}</GroupIndex>
@@ -114,11 +127,11 @@ def acl_v4_rule(nconn, group_index, rule_id, action,
 
 # acl ipv6 rules
 def acl_v6_rule(nconn, group_index, rule_id, action,
-        srcip, src_prefixlen, dstip, dst_prefixlen):
+        srcip, src_prefixlen, dstip, dst_prefixlen, operation="merge"):
     config_xml = f"""
     <config xmlns:xc="urn:ietf:params:xml:ns:netconf:base:1.0">
       <top xmlns="http://www.h3c.com/netconf/config:1.0">
-        <ACL xc:operation="merge">
+        <ACL xc:operation="{operation}">
           <IPv6NamedAdvanceRules>
             <Rule>
               <GroupIndex>{group_index}</GroupIndex>
@@ -143,8 +156,8 @@ def acl_v6_rule(nconn, group_index, rule_id, action,
     """
     nc_exec(nconn, config_xml)
 
-def acl_rule(nconn, group_type, group_index, rule_id, action,
-    srcip, src_prefixlen, dstip, dst_prefixlen):
+def acl_rule(nconn, group_type, group_index, rule_id,
+    srcip, src_prefixlen, dstip, dst_prefixlen, action=1): # action=1 for deny
     if group_type == 1: # ipv4
         acl_v4_rule(nconn, group_index, rule_id, action,
                 srcip, src_prefixlen, dstip, dst_prefixlen)
@@ -153,11 +166,12 @@ def acl_rule(nconn, group_type, group_index, rule_id, action,
                 srcip, src_prefixlen, dstip, dst_prefixlen)
 
 # packet-filter ipv6 3999 inbound
-def acl_apply(nconn, group_type: int, group_index: int, iface_index: int, direction: int):
+def acl_apply(nconn, group_type: int, group_index: int, iface_index: int, 
+direction: int, operation="merge"):
     config_xml = f"""
     <config xmlns:xc="urn:ietf:params:xml:ns:netconf:base:1.0">
       <top xmlns="http://www.h3c.com/netconf/config:1.0">
-        <ACL xc:operation="merge">
+        <ACL xc:operation="{operation}">
           <PfilterApply>
             <Pfilter>
                <AppObjType>1</AppObjType>
@@ -170,7 +184,6 @@ def acl_apply(nconn, group_type: int, group_index: int, iface_index: int, direct
         </ACL>
       </top>
     </config>
-
     """
     nc_exec(nconn, config_xml)
 

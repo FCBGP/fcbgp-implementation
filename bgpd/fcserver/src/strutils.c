@@ -13,11 +13,11 @@ extern "C"
 {
 #endif /* __cplusplus */
 
+#include "strutils.h"
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
-#include "strutils.h"
     /**
      * If the user forgets to remove the tail '/', we need to properly accept that.
      * @param path      path

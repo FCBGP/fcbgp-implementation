@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 2024.09.03
+
+- [x] v0.2.4
+- [x] fix h3c acl index. Add an configuration named as `h3c_acl_base_index` and keep it incrementing. Default is 3900. H3C says its ACL index is in [1, 3999]. So there are only at most 4000 ACLs?
+
+
 ## 2024.09.02
 - [x] v0.2.3
 - [x] fix h3c netconf delivery.

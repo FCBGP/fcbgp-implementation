@@ -262,7 +262,6 @@ ht_aclinfo_free_handler(void *val)
 
 int ht_aclinfo_insert(mln_hash_t *h, u32 iface_index)
 {
-    static u32 acl_base_index = 3900;
     ht_aclinfo_t *ret = NULL, *item = NULL;
 
     FC_ASSERT_RETP(h);
@@ -275,9 +274,8 @@ int ht_aclinfo_insert(mln_hash_t *h, u32 iface_index)
     {
         item = calloc(1, sizeof(ht_aclinfo_t));
         item->iface_index = iface_index;
-        item->acl_in_index = acl_base_index;
-        item->acl_out_index = acl_base_index + 1;
-        acl_base_index += 2;
+        item->acl_in_index = g_fc_server.h3c_acl_base_index;
+        item->acl_out_index = g_fc_server.h3c_acl_base_index + 1;
         if (mln_hash_insert(h, &(item->iface_index), item) < 0)
         {
             fprintf(stderr, "insert failed.\n");

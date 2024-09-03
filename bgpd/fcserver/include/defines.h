@@ -8,6 +8,7 @@
 #ifndef DEFINES_H
 #define DEFINES_H
 
+#include "libhtable.h"
 #include "mln_hash.h"
 #include "pyutils.h"
 #include "sysconfig.h"
@@ -18,17 +19,13 @@
 #include <stdbool.h>
 #include <sys/epoll.h>
 
-#include "libhtable.h"
-
 #define STR(x) #x
 #define FC_MAJOR_VERSION STR(0)
 #define FC_MINOR_VERSION STR(2)
-#define FC_PATCH_VERSION STR(3)
+#define FC_PATCH_VERSION STR(4)
 #define FC_PRJ_VERSION FC_MAJOR_VERSION "." FC_MINOR_VERSION "." FC_PATCH_VERSION
 #define FC_VERSION_STR "FC Server V" FC_PRJ_VERSION \
                        " compiled at " __DATE__ " " __TIME__ ""
-#define FC_SSL_VERSION "OpenSSL 3.0.2 15 Mar 2022"
-
 
 #define FC_BUFF_SIZE 1000007
 #define FC_BUFF_SIZE256 256
@@ -343,6 +340,7 @@ typedef struct FC_server_s
     int routers_num;
     FC_router_info_t *routers;
     mln_hash_t *ht_aclinfo;
+    u32 h3c_acl_base_index;
 
     char *fc_db_fname;
     char *config_fname;

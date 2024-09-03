@@ -11,6 +11,7 @@
 #include <arpa/inet.h>
 #include <ctype.h>
 #include <netinet/in.h>
+#include <openssl/opensslv.h>
 #include <stdbool.h>
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -353,6 +354,7 @@ display_g_fc_server_info(void)
     printf("log level: %u\n", g_fc_server.log_level);
     printf("clear fc db: %d\n", g_fc_server.clear_fc_db);
     printf("user_data_plane: %d\n", g_fc_server.use_data_plane);
+    printf("h3c acl base index: %d\n", g_fc_server.h3c_acl_base_index);
     printf("local asn: %u\n", g_fc_server.local_asn);
     printf("hash algorithm: %s\n", g_fc_server.hash_algorithm);
     printf("listen port: %d\n", g_fc_server.listen_port);
@@ -802,7 +804,7 @@ fc_server_topo_del(FC_router_info_t *target_router,
 
     free(iface_list);
 
-    return 0;
+    return currlen;
 }
 
 static int
@@ -878,86 +880,113 @@ fc_server_topo_add(FC_router_info_t *target_router,
     return currlen;
 }
 
+static int
+fc_server_topo_print(FC_router_info_t *target_router)
+{
+    printf("bgpid: %d.%d.%d.%d\n", (target_router->bgpid >> 24) % 256,
+           (target_router->bgpid >> 16) % 256,
+           (target_router->bgpid >> 8) % 256,
+           target_router->bgpid % 256);
+    for (FC_router_link_info_t *link_info = target_router->links;
+         link_info != NULL; link_info = link_info->next)
+    {
+        printf("  neighbor asn: %d\n", link_info->neighbor_asn);
+        FC_router_iface_info_t *iface_info = link_info->iface_list;
+        while (iface_info)
+        {
+            printf("    iface: %d\n", iface_info->iface_index);
+            iface_info = iface_info->next;
+        }
+    }
+
+    return FC_ERR_SERVER_NOERR;
+}
+
 int fc_server_topo_handler(int clisockfd, const char *buff, int len)
 {
-    printf("topo link information start\n");
+    TXTRED("### TOPO LINK INFO START ###\n");
 
     int i = 0, currlen = 0, ret = 0;
     u8 action = 0, reserved = 0;
     u32 bgpid = 0, local_asn = 0, neighbor_num = 0;
     FC_router_info_t *target_router = NULL;
 
-    currlen = FC_HDR_GENERAL_LENGTH;
-
-    // action
-    memcpy(&action, buff + currlen, sizeof(u8));
-    currlen += sizeof(u8);
-    // reserved
-    for (i = 0; i < 3; ++i)
+    while (currlen < len)
     {
-        memcpy(&reserved, buff + currlen, sizeof(u8));
+        currlen += FC_HDR_GENERAL_LENGTH;
+
+        // action
+        memcpy(&action, buff + currlen, sizeof(u8));
         currlen += sizeof(u8);
-    }
-    // bgpid
-    memcpy(&bgpid, buff + currlen, sizeof(u32));
-    bgpid = ntohl(bgpid);
-    currlen += sizeof(u32);
-    // local-asn
-    memcpy(&local_asn, buff + currlen, sizeof(u32));
-    local_asn = ntohl(local_asn);
-    currlen += sizeof(u32);
-    // neighbor-num
-    memcpy(&neighbor_num, buff + currlen, sizeof(u32));
-    neighbor_num = ntohl(neighbor_num);
-    currlen += sizeof(u32);
-
-    if (local_asn != g_fc_server.local_asn)
-    {
-        printf("ERROR: msg type=4, not local asn\n");
-        return -1;
-    }
-    // g_fc_server.routers should be prepared in reading config
-    for (target_router = g_fc_server.routers;
-         target_router != NULL;
-         target_router = target_router->next)
-    {
-        if (target_router->bgpid == bgpid)
+        // reserved
+        for (i = 0; i < 3; ++i)
         {
+            memcpy(&reserved, buff + currlen, sizeof(u8));
+            currlen += sizeof(u8);
+        }
+        // bgpid
+        memcpy(&bgpid, buff + currlen, sizeof(u32));
+        bgpid = ntohl(bgpid);
+        currlen += sizeof(u32);
+        // local-asn
+        memcpy(&local_asn, buff + currlen, sizeof(u32));
+        local_asn = ntohl(local_asn);
+        currlen += sizeof(u32);
+        // neighbor-num
+        memcpy(&neighbor_num, buff + currlen, sizeof(u32));
+        neighbor_num = ntohl(neighbor_num);
+        currlen += sizeof(u32);
+
+        if (local_asn != g_fc_server.local_asn)
+        {
+            printf("ERROR: msg type=4, not local asn\n");
+            return -1;
+        }
+        // g_fc_server.routers should be prepared in reading config
+        for (target_router = g_fc_server.routers;
+             target_router != NULL;
+             target_router = target_router->next)
+        {
+            if (target_router->bgpid == bgpid)
+            {
+                break;
+            }
+        }
+
+        if (target_router == NULL)
+        {
+            printf("ERROR: Cannot find the bgp router, bgpid: %08X\n", bgpid);
+            fc_server_destroy(SIGUSR1);
+        }
+
+        // fd
+        if (target_router->fd != 0 && target_router->fd != clisockfd)
+        {
+            // TODO del all neighbors
+            // TODO close the target-link fd
+        }
+        target_router->fd = clisockfd;
+
+        switch (action)
+        {
+        case FC_ACT_ADD:
+            currlen = fc_server_topo_add(target_router,
+                                         neighbor_num, buff, currlen);
+            break;
+        case FC_ACT_DEL:
+            // TODO
+            currlen = fc_server_topo_del(target_router,
+                                         neighbor_num, buff, currlen);
+            break;
+        default:
+            printf("ERROR: Unkown action: %d for neighbor links\n", action);
             break;
         }
     }
 
-    if (target_router == NULL)
-    {
-        printf("ERROR: Cannot find the bgp router, bgpid: %08X\n", bgpid);
-        fc_server_destroy(SIGUSR1);
-    }
+    fc_server_topo_print(target_router);
 
-    // fd
-    if (target_router->fd != 0 && target_router->fd != clisockfd)
-    {
-        // TODO del all neighbors
-        // TODO close the target-link fd
-    }
-    target_router->fd = clisockfd;
-
-    switch (action)
-    {
-    case FC_ACT_ADD:
-        currlen = fc_server_topo_add(target_router,
-                                     neighbor_num, buff, currlen);
-        break;
-    case FC_ACT_DEL:
-        // TODO
-        ret = fc_server_topo_del(target_router,
-                                 neighbor_num, buff, currlen);
-        break;
-    default:
-        printf("ERROR: Unkown action: %d for neighbor links\n", action);
-        break;
-    }
-
-    printf("topo link information end\n");
+    TXTRED("### TOPO LINK INFO ENDED ###\n");
 
     return ret;
 }
@@ -1156,39 +1185,55 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
     // maybe can be removed as dst_ip_num is always 1
     for (i = 0; i < bm->dst_ip_num; ++i)
     {
-        if (bm->ipversion == 4)
+        switch (bm->ipversion)
         {
+        case IPV4:
             inet_ntop(AF_INET,
                       &(((struct sockaddr_in *)&(bm->dst_ip[i].ip))->sin_addr),
                       daddr, (socklen_t)sizeof(daddr));
-        }
-        else if (bm->ipversion == 6)
-        {
+            break;
+        case IPV6:
             inet_ntop(AF_INET6,
                       &(((struct sockaddr_in6 *)&(bm->dst_ip[i].ip))->sin6_addr),
                       daddr, (socklen_t)sizeof(daddr));
+            break;
         }
         dprefixlen = bm->dst_ip[i].prefix_length;
         for (j = 0; j < bm->src_ip_num; ++j)
         {
-            if (bm->ipversion == IPV4)
+            switch (bm->ipversion)
             {
+            case IPV4:
                 inet_ntop(AF_INET,
                           &(((struct sockaddr_in *)&(bm->src_ip[j].ip))->sin_addr),
                           saddr, (socklen_t)sizeof(saddr));
-            }
-            else if (bm->ipversion == IPV6)
-            {
+                break;
+            case IPV6:
                 inet_ntop(AF_INET6,
                           &(((struct sockaddr_in6 *)&(bm->src_ip[j].ip))->sin6_addr),
                           saddr, (socklen_t)sizeof(saddr));
+                break;
             }
             sprefixlen = bm->src_ip[j].prefix_length;
             router_info = g_fc_server.routers;
+
+            if (router_info == NULL)
+            {
+                printf("Sorry, there is no router link info.\n");
+                printf("Have you configured it?\n");
+            }
+
             // actually, there may be no so many devices
             while (router_info)
             {
                 link_info = router_info->links;
+
+                if (link_info == NULL)
+                {
+                    printf("Router (bgpid: %08X) does not hold any link.\n",
+                           router_info->bgpid);
+                }
+
                 while (link_info)
                 {
                     iface_info = link_info->iface_list;
@@ -1209,47 +1254,54 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
                             py_apply_acl(&router_info->py_config,
                                          item->acl_in_index, bm->ipversion,
                                          saddr, sprefixlen, daddr, dprefixlen,
-                                         iface_info->iface_index, 1);
+                                         iface_info->iface_index, FC_TOPO_DIRECTION_IN);
                             py_apply_acl(&router_info->py_config,
                                          item->acl_out_index, bm->ipversion,
                                          saddr, sprefixlen, daddr, dprefixlen,
-                                         iface_info->iface_index, 2);
+                                         iface_info->iface_index, FC_TOPO_DIRECTION_OUT);
                         }
                         else
                         {
                             if (link_info->neighbor_asn == bm->fclist[fc_index].nexthop_asn)
                             {
-                                direction = 1; // in
+                                direction = FC_TOPO_DIRECTION_IN; // in
                             }
                             else if (link_info->neighbor_asn == bm->fclist[fc_index].previous_asn)
                             {
-                                direction = 2;
+                                direction = FC_TOPO_DIRECTION_OUT;
                             }
                             else
                             {
-                                direction = 3;
+                                direction = FC_TOPO_DIRECTION_BOTH;
                             }
 
                             // onpath
+                            const char *direction_str = NULL;
+                            direction_str = direction == FC_TOPO_DIRECTION_BOTH
+                                                ? "both"
+                                                : (direction == FC_TOPO_DIRECTION_IN
+                                                       ? "in"
+                                                       : "out");
                             printf("srcip: %s/%d, dstip: %s/%d, "
                                    "iface_index: %d, direction: %s\n",
                                    saddr, sprefixlen, daddr, dprefixlen,
-                                   iface_info->iface_index,
-                                   direction == 3 ? "both" : (direction == 1 ? "in" : "out"));
+                                   iface_info->iface_index, direction_str);
                             // h3c device has only dir=1: in, dir=2: out
-                            if (direction & 0x1)
+                            if (direction & FC_TOPO_DIRECTION_IN)
                             {
+                                item->acl_in_index = ++g_fc_server.h3c_acl_base_index;
                                 py_apply_acl(&router_info->py_config,
                                              item->acl_in_index, bm->ipversion,
                                              saddr, sprefixlen, daddr, dprefixlen,
-                                             iface_info->iface_index, 1);
+                                             iface_info->iface_index, FC_TOPO_DIRECTION_IN);
                             }
-                            if (direction & 0x2)
+                            if (direction & FC_TOPO_DIRECTION_OUT)
                             {
+                                item->acl_out_index = ++g_fc_server.h3c_acl_base_index;
                                 py_apply_acl(&router_info->py_config,
                                              item->acl_out_index, bm->ipversion,
                                              saddr, sprefixlen, daddr, dprefixlen,
-                                             iface_info->iface_index, 2);
+                                             iface_info->iface_index, FC_TOPO_DIRECTION_OUT);
                             }
                         }
                         iface_info = iface_info->next;
@@ -1290,7 +1342,8 @@ fc_gen_acl(int clisockfd, const FC_msg_bm_t *bm)
     return 0;
 }
 
-static void fc_bm_print(const FC_msg_bm_t *bm)
+static void
+fc_bm_print(const FC_msg_bm_t *bm)
 {
     int i = 0, j = 0;
     struct sockaddr_in *in4 = NULL;
@@ -1653,7 +1706,7 @@ int fc_server_bm_handler(int clisockfd, char *buffer,
 
 int fc_server_handler(int clisockfd, char *buff, int buffsize, int recvlen)
 {
-    printf("\033[35m### Process One Packet Start ###\n\033[0m");
+    TXTPUR("### Process One Packet Start ###\n");
 
     int bufflen = 0;
     // for (int i = 0; i < recvlen; i++)
@@ -1697,7 +1750,7 @@ int fc_server_handler(int clisockfd, char *buff, int buffsize, int recvlen)
             printf("FC HDR VERSION: %d\n", buff[0]);
         }
     }
-    printf("\033[35m### Process One Packet End ###\n\033[0m");
+    TXTPUR("### Process One Packet End ###\n");
 
     return 0;
 }
@@ -1705,7 +1758,6 @@ int fc_server_handler(int clisockfd, char *buff, int buffsize, int recvlen)
 static inline int
 print_line(char ch, char *string)
 {
-
     int i = 0, line_len = 78, ln = 0, rn = 0, string_len = 0;
 
     string_len = strlen(string);
@@ -1731,7 +1783,7 @@ fc_welcome_banner()
     print_line(' ', "Home page: <https://gitee.com/basil1728/fcbgp-new>");
     print_line(' ', "A private repository. Not avaliable without permission.");
     print_line(' ', "Need help or report bugs please mailto: guoyangfei@zgclab.edu.cn");
-    print_line(' ', "SSL_VERSION: " FC_SSL_VERSION);
+    print_line(' ', "SSL_VERSION: " OPENSSL_VERSION_TEXT);
     print_line('*', "");
 }
 

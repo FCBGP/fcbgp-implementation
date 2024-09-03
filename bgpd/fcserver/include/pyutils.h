@@ -9,26 +9,33 @@
 #ifndef PYUTILS_H
 #define PYUTILS_H
 
-#include <Python.h>
 #include "sysconfig.h"
+#include <Python.h>
 
 typedef struct py_config_st
 {
-    PyObject *module; // the script file
+    PyObject *module;  // the script file
     PyObject *session; // manager.connect
 } py_config_t;
 
 extern void py_setup(py_config_t *py_config,
-        const char *script_name,
-        const char *host, const char *username,
-        const char *password, const u16 port);
-extern PyObject* py_run_func(py_config_t *py_config,
-        const char *funcname);
+                     const char *script_name,
+                     const char *host,
+                     const char *username,
+                     const char *password,
+                     const u16 port);
+extern PyObject *py_run_func(py_config_t *py_config,
+                             const char *funcname);
 extern int py_apply_acl(py_config_t *py_config,
-        const u32 group_index, u8 ipversion,
-        const char *srcip, const int srcprefixlen,
-        const char *dstip, const int dstprefixlen,
-        const u32 iface_index, const int direction);
+                        const u32 group_index,
+                        const u8 ipversion,
+                        const int rule_id,
+                        const char *srcip,
+                        const int srcprefixlen,
+                        const char *dstip,
+                        const int dstprefixlen,
+                        const u32 iface_index,
+                        const int direction);
 extern void py_teardown(py_config_t *py_config);
 
 #endif // PYUTILS_H

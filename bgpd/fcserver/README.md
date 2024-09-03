@@ -155,6 +155,10 @@ $ nft flush chain filter INPUT
 $ nft flush table filter
 ```
 
+## h3c-netconf
+
+[h3c-netconf-test](./test/netconf-test/README.md)
+
 
 ### Reference
 

@@ -6,36 +6,41 @@
  * Description:
  *******************************************************************************/
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <Python.h>
 #include "pyutils.h"
 #include "defines.h"
+#include <Python.h>
+#include <stdio.h>
+#include <stdlib.h>
 
-#define PY_FUNC_CHECK(funcptr)                                  \
-    do {                                                        \
-        if (funcptr == NULL || !PyCallable_Check(funcptr)) {    \
-            if (PyErr_Occurred()) {                             \
-                PyErr_Print();                                  \
-                exit(EXIT_FAILURE);                             \
-            }                                                   \
-        }                                                       \
+#define PY_FUNC_CHECK(funcptr)                             \
+    do                                                     \
+    {                                                      \
+        if (funcptr == NULL || !PyCallable_Check(funcptr)) \
+        {                                                  \
+            if (PyErr_Occurred())                          \
+            {                                              \
+                PyErr_Print();                             \
+                exit(EXIT_FAILURE);                        \
+            }                                              \
+        }                                                  \
     } while (0)
 
-#define PY_OBJECT_CHECK(objptr)                                 \
-    do {                                                        \
-        if (objptr == NULL) {                                   \
-            PyErr_Print();                                      \
-            exit(EXIT_FAILURE);                                 \
-        }                                                       \
+#define PY_OBJECT_CHECK(objptr) \
+    do                          \
+    {                           \
+        if (objptr == NULL)     \
+        {                       \
+            PyErr_Print();      \
+            exit(EXIT_FAILURE); \
+        }                       \
     } while (0)
 
 void py_setup(py_config_t *py_config,
-        const char *script_name,
-        const char *host,
-        const char *username,
-        const char *password,
-        const u16 port)
+              const char *script_name,
+              const char *host,
+              const char *username,
+              const char *password,
+              const u16 port)
 {
     PyObject *setup_func = NULL;
 
@@ -53,7 +58,7 @@ void py_setup(py_config_t *py_config,
     PY_FUNC_CHECK(setup_func);
 
     py_config->session = PyObject_CallFunction(setup_func, "sssi",
-            host, username, password, port);
+                                               host, username, password, port);
     PY_OBJECT_CHECK(py_config->session);
 
     if (setup_func)
@@ -69,11 +74,12 @@ void py_teardown(py_config_t *py_config)
     teardown_func = PyObject_GetAttrString(py_config->module, "teardown");
 
     result = PyObject_CallFunctionObjArgs(teardown_func,
-            py_config->session, NULL);
+                                          py_config->session, NULL);
     if (result == NULL)
     {
         PyErr_Print();
-    } else
+    }
+    else
     {
         Py_DECREF(result);
     }
@@ -97,11 +103,10 @@ void py_teardown(py_config_t *py_config)
 }
 
 PyObject *py_run_func(py_config_t *py_config,
-        const char *funcname)
+                      const char *funcname)
 {
     PyObject *print_capa_func = NULL;
-    PyObject* result = NULL;
-
+    PyObject *result = NULL;
 
     print_capa_func =
         PyObject_GetAttrString(py_config->module, funcname);
@@ -109,25 +114,25 @@ PyObject *py_run_func(py_config_t *py_config,
 
     result =
         PyObject_CallFunctionObjArgs(print_capa_func,
-                py_config->session, NULL);
+                                     py_config->session, NULL);
     PY_OBJECT_CHECK(result);
 
     return result;
 }
 
 int py_apply_acl(py_config_t *py_config,
-        const u32 group_index,
-        u8 ipversion,
-        const char *srcip,
-        const int srcprefixlen,
-        const char *dstip,
-        const int dstprefixlen,
-        const u32 iface_index,
-        const int direction)
+                 const u32 group_index,
+                 const u8 ipversion,
+                 const int rule_id,
+                 const char *srcip,
+                 const int srcprefixlen,
+                 const char *dstip,
+                 const int dstprefixlen,
+                 const u32 iface_index,
+                 const int direction)
 {
     int group_type = 0;
-    int rule_id = 65535;
-    int action = 1; // action: add
+    int action = 1; // action: deny
     PyObject *acl_setup_func = NULL;
     PyObject *acl_rule_func = NULL;
     PyObject *acl_apply_func = NULL;
@@ -144,21 +149,22 @@ int py_apply_acl(py_config_t *py_config,
         group_type = 1;
     else if (ipversion == IPV6)
         group_type = 2;
+
     result = PyObject_CallFunction(acl_setup_func, "Oii",
-            py_config->session, group_type, group_index);
+                                   py_config->session, group_type, group_index);
     PY_OBJECT_CHECK(result);
     Py_DECREF(result);
 
     result = PyObject_CallFunction(acl_rule_func, "Oiiiisisi",
-            py_config->session, group_type, group_index,
-            rule_id, action,
-            srcip, srcprefixlen, dstip, dstprefixlen);
+                                   py_config->session, group_type, group_index,
+                                   rule_id, action,
+                                   srcip, srcprefixlen, dstip, dstprefixlen);
     PY_OBJECT_CHECK(result);
     Py_DECREF(result);
 
     result = PyObject_CallFunction(acl_apply_func, "Oiiii",
-            py_config->session, group_type, group_index,
-            iface_index, direction);
+                                   py_config->session, group_type, group_index,
+                                   iface_index, direction);
     PY_OBJECT_CHECK(result);
     Py_DECREF(result);
 

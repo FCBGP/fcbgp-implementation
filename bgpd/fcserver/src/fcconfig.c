@@ -293,6 +293,22 @@ fc_json_read_hash_algo_id(const cJSON *const root)
 }
 
 static void
+fc_json_read_h3c_acl_base_index(const cJSON *const root)
+{
+    cJSON *elem = NULL;
+
+    elem = cJSON_GetObjectItem(root, "h3c_acl_base_index");
+    if (elem == NULL)
+    {
+        g_fc_server.h3c_acl_base_index = FC_CFG_DEFAULT_H3C_ACL_BASE_INDEX;
+    }
+    else
+    {
+        g_fc_server.h3c_acl_base_index = elem->valueint;
+    }
+}
+
+static void
 fc_json_read_log_mode(const cJSON *const root)
 {
     cJSON *elem = NULL;
@@ -518,6 +534,7 @@ int fc_read_config(void)
     fc_json_read_fc_db_fname(root);
     fc_json_read_listen_port(root);
     fc_json_read_hash_algo_id(root);
+    fc_json_read_h3c_acl_base_index(root);
     fc_json_read_log_mode(root);
     fc_json_read_clear_fc_db(root);
     fc_json_read_dp_mode(root); // none, linux(nftables), h3c, vpp
@@ -528,7 +545,6 @@ int fc_read_config(void)
     fc_json_read_private_key(root);
     fc_json_read_router_info_list(root);
     fc_json_read_as_info_list(root);
-
 
     cJSON_Delete(root);
 

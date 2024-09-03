@@ -5,10 +5,11 @@
     "log_mode": "debug",
     "clear_fc_db": true,
     "fc_db_fname": "/etc/frr/assets/fc.db",
-    "use_data_plane": "h3c",
     "certs_location": "/etc/frr/assets",
     "certificate_fname": "10.cert",
     "private_key_fname": "10.key",
+    "use_data_plane": "h3c",
+    "h3c_acl_base_index": 3900,
     "router_info_list": [
         {
             "bgpid": "192.168.10.1",

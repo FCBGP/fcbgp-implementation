@@ -18,6 +18,7 @@ extern int fc_db_store_bm_handler(void *data, int argc, char **argv,
                 char **az_col_name);
 extern int fc_db_select_bm_handler(void *data, int argc, char **argv,
                 char **az_col_name);
+extern int fc_db_read_bm(FC_msg_bm_t **bm, int *bmnum);
 extern int fc_db_write_bm(const FC_msg_bm_t *bm);
 extern int fc_db_exec(sqlite3 *db, const char *sql,
                 int (*cb)(void *data, int argc, char **argv, char **az_col_name),
