@@ -10,6 +10,7 @@
 #define PYUTILS_H
 
 #include "sysconfig.h"
+#include <stdbool.h>
 #include <Python.h>
 
 typedef struct py_config_st
@@ -27,15 +28,16 @@ extern void py_setup(py_config_t *py_config,
 extern PyObject *py_run_func(py_config_t *py_config,
                              const char *funcname);
 extern int py_apply_acl(py_config_t *py_config,
-                        const u32 group_index,
-                        const u8 ipversion,
-                        const int rule_id,
-                        const char *srcip,
-                        const int srcprefixlen,
-                        const char *dstip,
-                        const int dstprefixlen,
-                        const u32 iface_index,
-                        const int direction);
+                         const u32 group_index,
+                         const u8 ipversion,
+                         const bool flag_withdraw,
+                         const u16 rule_id,
+                         const char *srcip,
+                         const int srcprefixlen,
+                         const char *dstip,
+                         const int dstprefixlen,
+                         const u32 iface_index,
+                         const int direction);
 extern void py_teardown(py_config_t *py_config);
 
 #endif // PYUTILS_H

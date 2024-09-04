@@ -85,6 +85,9 @@ fc_db_cb_get_one_bm(void *data, int argc, char **argv, char **azColName)
     (void)azColName;
     int i = 0;
     char *token = NULL;
+    char *outer_delim = ",";
+    char *inner_delim = "/";
+    char *asn_delim = "-";
     // not all data are needed.
     fc_db_bm_ptr->bmversion = atoi(argv[0]);
     fc_db_bm_ptr->ipversion = atoi(argv[1]);
@@ -99,12 +102,12 @@ fc_db_cb_get_one_bm(void *data, int argc, char **argv, char **azColName)
     fc_db_bm_ptr->subversion = atoi(argv[10]);
 
     char *src_ip_prefix_str = argv[11];
-    for (token = strtok(src_ip_prefix_str, ','), i = 0;
+    for (token = strtok(src_ip_prefix_str, outer_delim), i = 0;
          token != NULL;
-         token = strtok(NULL, ','), i++)
+         token = strtok(NULL, outer_delim), i++)
     {
-        char *src_ip = strtok(token, '/');
-        char *prefixlen = strtok(NULL, '/');
+        char *src_ip = strtok(token, inner_delim);
+        char *prefixlen = strtok(NULL, inner_delim);
         switch (fc_db_bm_ptr->ipversion)
         {
         case IPV4:
@@ -122,12 +125,12 @@ fc_db_cb_get_one_bm(void *data, int argc, char **argv, char **azColName)
     }
 
     char *dst_ip_prefix_str = argv[12];
-    for (token = strtok(dst_ip_prefix_str, ','), i = 0;
+    for (token = strtok(dst_ip_prefix_str, outer_delim), i = 0;
          token != NULL;
-         token = strtok(NULL, ','), i++)
+         token = strtok(NULL, outer_delim), i++)
     {
-        char *dst_ip = strtok(token, '/');
-        char *prefixlen = strtok(NULL, '/');
+        char *dst_ip = strtok(token, inner_delim);
+        char *prefixlen = strtok(NULL, inner_delim);
         switch (fc_db_bm_ptr->ipversion)
         {
         case IPV4:
@@ -142,17 +145,16 @@ fc_db_cb_get_one_bm(void *data, int argc, char **argv, char **azColName)
             break;
         }
         fc_db_bm_ptr->dst_ip[i].prefix_length = atoi(prefixlen);
-        token = strtok(NULL, ',');
     }
 
     char *fclist_str = argv[13];
-    for (token = strtok(fclist_str, ','), i = 0;
+    for (token = strtok(fclist_str, outer_delim), i = 0;
          token != NULL;
-         token = strtok(NULL, ','), i++)
+         token = strtok(NULL, outer_delim), i++)
     {
-        char *pasn = strtok(token, '-');
-        char *casn = strtok(NULL, '-');
-        char *nasn = strtok(NULL, '-');
+        char *pasn = strtok(token, asn_delim);
+        char *casn = strtok(NULL, asn_delim);
+        char *nasn = strtok(NULL, asn_delim);
         fc_db_bm_ptr->fclist[i].previous_asn = atoi(pasn);
         fc_db_bm_ptr->fclist[i].current_asn = atoi(casn);
         fc_db_bm_ptr->fclist[i].nexthop_asn = atoi(nasn);
@@ -169,7 +171,7 @@ int fc_db_read_bm(FC_msg_bm_t **bm, int *bmnum)
     const char *sql_cnt = "SELECT COUNT(*) FROM fcs;";
     const char *sql_template = "SELECT * FROM fcs LIMIT 1 OFFSET %d;";
 
-    rc = sqlite3_exec(g_fc_server.db, sql_cnt, fc_db_total_bm_num, 0, &errMsg);
+    rc = sqlite3_exec(g_fc_server.db, sql_cnt, fc_db_cb_get_cnt, 0, &errMsg);
     if (rc != SQLITE_OK)
     {
         fprintf(stderr, "SQL error: %s\n", errMsg);

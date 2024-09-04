@@ -260,9 +260,10 @@ ht_aclinfo_free_handler(void *val)
     free(val);
 }
 
-int ht_aclinfo_insert(mln_hash_t *h, u32 iface_index)
+int ht_aclinfo_insert(mln_hash_t *h, u32 iface_index,
+                      FC_router_info_t *target_router)
 {
-    ht_aclinfo_t *ret = NULL, *item = NULL;
+    ht_acl_group_info_t *ret = NULL, *item = NULL;
 
     FC_ASSERT_RETP(h);
 
@@ -272,10 +273,11 @@ int ht_aclinfo_insert(mln_hash_t *h, u32 iface_index)
     // 2. if not exist, insert it
     if (!ret)
     {
-        item = calloc(1, sizeof(ht_aclinfo_t));
+        item = calloc(1, sizeof(ht_acl_group_info_t));
         item->iface_index = iface_index;
-        item->acl_in_index = g_fc_server.h3c_acl_base_index;
-        item->acl_out_index = g_fc_server.h3c_acl_base_index + 1;
+        item->acl_in_index = ++target_router->acl_group_index;
+        item->acl_out_index = ++target_router->acl_group_index;
+
         if (mln_hash_insert(h, &(item->iface_index), item) < 0)
         {
             fprintf(stderr, "insert failed.\n");
@@ -311,4 +313,18 @@ int ht_aclinfo_destroy(mln_hash_t *h)
 {
     mln_hash_free(h, M_HASH_F_VAL);
     return 0;
+}
+
+u32 fnv1a_hash(const void *data, size_t len)
+{
+    u32 hash = 2166136261u; // FNV-1a initial value
+    const unsigned char *p = (const unsigned char *)data;
+
+    for (size_t i = 0; i < len; i++)
+    {
+        hash ^= p[i];     // XOR
+        hash *= 16777619; // multiply FNV constant
+    }
+
+    return hash;
 }

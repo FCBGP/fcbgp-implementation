@@ -8,9 +8,9 @@
 #ifndef HASHUTILS_H
 #define HASHUTILS_H
 
-#include "libjhash.h"
-#include "libhtable.h"
 #include "defines.h"
+#include "libhtable.h"
+#include "libjhash.h"
 #include "mln_hash.h"
 
 extern htbl_ops_t g_fc_htbl_as_ops;
@@ -20,6 +20,8 @@ extern int fc_hashtable_create(htbl_ctx_t *ht, htbl_ops_t *ops);
 extern int fc_hashtable_destroy(htbl_ctx_t *ht);
 extern int ht_aclinfo_create(mln_hash_t **h);
 extern int ht_aclinfo_destroy(mln_hash_t *h);
-extern int ht_aclinfo_insert(mln_hash_t *h, u32 iface_index);
+extern int ht_aclinfo_insert(mln_hash_t *h, u32 iface_index,
+                             FC_router_info_t *target_router);
+                             extern u32 fnv1a_hash(const void *data, size_t len);
 
 #endif // HASHUTILS_H

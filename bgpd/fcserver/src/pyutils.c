@@ -58,7 +58,8 @@ void py_setup(py_config_t *py_config,
     PY_FUNC_CHECK(setup_func);
 
     py_config->session = PyObject_CallFunction(setup_func, "sssi",
-                                               host, username, password, port);
+                                               host, username,
+                                               password, port);
     PY_OBJECT_CHECK(py_config->session);
 
     if (setup_func)
@@ -123,7 +124,8 @@ PyObject *py_run_func(py_config_t *py_config,
 int py_apply_acl(py_config_t *py_config,
                  const u32 group_index,
                  const u8 ipversion,
-                 const int rule_id,
+                 const bool flag_withdraw,
+                 const u16 rule_id,
                  const char *srcip,
                  const int srcprefixlen,
                  const char *dstip,
@@ -137,6 +139,7 @@ int py_apply_acl(py_config_t *py_config,
     PyObject *acl_rule_func = NULL;
     PyObject *acl_apply_func = NULL;
     PyObject *result = NULL;
+    char *operation = flag_withdraw ? "delete" : "merge";
 
     acl_setup_func = PyObject_GetAttrString(py_config->module, "acl_setup");
     PY_FUNC_CHECK(acl_setup_func);
@@ -151,41 +154,32 @@ int py_apply_acl(py_config_t *py_config,
         group_type = 2;
 
     result = PyObject_CallFunction(acl_setup_func, "Oii",
-                                   py_config->session, group_type, group_index);
+                                   py_config->session,
+                                   group_type,
+                                   group_index);
     PY_OBJECT_CHECK(result);
     Py_DECREF(result);
 
-    result = PyObject_CallFunction(acl_rule_func, "Oiiiisisi",
-                                   py_config->session, group_type, group_index,
-                                   rule_id, action,
-                                   srcip, srcprefixlen, dstip, dstprefixlen);
+    result = PyObject_CallFunction(acl_rule_func, "Oiiisisiis",
+                                   py_config->session,
+                                   group_type,
+                                   group_index,
+                                   rule_id,
+                                   srcip, srcprefixlen,
+                                   dstip, dstprefixlen,
+                                   action,
+                                   operation);
     PY_OBJECT_CHECK(result);
     Py_DECREF(result);
 
     result = PyObject_CallFunction(acl_apply_func, "Oiiii",
-                                   py_config->session, group_type, group_index,
-                                   iface_index, direction);
+                                   py_config->session,
+                                   group_type,
+                                   group_index,
+                                   iface_index,
+                                   direction);
     PY_OBJECT_CHECK(result);
     Py_DECREF(result);
 
     return 0;
 }
-
-#if 0
-int main()
-{
-    py_config_t py_config = {0};
-
-    py_setup(&py_config, "script");
-
-    result = py_run_func(&py_config, "print_capabilities");
-    if (result)
-    {
-        Py_DECREF(result);
-    }
-
-    py_teardown(&py_config);
-
-    return 0;
-}
-#endif

@@ -96,6 +96,11 @@ def acl_v4_rule(nconn, group_index, rule_id, action,
     # As H3C says, H3C router requires reversed prefix length.
     src_mask = ipv4_prefix_to_reversed_mask(srcip, src_prefixlen)
     dst_mask = ipv4_prefix_to_reversed_mask(dstip, dst_prefixlen)
+    
+    action_xml = f"<Action>{action}</Action>"
+    if operation == "delete":
+      action_xml = ""
+
     config_xml = f"""
     <config xmlns:xc="urn:ietf:params:xml:ns:netconf:base:1.0">
       <top xmlns="http://www.h3c.com/netconf/config:1.0">
@@ -104,7 +109,7 @@ def acl_v4_rule(nconn, group_index, rule_id, action,
             <Rule>
               <GroupIndex>{group_index}</GroupIndex>
               <RuleID>{rule_id}</RuleID>
-              <Action>{action}</Action>
+              {action_xml}
               <ProtocolType>256</ProtocolType>
               <SrcAny>0</SrcAny>
               <SrcIPv4>
@@ -128,6 +133,11 @@ def acl_v4_rule(nconn, group_index, rule_id, action,
 # acl ipv6 rules
 def acl_v6_rule(nconn, group_index, rule_id, action,
         srcip, src_prefixlen, dstip, dst_prefixlen, operation="merge"):
+    
+    action_xml = f"<Action>{action}</Action>"
+    if operation == "delete":
+      action_xml = ""
+
     config_xml = f"""
     <config xmlns:xc="urn:ietf:params:xml:ns:netconf:base:1.0">
       <top xmlns="http://www.h3c.com/netconf/config:1.0">
@@ -136,7 +146,7 @@ def acl_v6_rule(nconn, group_index, rule_id, action,
             <Rule>
               <GroupIndex>{group_index}</GroupIndex>
               <RuleID>{rule_id}</RuleID>
-              <Action>{action}</Action>
+              {action_xml}
               <ProtocolType>256</ProtocolType>
               <SrcAny>0</SrcAny>
               <SrcIPv6>
@@ -157,17 +167,18 @@ def acl_v6_rule(nconn, group_index, rule_id, action,
     nc_exec(nconn, config_xml)
 
 def acl_rule(nconn, group_type, group_index, rule_id,
-    srcip, src_prefixlen, dstip, dst_prefixlen, action=1): # action=1 for deny
+    srcip, src_prefixlen, dstip, dst_prefixlen,
+    action=1, operation="merge"): # action=1 for deny
     if group_type == 1: # ipv4
         acl_v4_rule(nconn, group_index, rule_id, action,
-                srcip, src_prefixlen, dstip, dst_prefixlen)
+                srcip, src_prefixlen, dstip, dst_prefixlen, operation)
     elif group_type == 2: # ipv6
         acl_v6_rule(nconn, group_index, rule_id, action,
-                srcip, src_prefixlen, dstip, dst_prefixlen)
+                srcip, src_prefixlen, dstip, dst_prefixlen, operation)
 
 # packet-filter ipv6 3999 inbound
 def acl_apply(nconn, group_type: int, group_index: int, iface_index: int, 
-direction: int, operation="merge"):
+              direction: int, operation="merge"):
     config_xml = f"""
     <config xmlns:xc="urn:ietf:params:xml:ns:netconf:base:1.0">
       <top xmlns="http://www.h3c.com/netconf/config:1.0">
@@ -187,7 +198,6 @@ direction: int, operation="merge"):
     """
     nc_exec(nconn, config_xml)
 
-
 def main():
     nconn = setup('2001:db8::1001')
     try:
@@ -195,9 +205,12 @@ def main():
         print("*" * 50)
         mask = ipv4_prefix_to_mask("11.22.33.44", 23)
         print(mask)
+        acl_setup(nconn, 1, 3900)
+        acl_rule(nconn, 1, 3900, 1,
+                 "11.22.33.44", 24, "44.33.22.11", 24)
+        acl_apply(nconn, 1, 3900, 12345678, 1)
     finally:
         teardown(nconn)
 
 if __name__ == '__main__':
     main()
-

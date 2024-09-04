@@ -12,6 +12,8 @@
 #include "mln_hash.h"
 #include "pyutils.h"
 #include "sysconfig.h"
+#include "utarray.h"
+#include "uthash.h"
 #include <Python.h>
 #include <arpa/inet.h>
 #include <openssl/ec.h>
@@ -33,12 +35,15 @@
 #define FCSRV_MAX_LINK_AS 256
 #define FCSRV_MAX_SRC_PREFIX 256
 
+
 #define FC_MSG_VERSION 1
 #define FC_MSG_BM_VERSION 1
 
 #define FC_SKI_LENGTH 20
 #define FC_MAX_SIZE 256
 #define FC_IF_MAX_SIZE 32
+
+#define FC_MAX_ACL_RULE_SIZE 65535
 
 #define FC_HDR_GENERAL_LENGTH 4
 #define FC_HDR_FC_FIX_LENGTH 36
@@ -223,13 +228,6 @@ typedef struct FC_ht_node_as_s
     FC_acs_t acs;
 } FC_ht_node_as_t;
 
-typedef struct ht_aclinfo_st
-{
-    u32 iface_index;
-    u32 acl_in_index;
-    u32 acl_out_index;
-} ht_aclinfo_t;
-
 typedef struct FC_node_linkinfo_s
 {
     int fd;
@@ -288,6 +286,28 @@ typedef struct FC_msg_bm_new_s
     u8 new_signature[80];
 } FC_msg_bm_new_t;
 
+typedef struct ht_acl_rule_info_st
+{
+    u32 acl_rule_info_key;
+    u8 ipversion;
+    char saddr[INET6_ADDRSTRLEN];
+    u8 sprefixlen;
+    char daddr[INET6_ADDRSTRLEN];
+    u8 dprefixlen;
+    u32 acl_group_index;
+    u16 rule_id;
+    UT_hash_handle hh; /* makes this structure hashable */
+} ht_acl_rule_info_t;
+
+typedef struct ht_acl_group_info_st
+{
+    u32 iface_index;
+    u32 acl_in_index;
+    u32 acl_out_index;
+    u32 acl_rule_id;
+    ht_acl_rule_info_t *ht_acl_rule_info;
+} ht_acl_group_info_t;
+
 typedef struct FC_router_iface_info_st
 {
     struct FC_router_iface_info_st *next;
@@ -310,8 +330,9 @@ typedef struct FC_router_info_st
     u16 port;
     char username[FC_MAX_SIZE];
     char password[FC_MAX_SIZE];
+    u32 acl_group_index;
     py_config_t py_config;
-    struct FC_router_link_info_st *links;
+    FC_router_link_info_t *links;
 } FC_router_info_t;
 
 typedef struct FC_server_s
@@ -339,8 +360,7 @@ typedef struct FC_server_s
 
     int routers_num;
     FC_router_info_t *routers;
-    mln_hash_t *ht_aclinfo;
-    u32 h3c_acl_base_index;
+    mln_hash_t *ht_acl_group_info;
 
     char *fc_db_fname;
     char *config_fname;

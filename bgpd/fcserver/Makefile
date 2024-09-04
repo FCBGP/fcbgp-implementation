@@ -15,7 +15,7 @@ CC := gcc
 
 CFLAGS += -L/usr/lib/python3.10/config-3.10-x86_64-linux-gnu -L/usr/local/melon/lib/
 CFLAGS += -DTEST_MAIN
-CFLAGS += -g -Wall $(INCS_DIR)
+CFLAGS += -g -Wall $(INCS_DIR) -Wno-deprecated-declarations
 LDFLAGS_fcs += -lcrypto -lsqlite3 -lm -lpython3.10 -lmelon
 
 all: server
