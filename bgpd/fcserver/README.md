@@ -71,7 +71,7 @@ $ sudo chmod 777 /opt/log
 - `clear_fc_db`: `true` or `false`. Default is `true`. Clear the fc.db before running.
 - `fc_db_fname`: Specify the absolute path of fc.db. Default is `/etc/frr/assets/fc.db`.
 - `use_data_plane`: See Section Data Plane for more information. Default is `none`.
-- `router_info_list`: All the BGP routers of current AS. used when `use-data-plane` is `h3c`
+- `router_info_list`: All the BGP routers of current AS. used when `use-data-plane` is `h3c`.
     - `bgpid`: BGP-ID.
     - `host`: ipv4/ipv6 address of an BGP router
     - `port`: netconf-over-ssh port.

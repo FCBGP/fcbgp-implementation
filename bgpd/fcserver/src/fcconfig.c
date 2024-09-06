@@ -420,6 +420,11 @@ fc_json_read_router_info_list(const cJSON *const root)
             }
         }
     }
+    else
+    {
+        TXTYLW("Useless router_info_list configuration "
+               "as the data plane is not real router machine.\n");
+    }
 }
 
 static int fc_json_read_as_info_list(const cJSON *const root)
@@ -509,7 +514,7 @@ static int fc_json_read_as_info_list(const cJSON *const root)
         node = htbl_meta_insert(&g_fc_server.ht_as, &meta, &ret);
         if (!node)
         {
-            printf("insert failed\n");
+            TXTRED("insert failed\n");
             return -1;
         }
         printf("====================================================\n");

@@ -14,12 +14,12 @@ int fc_db_open(sqlite3 **db, const char *dbname)
 {
     if (sqlite3_open(dbname, db) != SQLITE_OK)
     {
-        printf("Can't open database: %s\n", sqlite3_errmsg(*db));
+        BAKRED("Can't open database: %s\n", sqlite3_errmsg(*db));
         exit(0);
     }
     else
     {
-        printf("Opened database successfully\n");
+        TXTGRN("Opened database successfully\n");
     }
 
     return 0;
@@ -47,12 +47,12 @@ int fc_db_exec(sqlite3 *db, const char *sql,
     rc = sqlite3_exec(db, sql, cb, data, &zErrMsg);
     if (rc != SQLITE_OK)
     {
-        printf("SQL error: %s\n", zErrMsg);
+        BAKRED("SQL error: %s\n", zErrMsg);
         sqlite3_free(zErrMsg);
     }
     else
     {
-        printf("Operation done successfully\n");
+        TXTGRN("Operation done successfully\n");
     }
 
     return 0;
@@ -103,7 +103,7 @@ fc_db_cb_get_one_bm(void *data, int argc, char **argv, char **azColName)
 
     char *src_ip_prefix_str = argv[11];
     for (token = strtok(src_ip_prefix_str, outer_delim), i = 0;
-         token != NULL;
+         token != NULL && i < fc_db_bm_ptr->src_ip_num;
          token = strtok(NULL, outer_delim), i++)
     {
         char *src_ip = strtok(token, inner_delim);
@@ -126,7 +126,7 @@ fc_db_cb_get_one_bm(void *data, int argc, char **argv, char **azColName)
 
     char *dst_ip_prefix_str = argv[12];
     for (token = strtok(dst_ip_prefix_str, outer_delim), i = 0;
-         token != NULL;
+         token != NULL && i < fc_db_bm_ptr->dst_ip_num;
          token = strtok(NULL, outer_delim), i++)
     {
         char *dst_ip = strtok(token, inner_delim);
@@ -149,25 +149,28 @@ fc_db_cb_get_one_bm(void *data, int argc, char **argv, char **azColName)
 
     char *fclist_str = argv[13];
     for (token = strtok(fclist_str, outer_delim), i = 0;
-         token != NULL;
+         token != NULL && i < fc_db_bm_ptr->fc_num;
          token = strtok(NULL, outer_delim), i++)
     {
-        char *pasn = strtok(token, asn_delim);
+        char *fc_str = strdup(token);
+        char *pasn = strtok(fc_str, asn_delim);
         char *casn = strtok(NULL, asn_delim);
         char *nasn = strtok(NULL, asn_delim);
         fc_db_bm_ptr->fclist[i].previous_asn = atoi(pasn);
         fc_db_bm_ptr->fclist[i].current_asn = atoi(casn);
         fc_db_bm_ptr->fclist[i].nexthop_asn = atoi(nasn);
+        free(fc_str);
     }
 
     return 0;
 }
 
-int fc_db_read_bm(FC_msg_bm_t **bm, int *bmnum)
+FC_msg_bm_t *fc_db_read_bms(int *bmnum)
 {
-    TXTRED("### READ FROM DB START ###\n");
+    TXTPUR("### READ FROM DB START ###\n");
     int rc = 0;
     char *errMsg = NULL;
+    FC_msg_bm_t *pbm = NULL;
     const char *sql_cnt = "SELECT COUNT(*) FROM fcs;";
     const char *sql_template = "SELECT * FROM fcs LIMIT 1 OFFSET %d;";
 
@@ -179,30 +182,33 @@ int fc_db_read_bm(FC_msg_bm_t **bm, int *bmnum)
     }
 
     *bmnum = fc_db_total_bm_num;
-    *bm = malloc(sizeof(FC_msg_bm_t) * fc_db_total_bm_num);
-    memset(*bm, 0, sizeof(FC_msg_bm_t) * fc_db_total_bm_num);
-
-    while (fc_db_total_bm_num-- > 0)
+    if (fc_db_total_bm_num > 0)
     {
-        fc_db_bm_ptr = bm[fc_db_total_bm_num];
-        char sql[1024] = {0};
-        sprintf(sql, sql_template, fc_db_total_bm_num);
-        rc = sqlite3_exec(g_fc_server.db, sql, fc_db_cb_get_one_bm, 0, &errMsg);
-        if (rc != SQLITE_OK)
+        pbm = malloc(sizeof(FC_msg_bm_t) * fc_db_total_bm_num);
+        memset(pbm, 0, sizeof(FC_msg_bm_t) * fc_db_total_bm_num);
+
+        while (fc_db_total_bm_num-- > 0)
         {
-            fprintf(stderr, "SQL error: %s\n", errMsg);
-            sqlite3_free(errMsg);
+            fc_db_bm_ptr = &pbm[fc_db_total_bm_num];
+            char sql[1024] = {0};
+            sprintf(sql, sql_template, fc_db_total_bm_num);
+            rc = sqlite3_exec(g_fc_server.db, sql, fc_db_cb_get_one_bm, 0, &errMsg);
+            if (rc != SQLITE_OK)
+            {
+                fprintf(stderr, "SQL error: %s\n", errMsg);
+                sqlite3_free(errMsg);
+            }
         }
     }
 
-    TXTRED("### READ FROM DB ENDED ###\n");
+    TXTPUR("### READ FROM DB ENDED ###\n");
 
-    return 0;
+    return pbm;
 }
 
 int fc_db_write_bm(const FC_msg_bm_t *bm)
 {
-    TXTRED("### WRITE TO DB START ###\n");
+    TXTPUR("### WRITE TO DB START ###\n");
     char *sql = calloc(FC_BUFF_SIZE, sizeof(char));
     // base64 encode
     char *buff_src_ip = calloc(FC_BUFF_SIZE, sizeof(char));
@@ -380,7 +386,7 @@ int fc_db_write_bm(const FC_msg_bm_t *bm)
     FC_MEM_FREE(buff_dst_ip);
     FC_MEM_FREE(buff_fclist);
 
-    TXTRED("### WRITE TO DB END ###\n");
+    TXTPUR("### WRITE TO DB END ###\n");
     return 0;
 }
 

@@ -14,6 +14,7 @@ extern "C"
 #endif /* __cplusplus */
 
 #include "strutils.h"
+#include "colorp.h"
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -33,7 +34,7 @@ extern "C"
         char *combined_path = (char *)malloc(combined_len);
         if (combined_path == NULL)
         {
-            fprintf(stderr, "malloc for combined_path failed\n");
+            BAKRED("malloc for combined_path failed\n");
             return NULL;
         }
         memset(combined_path, 0, combined_len);

@@ -396,7 +396,7 @@ fc_multi_long_pull_server(void)
 
     display_g_fc_server_info();
 
-    printf("FCServer in AS %d is ready!!!\n", g_fc_server.local_asn);
+    BAKGRN("FCServer in AS %d is ready!!!\n", g_fc_server.local_asn);
 
     /* epoll */
     ret = fc_mlp_server_epoll();
@@ -907,7 +907,7 @@ fc_server_topo_print(FC_router_info_t *target_router)
 
 int fc_server_topo_handler(int clisockfd, const char *buff, int len)
 {
-    TXTRED("### TOPO LINK INFO START ###\n");
+    TXTPUR("### TOPO LINK INFO START ###\n");
 
     int i = 0, currlen = 0, ret = 0;
     u8 action = 0, reserved = 0;
@@ -989,7 +989,7 @@ int fc_server_topo_handler(int clisockfd, const char *buff, int len)
 
     fc_server_topo_print(target_router);
 
-    TXTRED("### TOPO LINK INFO ENDED ###\n");
+    TXTPUR("### TOPO LINK INFO ENDED ###\n");
 
     return ret;
 }
@@ -1055,13 +1055,13 @@ fc_bm_verify_fc(FC_msg_bm_t *bm)
         switch (ret)
         {
         case 1:
-            printf("\033[32mverify fc %d ok\033[0m\n", i);
+            TXTGRN("verify fc %d ok\n", i);
             break;
         case 0:
-            printf("\033[31mverify fc %d failed\033[0m\n", i);
+            TXTRED("verify fc %d failed\n", i);
             break;
         default:
-            printf("\033[31mverify fc %d error\033[0m\n", i);
+            BAKRED("verify fc %d error\n", i);
             break;
         }
     }
@@ -1163,6 +1163,7 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
 {
     int i = 0, j = 0, ret = 0, fc_index = 0;
     bool flag_offpath = false, flag_withdraw = false;
+    bool still_loop = true, from_bgpd = false;
     FC_router_info_t *router_info = NULL;
     FC_router_link_info_t *link_info = NULL;
     FC_router_iface_info_t *iface_info = NULL;
@@ -1178,8 +1179,17 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
     fc_sock_get_addr_from_peer_fd(clisockfd, (struct sockaddr *)&sockaddr,
                                   ipbuf, INET6_ADDRSTRLEN);
 
+    from_bgpd = false;
+    flag_offpath = true;
     for (fc_index = 0; fc_index < bm->fc_num; ++fc_index)
     {
+        if (fc_index == 0 &&
+            bm->fclist[fc_index].nexthop_asn == g_fc_server.local_asn)
+        {
+            from_bgpd = true;
+            flag_offpath = false;
+            break;
+        }
         if (bm->fclist[fc_index].current_asn == g_fc_server.local_asn)
         {
             flag_offpath = false;
@@ -1187,10 +1197,10 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
         }
     }
 
-    flag_withdraw = (bm->flags & 0x40) != 0;
+    flag_withdraw = (bm->flags & FC_BM_FLAGS_WITHDRAW) != 0;
 
     // maybe can be removed as dst_ip_num is always 1
-    for (i = 0; i < bm->dst_ip_num; ++i)
+    for (i = 0; still_loop && i < bm->dst_ip_num; ++i)
     {
         switch (bm->ipversion)
         {
@@ -1206,7 +1216,7 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
             break;
         }
         dprefixlen = bm->dst_ip[i].prefix_length;
-        for (j = 0; j < bm->src_ip_num; ++j)
+        for (j = 0; still_loop && j < bm->src_ip_num; ++j)
         {
             switch (bm->ipversion)
             {
@@ -1226,8 +1236,10 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
 
             if (router_info == NULL)
             {
-                printf("Sorry, there is no router link info.\n");
-                printf("Have you configured it?\n");
+                TXTRED("Sorry, there is no router link info.\n");
+                TXTRED("Have you configured it in configuration file: %s?\n",
+                       g_fc_server.config_fname);
+                still_loop = false;
             }
 
             // actually, there may be no so many devices
@@ -1237,8 +1249,9 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
 
                 if (link_info == NULL)
                 {
-                    printf("Router (bgpid: %08X) does not hold any link.\n",
+                    TXTRED("Router (bgpid: %08X) does not hold any link.\n",
                            router_info->bgpid);
+                    still_loop = false;
                 }
 
                 while (link_info)
@@ -1252,18 +1265,18 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
                         FC_ASSERT_RETP(item);
                         if (flag_offpath) // offpath node
                         {
-                            printf("srcip: %s/%d, dstip: %s/%d, "
-                                   "iface_index: %d, direction: %s\n",
+                            printf("offpath node srcip: %s/%d, dstip: %s/%d, "
+                                   "iface_index: %d, direction: both\n",
                                    saddr, sprefixlen, daddr, dprefixlen,
-                                   iface_info->iface_index, "both");
-                            // h3c device has only dir=1: in, dir=2: out
+                                   iface_info->iface_index);
 
                             if (flag_withdraw) // withdraw/del
                             {
-                                // offpath withdraw acl-in direction
+                                //! offpath withdraw acl-in direction
                                 ht_acl_rule_info_t *acl_rule_info = NULL;
                                 ht_acl_rule_info_t *rule =
-                                    (ht_acl_rule_info_t *)calloc(1, sizeof(ht_acl_rule_info_t));
+                                    (ht_acl_rule_info_t *)
+                                        calloc(1, sizeof(ht_acl_rule_info_t));
                                 rule->ipversion = bm->ipversion;
                                 memcpy(rule->saddr, saddr, INET6_ADDRSTRLEN);
                                 rule->sprefixlen = sprefixlen;
@@ -1271,32 +1284,52 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
                                 rule->dprefixlen = dprefixlen;
                                 rule->rule_id = 0;
                                 rule->acl_group_index = item->acl_in_index;
-                                acl_rule_info_key = fnv1a_hash(rule, sizeof(rule));
-                                HASH_FIND_INT(item->ht_acl_rule_info, &acl_rule_info_key, acl_rule_info);
+                                acl_rule_info_key =
+                                    fnv1a_hash(rule, sizeof(rule));
+                                HASH_FIND_INT(item->ht_acl_rule_info,
+                                              &acl_rule_info_key,
+                                              acl_rule_info);
 
-                                py_apply_acl(&router_info->py_config,
-                                             item->acl_in_index,
-                                             bm->ipversion,
-                                             flag_withdraw,
-                                             acl_rule_info->rule_id,
-                                             saddr, sprefixlen,
-                                             daddr, dprefixlen,
-                                             iface_info->iface_index,
-                                             FC_TOPO_DIRECTION_IN);
-                                printf("offpath withdraw acl-in direction, "
-                                       "[%s:%d] group index: %u, "
-                                       "ipversion: %d rule_id: %u, "
-                                       "src prefix: %s/%d, dst prefix: %s/%d, "
-                                       "iface index: %d\n",
-                                       __FUNCTION__, __LINE__,
-                                       item->acl_in_index, bm->ipversion,
-                                       acl_rule_info->rule_id,
-                                       saddr, sprefixlen, daddr, dprefixlen,
-                                       iface_info->iface_index);
-                                HASH_DEL(item->ht_acl_rule_info, acl_rule_info);
-                                free(acl_rule_info);
+                                if (acl_rule_info)
+                                {
+                                    printf("offpath withdraw acl-in direction, "
+                                           "[%s:%d] group index: %u, "
+                                           "ipversion: %d rule_id: %u, "
+                                           "src prefix: %s/%d, dst prefix: %s/%d, "
+                                           "iface index: %d\n",
+                                           __FUNCTION__, __LINE__,
+                                           item->acl_in_index, bm->ipversion,
+                                           acl_rule_info->rule_id,
+                                           saddr, sprefixlen, daddr, dprefixlen,
+                                           iface_info->iface_index);
+                                    py_apply_acl(&router_info->py_config,
+                                                 item->acl_in_index,
+                                                 bm->ipversion,
+                                                 flag_withdraw,
+                                                 acl_rule_info->rule_id,
+                                                 saddr, sprefixlen,
+                                                 daddr, dprefixlen,
+                                                 iface_info->iface_index,
+                                                 FC_TOPO_DIRECTION_IN);
+                                    HASH_DEL(item->ht_acl_rule_info, acl_rule_info);
+                                    free(acl_rule_info);
+                                }
+                                else
+                                {
 
-                                // out direction
+                                    printf("no such offpath withdraw acl-in direction, "
+                                           "[%s:%d] group index: %u, "
+                                           "ipversion: %d fake rule_id: %u, "
+                                           "src prefix: %s/%d, dst prefix: %s/%d, "
+                                           "iface index: %d\n",
+                                           __FUNCTION__, __LINE__,
+                                           item->acl_in_index, bm->ipversion,
+                                           rule_id,
+                                           saddr, sprefixlen, daddr, dprefixlen,
+                                           iface_info->iface_index);
+                                }
+
+                                //! offpath withdraw acl-out direction
                                 rule->ipversion = bm->ipversion;
                                 memcpy(rule->saddr, saddr, INET6_ADDRSTRLEN);
                                 rule->sprefixlen = sprefixlen;
@@ -1305,42 +1338,53 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
                                 rule->rule_id = 0;
                                 rule->acl_group_index = item->acl_out_index;
                                 acl_rule_info_key = fnv1a_hash(rule, sizeof(rule));
-                                HASH_FIND_INT(item->ht_acl_rule_info, &acl_rule_info_key, acl_rule_info);
+                                HASH_FIND_INT(item->ht_acl_rule_info,
+                                              &acl_rule_info_key,
+                                              acl_rule_info);
 
-                                py_apply_acl(&router_info->py_config,
-                                             item->acl_out_index,
-                                             bm->ipversion,
-                                             flag_withdraw,
-                                             acl_rule_info->rule_id,
-                                             saddr, sprefixlen,
-                                             daddr, dprefixlen,
-                                             iface_info->iface_index,
-                                             FC_TOPO_DIRECTION_OUT);
-                                printf("offpath withdraw acl-out direction, "
-                                       "[%s:%d] group index: %u, "
-                                       "ipversion: %d rule_id: %u, "
-                                       "src prefix: %s/%d, dst prefix: %s/%d, "
-                                       "iface index: %d\n",
-                                       __FUNCTION__, __LINE__,
-                                       item->acl_in_index, bm->ipversion,
-                                       acl_rule_info->rule_id,
-                                       saddr, sprefixlen, daddr, dprefixlen,
-                                       iface_info->iface_index);
-                                HASH_DEL(item->ht_acl_rule_info, acl_rule_info);
-                                free(acl_rule_info);
+                                if (acl_rule_info)
+                                {
+                                    printf("offpath withdraw acl-out direction, "
+                                           "[%s:%d] group index: %u, "
+                                           "ipversion: %d rule_id: %u, "
+                                           "src prefix: %s/%d, dst prefix: %s/%d, "
+                                           "iface index: %d\n",
+                                           __FUNCTION__, __LINE__,
+                                           item->acl_in_index, bm->ipversion,
+                                           acl_rule_info->rule_id,
+                                           saddr, sprefixlen, daddr, dprefixlen,
+                                           iface_info->iface_index);
+                                    py_apply_acl(&router_info->py_config,
+                                                 item->acl_out_index,
+                                                 bm->ipversion,
+                                                 flag_withdraw,
+                                                 acl_rule_info->rule_id,
+                                                 saddr, sprefixlen,
+                                                 daddr, dprefixlen,
+                                                 iface_info->iface_index,
+                                                 FC_TOPO_DIRECTION_OUT);
+                                    HASH_DEL(item->ht_acl_rule_info, acl_rule_info);
+                                    free(acl_rule_info);
+                                }
+                                else
+                                {
+                                    printf("no such offpath withdraw acl-out direction, "
+                                           "[%s:%d] group index: %u, "
+                                           "ipversion: %d fake rule_id: %u, "
+                                           "src prefix: %s/%d, dst prefix: %s/%d, "
+                                           "iface index: %d\n",
+                                           __FUNCTION__, __LINE__,
+                                           item->acl_in_index, bm->ipversion,
+                                           rule_id,
+                                           saddr, sprefixlen, daddr, dprefixlen,
+                                           iface_info->iface_index);
+                                }
                                 free(rule);
                             }
                             else // update/add
                             {
-                                rule_id = ++item->acl_rule_id;
-                                py_apply_acl(&router_info->py_config,
-                                             item->acl_in_index,
-                                             bm->ipversion,
-                                             flag_withdraw, rule_id,
-                                             saddr, sprefixlen,
-                                             daddr, dprefixlen,
-                                             iface_info->iface_index,
-                                             FC_TOPO_DIRECTION_IN);
+                                //! offpath update acl-in direction
+                                rule_id = ++item->acl_rule_in_id;
                                 printf("offpath update acl-in direction, "
                                        "[%s:%d] group index: %u, "
                                        "ipversion: %d rule_id: %u, "
@@ -1350,8 +1394,17 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
                                        bm->ipversion, rule_id,
                                        saddr, sprefixlen, daddr, dprefixlen,
                                        iface_info->iface_index);
+                                py_apply_acl(&router_info->py_config,
+                                             item->acl_in_index,
+                                             bm->ipversion,
+                                             flag_withdraw, rule_id,
+                                             saddr, sprefixlen,
+                                             daddr, dprefixlen,
+                                             iface_info->iface_index,
+                                             FC_TOPO_DIRECTION_IN);
                                 ht_acl_rule_info_t *acl_rule_info =
-                                    (ht_acl_rule_info_t *)calloc(1, sizeof(ht_acl_rule_info_t));
+                                    (ht_acl_rule_info_t *)
+                                        calloc(1, sizeof(ht_acl_rule_info_t));
                                 acl_rule_info->ipversion = bm->ipversion;
                                 memcpy(acl_rule_info->saddr, saddr, INET6_ADDRSTRLEN);
                                 acl_rule_info->sprefixlen = sprefixlen;
@@ -1359,19 +1412,14 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
                                 acl_rule_info->dprefixlen = dprefixlen;
                                 acl_rule_info->rule_id = 0; // here should be 0
                                 acl_rule_info->acl_group_index = item->acl_in_index;
-                                acl_rule_info_key = fnv1a_hash(acl_rule_info, sizeof(acl_rule_info));
+                                acl_rule_info_key =
+                                    fnv1a_hash(acl_rule_info, sizeof(acl_rule_info));
                                 acl_rule_info->rule_id = rule_id; // fill it
-                                HASH_ADD_INT(item->ht_acl_rule_info, acl_rule_info_key, acl_rule_info);
+                                HASH_ADD_INT(item->ht_acl_rule_info,
+                                             acl_rule_info_key, acl_rule_info);
 
-                                rule_id = ++item->acl_rule_id;
-                                py_apply_acl(&router_info->py_config,
-                                             item->acl_out_index,
-                                             bm->ipversion,
-                                             flag_withdraw, rule_id,
-                                             saddr, sprefixlen,
-                                             daddr, dprefixlen,
-                                             iface_info->iface_index,
-                                             FC_TOPO_DIRECTION_OUT);
+                                //! offpath update acl-in direction
+                                rule_id = ++item->acl_rule_out_id;
                                 printf("offpath update acl-out direction, "
                                        "[%s:%d] group index: %u, "
                                        "ipversion: %d rule_id: %u, "
@@ -1381,8 +1429,17 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
                                        bm->ipversion, rule_id,
                                        saddr, sprefixlen, daddr, dprefixlen,
                                        iface_info->iface_index);
+                                py_apply_acl(&router_info->py_config,
+                                             item->acl_out_index,
+                                             bm->ipversion,
+                                             flag_withdraw, rule_id,
+                                             saddr, sprefixlen,
+                                             daddr, dprefixlen,
+                                             iface_info->iface_index,
+                                             FC_TOPO_DIRECTION_OUT);
                                 acl_rule_info =
-                                    (ht_acl_rule_info_t *)calloc(1, sizeof(ht_acl_rule_info_t));
+                                    (ht_acl_rule_info_t *)
+                                        calloc(1, sizeof(ht_acl_rule_info_t));
                                 acl_rule_info->ipversion = bm->ipversion;
                                 memcpy(acl_rule_info->saddr, saddr, INET6_ADDRSTRLEN);
                                 acl_rule_info->sprefixlen = sprefixlen;
@@ -1390,37 +1447,42 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
                                 acl_rule_info->dprefixlen = dprefixlen;
                                 acl_rule_info->rule_id = 0; // here should be 0
                                 acl_rule_info->acl_group_index = item->acl_out_index;
-                                acl_rule_info_key = fnv1a_hash(acl_rule_info, sizeof(acl_rule_info));
+                                acl_rule_info_key =
+                                    fnv1a_hash(acl_rule_info, sizeof(acl_rule_info));
                                 acl_rule_info->rule_id = rule_id; // fill it
-                                HASH_ADD_INT(item->ht_acl_rule_info, acl_rule_info_key, acl_rule_info);
+                                HASH_ADD_INT(item->ht_acl_rule_info,
+                                             acl_rule_info_key, acl_rule_info);
                             }
                         }
                         else // onpath node
                         {
-                            if (link_info->neighbor_asn == bm->fclist[fc_index].nexthop_asn)
+                            direction = FC_TOPO_DIRECTION_NONE;
+                            const char *direction_str = "none";
+                            if (from_bgpd ||
+                                link_info->neighbor_asn == bm->fclist[fc_index].nexthop_asn)
                             {
-                                direction = FC_TOPO_DIRECTION_IN; // in
+                                direction = FC_TOPO_DIRECTION_IN;
+                                direction_str = "in";
                             }
                             else if (link_info->neighbor_asn == bm->fclist[fc_index].previous_asn)
                             {
                                 direction = FC_TOPO_DIRECTION_OUT;
+                                direction_str = "out";
                             }
-                            else
-                            {
-                                direction = FC_TOPO_DIRECTION_BOTH;
-                            }
-
-                            const char *direction_str = NULL;
-                            direction_str = direction == FC_TOPO_DIRECTION_BOTH
-                                                ? "both"
-                                                : (direction == FC_TOPO_DIRECTION_IN
-                                                       ? "in"
-                                                       : "out");
-                            printf("srcip: %s/%d, dstip: %s/%d, "
+                            // this is for the other ifaces that do not link to nasn or pasn.
+                            // else
+                            // {
+                            //     direction = FC_TOPO_DIRECTION_BOTH;
+                            //     direction_str = "both";
+                            // }
+                            printf("onpath node srcip: %s/%d, dstip: %s/%d, "
                                    "iface_index: %d, direction: %s\n",
                                    saddr, sprefixlen, daddr, dprefixlen,
                                    iface_info->iface_index, direction_str);
-                            // h3c device has only dir=1: in, dir=2: out
+                            if (direction == FC_TOPO_DIRECTION_NONE)
+                            {
+                                continue;
+                            }
                             if (direction & FC_TOPO_DIRECTION_IN)
                             {
                                 if (flag_withdraw) // withdraw/del
@@ -1438,40 +1500,46 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
                                     acl_rule_info_key = fnv1a_hash(rule, sizeof(rule));
                                     HASH_FIND_INT(item->ht_acl_rule_info, &acl_rule_info_key, acl_rule_info);
 
-                                    py_apply_acl(&router_info->py_config,
-                                                 item->acl_in_index,
-                                                 bm->ipversion,
-                                                 flag_withdraw,
-                                                 acl_rule_info->rule_id,
-                                                 saddr, sprefixlen,
-                                                 daddr, dprefixlen,
-                                                 iface_info->iface_index,
-                                                 FC_TOPO_DIRECTION_IN);
-                                    printf("onpath withdraw acl-in direction, "
-                                           "[%s:%d] group index: %u, "
-                                           "ipversion: %d rule_id: %u, "
-                                           "src prefix: %s/%d, dst prefix: %s/%d, "
-                                           "iface index: %d\n",
-                                           __FUNCTION__, __LINE__, item->acl_in_index,
-                                           bm->ipversion, rule_id,
-                                           saddr, sprefixlen, daddr, dprefixlen,
-                                           iface_info->iface_index);
-                                    HASH_DEL(item->ht_acl_rule_info, acl_rule_info);
-                                    free(acl_rule_info);
+                                    if (acl_rule_info)
+                                    {
+                                        printf("onpath withdraw acl-in direction, "
+                                               "[%s:%d] group index: %u, "
+                                               "ipversion: %d rule_id: %u, "
+                                               "src prefix: %s/%d, dst prefix: %s/%d, "
+                                               "iface index: %d\n",
+                                               __FUNCTION__, __LINE__, item->acl_in_index,
+                                               bm->ipversion, acl_rule_info->rule_id,
+                                               saddr, sprefixlen, daddr, dprefixlen,
+                                               iface_info->iface_index);
+                                        py_apply_acl(&router_info->py_config,
+                                                     item->acl_in_index,
+                                                     bm->ipversion,
+                                                     flag_withdraw,
+                                                     acl_rule_info->rule_id,
+                                                     saddr, sprefixlen,
+                                                     daddr, dprefixlen,
+                                                     iface_info->iface_index,
+                                                     FC_TOPO_DIRECTION_IN);
+                                        HASH_DEL(item->ht_acl_rule_info, acl_rule_info);
+                                        free(acl_rule_info);
+                                    }
+                                    else
+                                    {
+                                        printf("no such onpath withdraw acl-in direction, "
+                                               "[%s:%d] group index: %u, "
+                                               "ipversion: %d fake rule_id: %u, "
+                                               "src prefix: %s/%d, dst prefix: %s/%d, "
+                                               "iface index: %d\n",
+                                               __FUNCTION__, __LINE__, item->acl_in_index,
+                                               bm->ipversion, rule_id,
+                                               saddr, sprefixlen, daddr, dprefixlen,
+                                               iface_info->iface_index);
+                                    }
                                     free(rule);
                                 }
                                 else
                                 {
-                                    rule_id = ++item->acl_rule_id;
-                                    py_apply_acl(&router_info->py_config,
-                                                 item->acl_in_index,
-                                                 bm->ipversion,
-                                                 flag_withdraw,
-                                                 rule_id,
-                                                 saddr, sprefixlen,
-                                                 daddr, dprefixlen,
-                                                 iface_info->iface_index,
-                                                 FC_TOPO_DIRECTION_IN);
+                                    rule_id = ++item->acl_rule_in_id;
                                     printf("onpath update acl-in direction, "
                                            "[%s:%d] group index: %u, "
                                            "ipversion: %d rule_id: %u, "
@@ -1481,6 +1549,15 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
                                            bm->ipversion, rule_id,
                                            saddr, sprefixlen, daddr, dprefixlen,
                                            iface_info->iface_index);
+                                    py_apply_acl(&router_info->py_config,
+                                                 item->acl_in_index,
+                                                 bm->ipversion,
+                                                 flag_withdraw,
+                                                 rule_id,
+                                                 saddr, sprefixlen,
+                                                 daddr, dprefixlen,
+                                                 iface_info->iface_index,
+                                                 FC_TOPO_DIRECTION_IN);
                                     ht_acl_rule_info_t *acl_rule_info =
                                         (ht_acl_rule_info_t *)calloc(1, sizeof(ht_acl_rule_info_t));
                                     acl_rule_info->ipversion = bm->ipversion;
@@ -1494,78 +1571,93 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
                                     HASH_ADD_INT(item->ht_acl_rule_info, acl_rule_info_key, acl_rule_info);
                                 }
                             }
-                        }
-                        if (direction & FC_TOPO_DIRECTION_OUT)
-                        {
-                            if (flag_withdraw)
+                            if (direction & FC_TOPO_DIRECTION_OUT)
                             {
-                                ht_acl_rule_info_t *acl_rule_info = NULL;
-                                ht_acl_rule_info_t *rule =
-                                    (ht_acl_rule_info_t *)calloc(1, sizeof(ht_acl_rule_info_t));
-                                rule->ipversion = bm->ipversion;
-                                memcpy(rule->saddr, saddr, INET6_ADDRSTRLEN);
-                                rule->sprefixlen = sprefixlen;
-                                memcpy(rule->daddr, daddr, INET6_ADDRSTRLEN);
-                                rule->dprefixlen = dprefixlen;
-                                rule->rule_id = 0;
-                                rule->acl_group_index = item->acl_out_index;
-                                acl_rule_info_key = fnv1a_hash(rule, sizeof(rule));
-                                HASH_FIND_INT(item->ht_acl_rule_info, &acl_rule_info_key, acl_rule_info);
+                                if (flag_withdraw)
+                                {
+                                    ht_acl_rule_info_t *acl_rule_info = NULL;
+                                    ht_acl_rule_info_t *rule =
+                                        (ht_acl_rule_info_t *)calloc(1, sizeof(ht_acl_rule_info_t));
+                                    rule->ipversion = bm->ipversion;
+                                    memcpy(rule->saddr, saddr, INET6_ADDRSTRLEN);
+                                    rule->sprefixlen = sprefixlen;
+                                    memcpy(rule->daddr, daddr, INET6_ADDRSTRLEN);
+                                    rule->dprefixlen = dprefixlen;
+                                    rule->rule_id = 0;
+                                    rule->acl_group_index = item->acl_out_index;
+                                    acl_rule_info_key = fnv1a_hash(rule, sizeof(rule));
+                                    HASH_FIND_INT(item->ht_acl_rule_info, &acl_rule_info_key, acl_rule_info);
 
-                                py_apply_acl(&router_info->py_config,
-                                             item->acl_out_index,
-                                             bm->ipversion,
-                                             flag_withdraw,
-                                             acl_rule_info->rule_id,
-                                             saddr, sprefixlen,
-                                             daddr, dprefixlen,
-                                             iface_info->iface_index,
-                                             FC_TOPO_DIRECTION_OUT);
-                                printf("onpath withdraw acl-in direction, "
-                                       "[%s:%d] group index: %u, "
-                                       "ipversion: %d rule_id: %u, "
-                                       "src prefix: %s/%d, dst prefix: %s/%d, "
-                                       "iface index: %d\n",
-                                       __FUNCTION__, __LINE__, item->acl_out_index,
-                                       bm->ipversion, rule_id,
-                                       saddr, sprefixlen, daddr, dprefixlen,
-                                       iface_info->iface_index);
-                                HASH_DEL(item->ht_acl_rule_info, acl_rule_info);
-                                free(acl_rule_info);
-                                free(rule);
-                            }
-                            else
-                            {
-                                rule_id = ++item->acl_rule_id;
-                                py_apply_acl(&router_info->py_config,
-                                             item->acl_out_index,
-                                             bm->ipversion,
-                                             flag_withdraw,
-                                             rule_id,
-                                             saddr, sprefixlen,
-                                             daddr, dprefixlen,
-                                             iface_info->iface_index,
-                                             FC_TOPO_DIRECTION_OUT);
-                                printf("onpath update acl-out direction, "
-                                       "[%s:%d] group index: %u, "
-                                       "ipversion: %d rule_id: %u, "
-                                       "src prefix: %s/%d, dst prefix: %s/%d, "
-                                       "iface index: %d\n",
-                                       __FUNCTION__, __LINE__, item->acl_out_index,
-                                       bm->ipversion, rule_id,
-                                       saddr, sprefixlen, daddr, dprefixlen,
-                                       iface_info->iface_index);
-                                ht_acl_rule_info_t *acl_rule_info =
-                                    (ht_acl_rule_info_t *)calloc(1, sizeof(ht_acl_rule_info_t));
-                                acl_rule_info->ipversion = bm->ipversion;
-                                memcpy(acl_rule_info->saddr, saddr, INET6_ADDRSTRLEN);
-                                acl_rule_info->sprefixlen = sprefixlen;
-                                memcpy(acl_rule_info->daddr, daddr, INET6_ADDRSTRLEN);
-                                acl_rule_info->dprefixlen = dprefixlen;
-                                acl_rule_info->rule_id = rule_id;
-                                acl_rule_info->acl_group_index = item->acl_out_index;
-                                acl_rule_info_key = fnv1a_hash(acl_rule_info, sizeof(acl_rule_info));
-                                HASH_ADD_INT(item->ht_acl_rule_info, acl_rule_info_key, acl_rule_info);
+                                    if (acl_rule_info)
+                                    {
+                                        printf("onpath withdraw acl-in direction, "
+                                               "[%s:%d] group index: %u, "
+                                               "ipversion: %d rule_id: %u, "
+                                               "src prefix: %s/%d, dst prefix: %s/%d, "
+                                               "iface index: %d\n",
+                                               __FUNCTION__, __LINE__, item->acl_out_index,
+                                               bm->ipversion, acl_rule_info->rule_id,
+                                               saddr, sprefixlen, daddr, dprefixlen,
+                                               iface_info->iface_index);
+                                        py_apply_acl(&router_info->py_config,
+                                                     item->acl_out_index,
+                                                     bm->ipversion,
+                                                     flag_withdraw,
+                                                     acl_rule_info->rule_id,
+                                                     saddr, sprefixlen,
+                                                     daddr, dprefixlen,
+                                                     iface_info->iface_index,
+                                                     FC_TOPO_DIRECTION_OUT);
+                                        HASH_DEL(item->ht_acl_rule_info, acl_rule_info);
+                                        free(acl_rule_info);
+                                    }
+                                    else
+                                    {
+                                        printf("no such onpath withdraw acl-in direction, "
+                                               "[%s:%d] group index: %u, "
+                                               "ipversion: %d fake rule_id: %u, "
+                                               "src prefix: %s/%d, dst prefix: %s/%d, "
+                                               "iface index: %d\n",
+                                               __FUNCTION__, __LINE__, item->acl_out_index,
+                                               bm->ipversion, rule_id,
+                                               saddr, sprefixlen, daddr, dprefixlen,
+                                               iface_info->iface_index);
+                                    }
+                                    free(rule);
+                                }
+                                else
+                                {
+                                    rule_id = ++item->acl_rule_out_id;
+                                    printf("onpath update acl-out direction, "
+                                           "[%s:%d] group index: %u, "
+                                           "ipversion: %d rule_id: %u, "
+                                           "src prefix: %s/%d, dst prefix: %s/%d, "
+                                           "iface index: %d\n",
+                                           __FUNCTION__, __LINE__, item->acl_out_index,
+                                           bm->ipversion, rule_id,
+                                           saddr, sprefixlen, daddr, dprefixlen,
+                                           iface_info->iface_index);
+                                    py_apply_acl(&router_info->py_config,
+                                                 item->acl_out_index,
+                                                 bm->ipversion,
+                                                 flag_withdraw,
+                                                 rule_id,
+                                                 saddr, sprefixlen,
+                                                 daddr, dprefixlen,
+                                                 iface_info->iface_index,
+                                                 FC_TOPO_DIRECTION_OUT);
+                                    ht_acl_rule_info_t *acl_rule_info =
+                                        (ht_acl_rule_info_t *)calloc(1, sizeof(ht_acl_rule_info_t));
+                                    acl_rule_info->ipversion = bm->ipversion;
+                                    memcpy(acl_rule_info->saddr, saddr, INET6_ADDRSTRLEN);
+                                    acl_rule_info->sprefixlen = sprefixlen;
+                                    memcpy(acl_rule_info->daddr, daddr, INET6_ADDRSTRLEN);
+                                    acl_rule_info->dprefixlen = dprefixlen;
+                                    acl_rule_info->rule_id = rule_id;
+                                    acl_rule_info->acl_group_index = item->acl_out_index;
+                                    acl_rule_info_key = fnv1a_hash(acl_rule_info, sizeof(acl_rule_info));
+                                    HASH_ADD_INT(item->ht_acl_rule_info, acl_rule_info_key, acl_rule_info);
+                                }
                             }
                         }
                         iface_info = iface_info->next;
@@ -1583,7 +1675,7 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
 static int
 fc_gen_acl(int clisockfd, const FC_msg_bm_t *bm)
 {
-    printf("### Gen ACL START ###\n");
+    TXTPUR("### Gen ACL START ###\n");
 
     switch (g_fc_server.use_data_plane)
     {
@@ -1601,7 +1693,7 @@ fc_gen_acl(int clisockfd, const FC_msg_bm_t *bm)
         break;
     }
 
-    printf("### Gen ACL ENDED ###\n");
+    TXTPUR("### Gen ACL ENDED ###\n");
 
     return 0;
 }
@@ -1856,7 +1948,7 @@ fc_msg_bm_bc_handler(FC_msg_bm_t *bm, const unsigned char *msg,
 {
     int k = 0, ret = 0;
 
-    printf("### Verify BM Signature Start ###\n");
+    TXTPUR("### Verify BM Signature Start ###\n");
     // verify and remove signature
     memcpy(bm->ski, buff + currlen, FC_SKI_LENGTH);
     memcpy(bm->signature, buff + currlen + FC_SKI_LENGTH, bm->siglen);
@@ -1884,17 +1976,17 @@ fc_msg_bm_bc_handler(FC_msg_bm_t *bm, const unsigned char *msg,
     switch (ret)
     {
     case 1:
-        printf("\033[32mverify sig ok\033[0m\n");
+        TXTGRN("verify sig ok\n");
         break;
     case 0:
-        printf("\033[31mverify sig failed\033[0m\n");
+        TXTRED("verify sig failed\n");
         break;
     default:
-        printf("\033[31mverify sig error\033[0m\n");
+        BAKRED("verify sig error\n");
         break;
     }
 
-    printf("### Verify BM Signature End ###\n");
+    TXTPUR("### Verify BM Signature End ###\n");
 
     return ret;
 }
@@ -1968,6 +2060,24 @@ int fc_server_bm_handler(int clisockfd, char *buffer,
     return 0;
 }
 
+static int
+fc_server_msg_topo_init(int clisockfd)
+{
+    FC_msg_bm_t *pbm = NULL;
+    int i = 0, bmnum = 0;
+
+    pbm = fc_db_read_bms(&bmnum);
+
+    for (i = 0; i < bmnum; ++i)
+    {
+        fc_gen_acl(clisockfd, &pbm[i]);
+    }
+
+    free(pbm);
+
+    return 0;
+}
+
 int fc_server_handler(int clisockfd, char *buff, int buffsize, int recvlen)
 {
     TXTPUR("### Process One Packet Start ###\n");
@@ -2000,6 +2110,7 @@ int fc_server_handler(int clisockfd, char *buff, int buffsize, int recvlen)
             break;
         case FC_MSG_TOPO:
             fc_server_topo_handler(clisockfd, buff, recvlen);
+            fc_server_msg_topo_init(clisockfd);
             break;
         default:
             printf("Not support %d\n", buff[0]);

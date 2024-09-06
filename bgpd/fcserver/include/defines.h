@@ -43,6 +43,11 @@
 #define FC_MAX_SIZE 256
 #define FC_IF_MAX_SIZE 32
 
+#define FC_BM_FLAGS_UPDATE 0x00
+#define FC_BM_FLAGS_WITHDRAW 0x40
+#define FC_BM_FLAGS_OFFPATH 0x80
+#define FC_BM_FLAGS_ONPATH 0x00
+
 #define FC_MAX_ACL_RULE_SIZE 65535
 
 #define FC_HDR_GENERAL_LENGTH 4
@@ -304,7 +309,8 @@ typedef struct ht_acl_group_info_st
     u32 iface_index;
     u32 acl_in_index;
     u32 acl_out_index;
-    u32 acl_rule_id;
+    u32 acl_rule_in_id;
+    u32 acl_rule_out_id;
     ht_acl_rule_info_t *ht_acl_rule_info;
 } ht_acl_group_info_t;
 

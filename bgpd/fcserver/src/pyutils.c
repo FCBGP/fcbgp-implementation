@@ -157,7 +157,7 @@ int py_apply_acl(py_config_t *py_config,
                                    py_config->session,
                                    group_type,
                                    group_index);
-    PY_OBJECT_CHECK(result);
+    // PY_OBJECT_CHECK(result);
     Py_DECREF(result);
 
     result = PyObject_CallFunction(acl_rule_func, "Oiiisisiis",
@@ -169,7 +169,7 @@ int py_apply_acl(py_config_t *py_config,
                                    dstip, dstprefixlen,
                                    action,
                                    operation);
-    PY_OBJECT_CHECK(result);
+    // PY_OBJECT_CHECK(result);
     Py_DECREF(result);
 
     result = PyObject_CallFunction(acl_apply_func, "Oiiii",
@@ -178,7 +178,7 @@ int py_apply_acl(py_config_t *py_config,
                                    group_index,
                                    iface_index,
                                    direction);
-    PY_OBJECT_CHECK(result);
+    // PY_OBJECT_CHECK(result);
     Py_DECREF(result);
 
     return 0;
