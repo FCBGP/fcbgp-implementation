@@ -61,5 +61,4 @@ extern int fc_ecdsa_verify(EC_KEY *pubkey,
                            int msglen,
                            const unsigned char *sigbuff,
                            unsigned int siglen);
-
 #endif // SIGUTILS_H

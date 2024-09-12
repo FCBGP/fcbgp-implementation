@@ -8,15 +8,18 @@
 #ifndef DEFINES_H
 #define DEFINES_H
 
+#include "libdiag.h"
 #include "libhtable.h"
 #include "mln_hash.h"
 #include "pyutils.h"
+#include "strutils.h"
 #include "sysconfig.h"
 #include "utarray.h"
 #include "uthash.h"
 #include <Python.h>
 #include <arpa/inet.h>
 #include <openssl/ec.h>
+#include <pthread.h>
 #include <sqlite3.h>
 #include <stdbool.h>
 #include <sys/epoll.h>
@@ -34,7 +37,6 @@
 #define FCSRV_HTBL_BUCKETS_SIZE 1000007
 #define FCSRV_MAX_LINK_AS 256
 #define FCSRV_MAX_SRC_PREFIX 256
-
 
 #define FC_MSG_VERSION 1
 #define FC_MSG_BM_VERSION 1

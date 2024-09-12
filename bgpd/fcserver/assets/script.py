@@ -2,6 +2,9 @@ from ncclient import manager
 import time
 from lxml import etree
 from lxml.builder import ElementMaker
+import logging
+
+logging.basicConfig(filename='/opt/log/fcs.py.log', level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
 h3c_device = {
     'host': '2001:db8::1111',
@@ -31,26 +34,26 @@ def teardown(nconn):
     nconn.close_session()
 
 def print_capabilities(nconn):
-    print("\n******************************************************\n")
-    print("server capabilities\n")
+    logging.info("\n******************************************************\n")
+    logging.info("server capabilities\n")
     for server_capability in nconn.server_capabilities:
-        print(server_capability)
-    print("\n******************************************************\n")
-    print("client capabilities\n")
+        logging.info(server_capability)
+    logging.info("\n******************************************************\n")
+    logging.info("client capabilities\n")
     for client_capability in nconn.client_capabilities:
-        print(client_capability)
+        logging.info(client_capability)
 
 def nc_exec(nconn, config_xml):
-    print("*" * 25, 'CMD', "*" * 25)
-    print(config_xml)
-    print("*" * 25, 'RET', "*" * 25)
+    logging.info("*" * 25 + ' CMD ' + "*" * 25)
+    logging.info(config_xml)
+    logging.info("*" * 25 + ' RET ' + "*" * 25)
     try:
       config_xml = etree.fromstring(config_xml)
       ret = nconn.edit_config(target="running", config=config_xml)
-      print(ret)
+      logging.info(ret)
     except Exception as e:
-      print(e)
-    print("*" * 25, 'END', "*" * 25)
+      logging.error(e)
+    logging.info("*" * 25 + ' END ' + "*" * 25)
 
 
 # acl [ipv6] advanecd 3999
@@ -202,9 +205,9 @@ def main():
     nconn = setup('2001:db8::1001')
     try:
         print_capabilities(nconn)
-        print("*" * 50)
+        logging.info("*" * 50)
         mask = ipv4_prefix_to_mask("11.22.33.44", 23)
-        print(mask)
+        logging.info(mask)
         acl_setup(nconn, 1, 3900)
         acl_rule(nconn, 1, 3900, 1,
                  "11.22.33.44", 24, "44.33.22.11", 24)

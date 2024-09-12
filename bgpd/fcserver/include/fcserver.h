@@ -7,24 +7,24 @@
 #ifndef BGP_FC_H
 #define BGP_FC_H
 
+#include <getopt.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdint.h>
 #include <string.h>
-#include <getopt.h>
 
 #include <arpa/inet.h>
-#include <netdb.h>
 #include <net/if.h>
-#include <netinet/in.h>
+#include <netdb.h>
 #include <netinet/if_ether.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <sys/ioctl.h>
-#include <sys/wait.h>
-#include <signal.h>
-#include <time.h>
+#include <netinet/in.h>
 #include <pthread.h>
+#include <signal.h>
+#include <sys/ioctl.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <time.h>
 #include <unistd.h>
 
 #include "defines.h"
@@ -43,13 +43,23 @@
 #define FC_TOPO_DIRECTION_OUT 0x02
 #define FC_TOPO_DIRECTION_BOTH 0x03
 
-extern int fc_main();
+extern void *fc_main(void *args);
 extern int fc_server_create(void);
 extern void fc_server_destroy(int signum);
 extern int fc_server_handler(int clisockfd, char *buff, int buffsize, int recvlen);
-extern int fc_server_pubkey_handler(int clisockfd, const char *buff, int bufflen);
-extern int fc_server_bm_handler(int clisockfd, char *buff, int bufflen, int msg_type);
-extern int fc_server_topo_handler(int clisockfd, const char *buff, int bufflen);
+extern int fc_server_pubkey_handler(int clisockfd, const unsigned char *buff, int bufflen);
+extern int fc_server_bm_handler(int clisockfd, unsigned char *buff, int bufflen, int msg_type);
+extern int fc_server_topo_handler(int clisockfd, const unsigned char *buff, int bufflen);
+
+extern void *fc_main_front(void *args);
+extern void fc_help(void);
+
+extern void fc_cmd_help();
+extern void fc_cmd_acl();
+extern void fc_cmd_info();
+extern void fc_cmd_link();
+extern void fc_cmd_version();
+extern void fc_cmd_quit();
+extern void fc_cmd_help();
 
 #endif // BGP_FC_H
-

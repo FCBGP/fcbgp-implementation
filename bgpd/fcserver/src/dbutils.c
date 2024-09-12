@@ -14,12 +14,12 @@ int fc_db_open(sqlite3 **db, const char *dbname)
 {
     if (sqlite3_open(dbname, db) != SQLITE_OK)
     {
-        BAKRED("Can't open database: %s\n", sqlite3_errmsg(*db));
+        DIAG_ERROR("Can't open database: %s\n", sqlite3_errmsg(*db));
         exit(0);
     }
     else
     {
-        TXTGRN("Opened database successfully\n");
+        DIAG_INFO("Opened database successfully\n");
     }
 
     return 0;
@@ -47,12 +47,12 @@ int fc_db_exec(sqlite3 *db, const char *sql,
     rc = sqlite3_exec(db, sql, cb, data, &zErrMsg);
     if (rc != SQLITE_OK)
     {
-        BAKRED("SQL error: %s\n", zErrMsg);
+        DIAG_ERROR("SQL error: %s\n", zErrMsg);
         sqlite3_free(zErrMsg);
     }
     else
     {
-        TXTGRN("Operation done successfully\n");
+        DIAG_INFO("Operation done successfully\n");
     }
 
     return 0;
@@ -73,9 +73,25 @@ fc_db_cb_get_cnt(void *data, int argc, char **argv, char **azColName)
         fc_db_total_bm_num = 0;
     }
 
-    printf("total fc stored in db: %d\n", fc_db_total_bm_num);
+    DIAG_INFO("total fc stored in db: %d\n", fc_db_total_bm_num);
 
     return 0;
+}
+
+static u32
+ptoasn(const char *p)
+{
+    u32 ret = 0;
+
+    for (int i = 0; i < sizeof(p); ++i)
+    {
+        if (p[i] - '0' <= 9)
+            ret = ret * 16 + p[i] - '0';
+        else
+            ret = ret * 16 + toupper(p[i]) - 'A' + 10;
+    }
+
+    return ret;
 }
 
 static int
@@ -156,9 +172,9 @@ fc_db_cb_get_one_bm(void *data, int argc, char **argv, char **azColName)
         char *pasn = strtok(fc_str, asn_delim);
         char *casn = strtok(NULL, asn_delim);
         char *nasn = strtok(NULL, asn_delim);
-        fc_db_bm_ptr->fclist[i].previous_asn = atoi(pasn);
-        fc_db_bm_ptr->fclist[i].current_asn = atoi(casn);
-        fc_db_bm_ptr->fclist[i].nexthop_asn = atoi(nasn);
+        fc_db_bm_ptr->fclist[i].previous_asn = ptoasn(pasn);
+        fc_db_bm_ptr->fclist[i].current_asn = ptoasn(casn);
+        fc_db_bm_ptr->fclist[i].nexthop_asn = ptoasn(nasn);
         free(fc_str);
     }
 
@@ -167,7 +183,7 @@ fc_db_cb_get_one_bm(void *data, int argc, char **argv, char **azColName)
 
 FC_msg_bm_t *fc_db_read_bms(int *bmnum)
 {
-    TXTPUR("### READ FROM DB START ###\n");
+    DIAG_INFO("### READ FROM DB START ###\n");
     int rc = 0;
     char *errMsg = NULL;
     FC_msg_bm_t *pbm = NULL;
@@ -177,7 +193,7 @@ FC_msg_bm_t *fc_db_read_bms(int *bmnum)
     rc = sqlite3_exec(g_fc_server.db, sql_cnt, fc_db_cb_get_cnt, 0, &errMsg);
     if (rc != SQLITE_OK)
     {
-        fprintf(stderr, "SQL error: %s\n", errMsg);
+        DIAG_ERROR("SQL error: %s\n", errMsg);
         sqlite3_free(errMsg);
     }
 
@@ -195,20 +211,20 @@ FC_msg_bm_t *fc_db_read_bms(int *bmnum)
             rc = sqlite3_exec(g_fc_server.db, sql, fc_db_cb_get_one_bm, 0, &errMsg);
             if (rc != SQLITE_OK)
             {
-                fprintf(stderr, "SQL error: %s\n", errMsg);
+                DIAG_ERROR("SQL error: %s\n", errMsg);
                 sqlite3_free(errMsg);
             }
         }
     }
 
-    TXTPUR("### READ FROM DB ENDED ###\n");
+    DIAG_INFO("### READ FROM DB ENDED ###\n");
 
     return pbm;
 }
 
 int fc_db_write_bm(const FC_msg_bm_t *bm)
 {
-    TXTPUR("### WRITE TO DB START ###\n");
+    DIAG_INFO("### WRITE TO DB START ###\n");
     char *sql = calloc(FC_BUFF_SIZE, sizeof(char));
     // base64 encode
     char *buff_src_ip = calloc(FC_BUFF_SIZE, sizeof(char));
@@ -232,7 +248,7 @@ int fc_db_write_bm(const FC_msg_bm_t *bm)
     }
     else
     {
-        printf("THIS IS NOT supported: %d!\n", bm->ipversion);
+        DIAG_ERROR("THIS IS NOT supported: %d!\n", bm->ipversion);
         return -1;
     }
 
@@ -258,7 +274,7 @@ int fc_db_write_bm(const FC_msg_bm_t *bm)
         cur += strlen(buff_src_ip + cur);
         FC_MEM_CHECK(cur < FC_BUFF_SIZE);
     }
-    printf("src-ip: %s\n", buff_src_ip);
+    DIAG_INFO("src-ip: %s\n", buff_src_ip);
 
     // fc_base64_encode(buff, cur, buff_src_ip);
 
@@ -282,7 +298,7 @@ int fc_db_write_bm(const FC_msg_bm_t *bm)
         cur += strlen(buff_dst_ip + cur);
         FC_MEM_CHECK(cur < FC_BUFF_SIZE);
     }
-    printf("dst-ip: %s\n", buff_dst_ip);
+    DIAG_INFO("dst-ip: %s\n", buff_dst_ip);
     // fc_base64_encode(buff, cur, buff_dst_ip);
 
     // base64 encode fclist
@@ -314,15 +330,15 @@ int fc_db_write_bm(const FC_msg_bm_t *bm)
         }
         snprintf(buff_fclist + cur, FC_BUFF_SIZE, ",");
         cur += 1;
-        // printf("i: %d, curlen: %d, fclist: %s\n", i, cur, buff_fclist);
+        DIAG_INFO("i: %d, curlen: %d, fclist: %s\n", i, cur, buff_fclist);
         FC_MEM_CHECK(cur < FC_BUFF_SIZE);
     }
     // fc_base64_encode(buff, cur, buff_fclist);
 
     /*
-       printf("buff-srcip: %s\n", buff_src_ip);
-       printf("buff-dstip: %s\n", buff_dst_ip);
-       printf("buff-fclist: %s\n", buff_fclist);
+       DIAG_INFO("buff-srcip: %s\n", buff_src_ip);
+       DIAG_INFO("buff-dstip: %s\n", buff_dst_ip);
+       DIAG_INFO("buff-fclist: %s\n", buff_fclist);
        */
 
     // ski
@@ -343,7 +359,7 @@ int fc_db_write_bm(const FC_msg_bm_t *bm)
         cur += 2;
         FC_MEM_CHECK(cur < BUFSIZ);
     }
-    printf("signature: %s\n", buff_signature);
+    DIAG_INFO("signature: %s\n", buff_signature);
     /*
                  "bmversion INT NOT NULL,"
                  "ipversion INT NOT NULL,"
@@ -378,7 +394,7 @@ int fc_db_write_bm(const FC_msg_bm_t *bm)
              bm->local_asn, bm->version, bm->subversion,
              buff_src_ip, buff_dst_ip,
              buff_fclist, buff_ski, buff_signature);
-    printf("SQL: %s\n", sql);
+    DIAG_INFO("SQL: %s\n", sql);
     fc_db_exec(g_fc_server.db, sql, fc_db_store_bm_handler, NULL);
 
     FC_MEM_FREE(sql);
@@ -386,7 +402,7 @@ int fc_db_write_bm(const FC_msg_bm_t *bm)
     FC_MEM_FREE(buff_dst_ip);
     FC_MEM_FREE(buff_fclist);
 
-    TXTPUR("### WRITE TO DB END ###\n");
+    DIAG_INFO("### WRITE TO DB END ###\n");
     return 0;
 }
 
@@ -406,7 +422,7 @@ void fc_db_init(sqlite3 **db)
     {
         bzero(sql, BUFSIZ);
         sprintf(sql, "DROP TABLE IF EXISTS fcs;");
-        printf("sql: %s\n", sql);
+        DIAG_INFO("sql: %s\n", sql);
         fc_db_exec(*db, sql, NULL, NULL);
     }
 
@@ -428,7 +444,7 @@ void fc_db_init(sqlite3 **db)
                  "fclist VARCHAR NOT NULL,"
                  "ski CHAR(20) NOT NULL,"
                  "signature VARCHAR NOT NULL)");
-    printf("sql: %s\n", sql);
+    DIAG_INFO("sql: %s\n", sql);
     fc_db_exec(*db, sql, NULL, NULL);
     // bzero(sql, 1024);
     // sprintf(sql, "DELETE FROM relation WHERE asn = %u", asn);

@@ -27,8 +27,8 @@ int fc_base64_encode(const unsigned char *msg, size_t length, char *b64msg)
     BIO_free_all(bio);
 
     memcpy(b64msg, (*buff).data, strlen((*buff).data));
-    printf("msg: %s, b64msg: %s, data: %s\n",
-           msg, b64msg, (*buff).data);
+    DIAG_INFO("msg: %s, b64msg: %s, data: %s\n",
+              msg, b64msg, (*buff).data);
 
     return 0;
 }
@@ -63,7 +63,7 @@ int fc_base64_decode(const char *b64msg, unsigned char **msg, size_t *length)
     *length = BIO_read(bio, *msg, strlen(b64msg));
     if (*length != decode_len)
     {
-        printf("error b64 decode length\n");
+        DIAG_ERROR("error b64 decode length\n");
         return -1;
     }
 
@@ -174,43 +174,39 @@ int fc_get_ecpubkey_and_ski(u32 asn, const char *fpath,
 
     if ((bio_in = BIO_new_file(fpath, "r")) == NULL)
     {
-        fprintf(stderr, "Couldn't read certificate file\n");
+        DIAG_ERROR("Couldn't read certificate file\n");
         return -1;
     }
 
     if ((bio_out = BIO_new_fp(stdout, BIO_NOCLOSE)) == NULL)
     {
-        fprintf(stderr, "Couldn't create bio_out\n");
+        DIAG_ERROR("Couldn't create bio_out\n");
         return -1;
     }
 
     if ((cert = X509_new()) == NULL)
     {
-        fprintf(stderr, "X509_new() error\n");
+        DIAG_ERROR("X509_new() error\n");
         return -1;
     }
 
     if (PEM_read_bio_X509(bio_in, &cert, 0, NULL) == NULL)
     {
-        fprintf(stderr, "Couldn't read public key from certificate file\n");
+        DIAG_ERROR("Couldn't read public key from certificate file\n");
         return -1;
     }
 
     if ((ski = X509_get0_subject_key_id(cert)) != NULL)
     {
         memcpy(ecski, (u8 *)ski->data, FC_SKI_LENGTH);
-        printf("ASN: %u, Subject Key Identifier (SKI): ", asn);
-        for (int i = 0; i < ski->length; i++)
-        {
-            printf("%02X", ecski[i]);
-        }
-        printf("\n");
+        DIAG_INFO("ASN: %u, ", asn);
+        fc_print_bin("ski", ecski, ski->length);
     }
 
     if ((pubkey = X509_get_pubkey(cert)) != NULL)
     {
-        printf("ASN: %u, pubkey: ", asn);
-        EVP_PKEY_print_public(bio_out, pubkey, 0, NULL);
+        DIAG_INFO("ASN: %u, pubkey: ", asn);
+        // EVP_PKEY_print_public(bio_out, pubkey, 0, NULL);
     }
 
     *ecpubkey = EVP_PKEY_get1_EC_KEY(pubkey);
@@ -276,7 +272,7 @@ fc_hash(const unsigned char *const msg, int msglen,
         *digestlen = 4;
         break;
     default:
-        printf("Unknown Algorithm ID: %d.\n", g_fc_server.hash_algorithm_id);
+        DIAG_ERROR("Unknown Algorithm ID: %d.\n", g_fc_server.hash_algorithm_id);
         return -1;
     }
     // timespec_get(&ets, TIME_UTC);
@@ -287,9 +283,9 @@ fc_hash(const unsigned char *const msg, int msglen,
     //     tvnsec = 1 + tvnsec;
     //     tvsec--;
     // }
-    // printf("\e[31mHASH FUNC TIME START %ld.%09ld s\e[0m\n", sts.tv_sec, sts.tv_nsec);
-    // printf("\e[31mHASH FUNC TIME END   %ld.%09ld s\e[0m\n", ets.tv_sec, ets.tv_nsec);
-    // printf("\e[31mTIME SPENT IN HASH   %ld.%09ld s\e[0m\n", tvsec, tvnsec);
+    // DIAG_INFO("\e[31mHASH FUNC TIME START %ld.%09ld s\e[0m\n", sts.tv_sec, sts.tv_nsec);
+    // DIAG_INFO("\e[31mHASH FUNC TIME END   %ld.%09ld s\e[0m\n", ets.tv_sec, ets.tv_nsec);
+    // DIAG_INFO("\e[31mTIME SPENT IN HASH   %ld.%09ld s\e[0m\n", tvsec, tvnsec);
     return 0;
 }
 
@@ -304,8 +300,8 @@ int fc_ecdsa_sign(EC_KEY *prikey, const unsigned char *const msg, int msglen,
     ret = fc_hash(msg, msglen, digest, &digestlen);
     if (ret != 0)
     {
-        fprintf(stderr, "Error: cannot find such hash algorithm: %s",
-                g_fc_server.hash_algorithm);
+        DIAG_ERROR("Error: cannot find such hash algorithm: %s",
+                   g_fc_server.hash_algorithm);
     }
 
     keylen = ECDSA_size(prikey);
@@ -325,43 +321,59 @@ int fc_ecdsa_verify(EC_KEY *pubkey, const unsigned char *const msg, int msglen,
     ret = fc_hash(msg, msglen, digest, &digestlen);
     if (ret != 0)
     {
-        fprintf(stderr, "Error: cannot find such hash algorithm: %s\n",
-                g_fc_server.hash_algorithm);
+        DIAG_ERROR("Error: cannot find such hash algorithm: %s\n",
+                   g_fc_server.hash_algorithm);
     }
 
-    printf("\n------------msg-----------------------------msglen: %d\n",
-           msglen);
+    DIAG_INFO("\n------------msg-----------------------------msglen: %d\n",
+              msglen);
+
+    char tmp[1024];
+    int tmplen = sizeof(tmp), tmpcurlen = 0;
+    memset(tmp, 0, tmplen);
     for (i = 0; i < msglen; i++)
     {
-        printf("%02X ", (unsigned char)msg[i]);
+        snprintf(tmp + tmpcurlen, tmplen, "%02X ", (unsigned char)msg[i]);
+        tmpcurlen += 3;
         if ((i + 1) % 16 == 0)
         {
-            printf("\n");
+            snprintf(tmp + tmpcurlen, tmplen, "\n");
+            tmpcurlen++;
         }
     }
-    printf("\n");
-    printf("------------sig-----------------------------siglen : % d\n ",
-           siglen);
+    DIAG_INFO("%s\n", tmp);
+
+    DIAG_INFO("------------sig-----------------------------siglen : % d\n ",
+              siglen);
+    memset(tmp, 0, tmplen);
+    tmpcurlen = 0;
     for (i = 0; i < siglen; i++)
     {
-        printf("%02X ", (unsigned char)sigbuff[i]);
+        snprintf(tmp + tmpcurlen, tmplen, "%02X ", (unsigned char)sigbuff[i]);
+        tmpcurlen += 3;
         if ((i + 1) % 16 == 0)
         {
-            printf("\n");
+            snprintf(tmp + tmpcurlen, tmplen, "\n");
+            tmpcurlen++;
         }
     }
-    printf("\n");
-    printf("-------------hash----------------------------digestlen : % d\n ",
-           digestlen);
+    DIAG_INFO("%s\n", tmp);
+
+    DIAG_INFO("-------------hash----------------------------digestlen : % d\n ",
+              digestlen);
+    memset(tmp, 0, tmplen);
+    tmpcurlen = 0;
     for (i = 0; i < digestlen; i++)
     {
-        printf("%02X ", (unsigned char)digest[i]);
+        snprintf(tmp + tmpcurlen, tmplen, "%02X ", (unsigned char)digest[i]);
+        tmpcurlen += 3;
         if ((i + 1) % 16 == 0)
         {
-            printf("\n");
+            snprintf(tmp + tmpcurlen, tmplen, "\n");
+            tmpcurlen++;
         }
     }
-    printf("\n");
+    DIAG_INFO("%s\n", tmp);
     ret = ECDSA_verify(0, digest, digestlen, sigbuff, siglen, pubkey);
 
     return ret;

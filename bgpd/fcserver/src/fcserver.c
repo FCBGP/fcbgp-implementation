@@ -13,6 +13,7 @@
 #include <fcntl.h>
 #include <netinet/in.h>
 #include <openssl/opensslv.h>
+#include <pthread.h>
 #include <stdbool.h>
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -59,12 +60,12 @@ static char *fc_err_sock_strings[] = {
 #undef _
 };
 
-#define fc_print_error(err_no)               \
-    do                                       \
-    {                                        \
-        printf("[%s: %d] error: %s\n",       \
-               __func__, __LINE__,           \
-               fc_err_sock_strings[err_no]); \
+#define fc_print_error(err_no)                   \
+    do                                           \
+    {                                            \
+        DIAG_ERROR("[%s: %d] error: %s\n",       \
+                   __func__, __LINE__,           \
+                   fc_err_sock_strings[err_no]); \
     } while (0)
 
 FC_server_t g_fc_server = {0};
@@ -83,8 +84,8 @@ fc_sock_get_addr_from_peer_fd(int fd, struct sockaddr *sockaddr,
         return FC_ERR_SERVER_GPN;
     }
 
-    printf("sa family: %d, AF_INET: %d, AF_INET6: %d\n",
-           sockaddr->sa_family, AF_INET, AF_INET6);
+    DIAG_INFO("sa family: %d, AF_INET: %d, AF_INET6: %d\n",
+              sockaddr->sa_family, AF_INET, AF_INET6);
     if (AF_INET6 == sockaddr->sa_family)
     {
         struct sockaddr_in6 *in = (struct sockaddr_in6 *)sockaddr;
@@ -204,7 +205,7 @@ fc_mlp_server_epoll_conn()
             perror("epoll_ctl()");
             return FC_ERR_SERVER_EPOLL_CTL;
         }
-        printf("New connection fd: %d\n", clisockfd);
+        DIAG_INFO("New connection fd: %d\n", clisockfd);
     }
 
     return FC_ERR_SERVER_NOERR;
@@ -244,8 +245,8 @@ fc_mlp_server_epoll_recv(int fd, char *buff,
     char peer_ipbuf[INET6_ADDRSTRLEN] = {0};
     fc_sock_get_addr_from_peer_fd(fd, (struct sockaddr *)&peer_sockaddr,
                                   peer_ipbuf, INET6_ADDRSTRLEN);
-    printf("Recv from fd: %d, remote.addr: %s, remote.port: %d\n",
-           fd, peer_ipbuf, ntohs(peer_sockaddr.sin6_port));
+    DIAG_INFO("Recv from fd: %d, remote.addr: %s, remote.port: %d\n",
+              fd, peer_ipbuf, ntohs(peer_sockaddr.sin6_port));
 
     *recvlen = total;
 
@@ -292,7 +293,7 @@ fc_mlp_server_epoll()
             {
                 /* an error has occured on this fd,
                  * or the socket is not ready for reading */
-                fprintf(stderr, "epoll error\n");
+                DIAG_ERROR("epoll error on fd: %d\n", events[i].data.fd);
                 /* closing the descriptor will make epoll remove it
                  * from the set of fds which are monitored. */
                 close(events[i].data.fd);
@@ -325,18 +326,18 @@ fc_mlp_server_epoll()
                 }
 
                 // process the data
-                printf("fd: %d, recvlen: %d\n",
-                       events[i].data.fd, recvlen);
+                DIAG_INFO("fd: %d, recvlen: %d\n",
+                          events[i].data.fd, recvlen);
                 fc_server_handler(events[i].data.fd, buff, FC_BUFF_SIZE, recvlen);
 
                 if (done)
                 {
-                    printf("Closed connection on fd: %d\n",
-                           events[i].data.fd);
+                    DIAG_INFO("Closed connection on fd: %d\n",
+                              events[i].data.fd);
                     /* closing the descriptor will make epoll remove it
                      * from the set of fds which are monitored. */
                     close(events[i].data.fd);
-                    printf("#################################################\n\n\n");
+                    DIAG_INFO("#################################################\n\n\n");
                 }
             }
         }
@@ -347,37 +348,32 @@ fc_mlp_server_epoll()
     return ret;
 }
 
-static void
-display_g_fc_server_info(void)
+static inline void
+fc_show_fcs_info(void)
 {
-    printf("program name: %s\n", g_fc_server.prog_name);
-    printf("program address ipv4: %s\n", g_fc_server.prog_addr4);
-    printf("program address ipv6: %s\n", g_fc_server.prog_addr6);
-    printf("log level: %u\n", g_fc_server.log_level);
-    printf("clear fc db: %d\n", g_fc_server.clear_fc_db);
-    printf("user_data_plane: %d\n", g_fc_server.use_data_plane);
-    printf("local asn: %u\n", g_fc_server.local_asn);
-    printf("hash algorithm: %s\n", g_fc_server.hash_algorithm);
-    printf("listen port: %d\n", g_fc_server.listen_port);
-    printf("ASNs:\n");
+    DIAG_INFO("program name: %s\n", g_fc_server.prog_name);
+    DIAG_INFO("program address ipv4: %s\n", g_fc_server.prog_addr4);
+    DIAG_INFO("program address ipv6: %s\n", g_fc_server.prog_addr6);
+    DIAG_INFO("log level: %u\n", g_fc_server.log_level);
+    DIAG_INFO("clear fc db: %d\n", g_fc_server.clear_fc_db);
+    DIAG_INFO("user_data_plane: %d\n", g_fc_server.use_data_plane);
+    DIAG_INFO("local asn: %u\n", g_fc_server.local_asn);
+    DIAG_INFO("hash algorithm: %s\n", g_fc_server.hash_algorithm);
+    DIAG_INFO("listen port: %d\n", g_fc_server.listen_port);
+    DIAG_INFO("ASNs:\n");
     for (int i = 0; i < g_fc_server.asns_num; ++i)
     {
-        printf("  asn: %u\n", g_fc_server.asns[i]);
+        DIAG_INFO("  asn: %u\n", g_fc_server.asns[i]);
     }
-    printf("db file name: %s\n", g_fc_server.fc_db_fname);
-    printf("config file name: %s\n", g_fc_server.config_fname);
-    printf("prikey file name: %s\n", g_fc_server.prikey_fname);
-    printf("certs location: %s\n", g_fc_server.certs_location);
-    printf("local ski: ");
-    for (int i = 0; i < FC_SKI_LENGTH; ++i)
-    {
-        printf("%02X", g_fc_server.ski[i]);
-    }
-    printf("\n");
-    printf("NICs:\n");
+    DIAG_INFO("db file name: %s\n", g_fc_server.fc_db_fname);
+    DIAG_INFO("config file name: %s\n", g_fc_server.config_fname);
+    DIAG_INFO("prikey file name: %s\n", g_fc_server.prikey_fname);
+    DIAG_INFO("certs location: %s\n", g_fc_server.certs_location);
+    fc_print_bin("local ski", g_fc_server.ski, FC_SKI_LENGTH);
+    DIAG_INFO("NICs:\n");
     for (int i = 0; i < g_fc_server.nics_num; ++i)
     {
-        printf(" nic: %s\n", g_fc_server.nics[i]);
+        DIAG_INFO(" nic: %s\n", g_fc_server.nics[i]);
     }
 }
 
@@ -394,9 +390,9 @@ fc_multi_long_pull_server(void)
         goto atexit;
     }
 
-    display_g_fc_server_info();
+    fc_show_fcs_info();
 
-    BAKGRN("FCServer in AS %d is ready!!!\n", g_fc_server.local_asn);
+    DIAG_INFO("FCServer in AS %d is ready!!!\n", g_fc_server.local_asn);
 
     /* epoll */
     ret = fc_mlp_server_epoll();
@@ -428,7 +424,6 @@ int fc_server_create(void)
     if (!node)
     {
         DIAG_ERROR("Cannot find AS %d!!!!!!!!\n", g_fc_server.local_asn);
-        fprintf(stderr, "Cannot find AS %d!!!\n", g_fc_server.local_asn);
         return -1;
     }
 
@@ -446,14 +441,15 @@ int fc_server_create(void)
         }
         break;
     }
-    fc_multi_long_pull_server();
 
-    return 0;
+    int ret = fc_multi_long_pull_server();
+
+    return ret;
 }
 
 static int
 fc_bm_sent_to_peer(const char *addr, const FC_msg_bm_t *bm,
-                   char *buffer, int bufferlen)
+                   unsigned char *buffer, int bufferlen)
 {
     int ret = 0;
     int sockfd = 0;
@@ -478,7 +474,7 @@ fc_bm_sent_to_peer(const char *addr, const FC_msg_bm_t *bm,
     while (len != bufferlen)
     {
         len = len + send(sockfd, buffer + len, bufferlen - len, 0);
-        printf("len = %d, bufferlen = %d\n", len, bufferlen);
+        DIAG_INFO("len = %d, bufferlen = %d\n", len, bufferlen);
     }
 
     close(sockfd);
@@ -530,9 +526,9 @@ fc_bm_find_server(uint32_t asn, char *ifaddr, char *ifname)
 
 static int
 fc_bm_broadcast_to_peer(int clisockfd, const FC_msg_bm_t *bm,
-                        char *buffer, int bufferlen)
+                        unsigned char *buffer, int bufferlen)
 {
-    printf("broadcast to peers start\n");
+    DIAG_INFO("broadcast to peers start\n");
     int i = 0, ret = 0;
     u32 asn = 0;
 
@@ -555,31 +551,31 @@ fc_bm_broadcast_to_peer(int clisockfd, const FC_msg_bm_t *bm,
             // offpath
             if (fc_asn_is_offpath(asn, bm))
             {
-                printf("sent to offpath node: %d\n", node->asn);
+                DIAG_INFO("sent to offpath node: %d\n", node->asn);
                 ret = fc_bm_find_server(asn, ifaddr, NULL);
                 if (ret == 0)
                 {
-                    printf("remote-acs addr: %s\n", ifaddr);
+                    DIAG_INFO("remote-acs addr: %s\n", ifaddr);
                     fc_bm_sent_to_peer(ifaddr, bm, buffer, bufferlen);
                 }
                 else
                 {
-                    printf("Error: cannot find acs\n");
+                    DIAG_INFO("Error: cannot find acs\n");
                 }
             }
             // onpath
             else
             {
-                printf("sent to onpath node: %d\n", node->asn);
+                DIAG_INFO("sent to onpath node: %d\n", node->asn);
                 ret = fc_bm_find_server(asn, ifaddr, NULL);
                 if (ret == 0)
                 {
-                    printf("remote-acs addr: %s\n", ifaddr);
+                    DIAG_INFO("remote-acs addr: %s\n", ifaddr);
                     fc_bm_sent_to_peer(ifaddr, bm, buffer, bufferlen);
                 }
                 else
                 {
-                    printf("Error: cannot find acs\n");
+                    DIAG_INFO("Error: cannot find acs\n");
                 }
             }
         }
@@ -596,7 +592,7 @@ fc_bm_broadcast_to_peer(int clisockfd, const FC_msg_bm_t *bm,
         {
             if (g_fc_server.local_asn != node->asn)
             {
-                printf("sent to %d\n", node->asn);
+                DIAG_INFO("sent to %d\n", node->asn);
                 fc_bm_sent_to_peer(node->acs.ipv4,
                         bm, buffer, bufferlen);
             }
@@ -604,13 +600,13 @@ fc_bm_broadcast_to_peer(int clisockfd, const FC_msg_bm_t *bm,
     }
 #endif
 
-    printf("broadcast to peers done\n");
+    DIAG_INFO("broadcast to peers done\n");
     return 0;
 }
 
-int fc_server_pubkey_handler(int clisockfd, const char *buff, int len)
+int fc_server_pubkey_handler(int clisockfd, const unsigned char *buff, int len)
 {
-    printf("TODO pubkey\n");
+    DIAG_INFO("TODO pubkey\n");
     return 0;
 }
 
@@ -734,8 +730,8 @@ fc_server_topo_del_all_routers()
 }
 
 static int
-fc_server_topo_del(FC_router_info_t *target_router,
-                   u32 neighbor_num, const char *buff, int currlen)
+fc_server_topo_del(FC_router_info_t *target_router, u32 neighbor_num,
+                   const unsigned char *buff, int currlen)
 {
     int i = 0, k = 0;
     u32 neighbor_asn = 0, il_num = 0, iface_index = 0;
@@ -780,7 +776,7 @@ fc_server_topo_del(FC_router_info_t *target_router,
             continue;
         }
 
-        if (il_num == 0xFFFFFFFF)
+        if (il_num == 0xFFFFFFFF || il_num == 0)
         {
             if (prev_link_info)
             {
@@ -809,13 +805,16 @@ fc_server_topo_del(FC_router_info_t *target_router,
 }
 
 static int
-fc_server_topo_add(FC_router_info_t *target_router,
-                   u32 neighbor_num, const char *buff, int currlen)
+fc_server_topo_add(FC_router_info_t *target_router, u32 neighbor_num,
+                   const unsigned char *buff, int currlen)
 {
     int j = 0, k = 0, ret = 0;
     u32 neighbor_asn = 0, il_num = 0, iface_index = 0;
     FC_router_link_info_t *link_info = NULL, *prev_link_info = NULL;
     FC_router_iface_info_t *iface_info = NULL, *prev_iface_info = NULL;
+
+    // remove all neighbor infos as h3c uses full update policy.
+    fc_server_topo_del_all_neighbors(target_router);
 
     for (j = 0; j < neighbor_num; ++j)
     {
@@ -827,11 +826,16 @@ fc_server_topo_add(FC_router_info_t *target_router,
         memcpy(&il_num, buff + currlen, sizeof(u32));
         il_num = ntohl(il_num);
         currlen += sizeof(u32);
+        if (il_num == 0)
+        {
+            continue;
+        }
 
         // find the neighbor
         prev_link_info = link_info = target_router->links;
         fc_server_topo_find_router(target_router,
                                    neighbor_asn, &link_info, &prev_link_info);
+
         if (link_info == NULL)
         {
             // no such neighbor
@@ -886,18 +890,18 @@ fc_server_topo_add(FC_router_info_t *target_router,
 static int
 fc_server_topo_print(FC_router_info_t *target_router)
 {
-    printf("bgpid: %d.%d.%d.%d\n", (target_router->bgpid >> 24) % 256,
-           (target_router->bgpid >> 16) % 256,
-           (target_router->bgpid >> 8) % 256,
-           target_router->bgpid % 256);
+    DIAG_INFO("bgpid: %d.%d.%d.%d\n", (target_router->bgpid >> 24) % 256,
+              (target_router->bgpid >> 16) % 256,
+              (target_router->bgpid >> 8) % 256,
+              target_router->bgpid % 256);
     for (FC_router_link_info_t *link_info = target_router->links;
          link_info != NULL; link_info = link_info->next)
     {
-        printf("  neighbor asn: %d\n", link_info->neighbor_asn);
+        DIAG_INFO("  neighbor asn: %d\n", link_info->neighbor_asn);
         FC_router_iface_info_t *iface_info = link_info->iface_list;
         while (iface_info)
         {
-            printf("    iface: %d\n", iface_info->iface_index);
+            DIAG_INFO("    iface: %d\n", iface_info->iface_index);
             iface_info = iface_info->next;
         }
     }
@@ -905,91 +909,90 @@ fc_server_topo_print(FC_router_info_t *target_router)
     return FC_ERR_SERVER_NOERR;
 }
 
-int fc_server_topo_handler(int clisockfd, const char *buff, int len)
+int fc_server_topo_handler(int clisockfd, const unsigned char *buff, int len)
 {
-    TXTPUR("### TOPO LINK INFO START ###\n");
+    DIAG_INFO("### TOPO LINK INFO START ###\n");
 
     int i = 0, currlen = 0, ret = 0;
     u8 action = 0, reserved = 0;
     u32 bgpid = 0, local_asn = 0, neighbor_num = 0;
     FC_router_info_t *target_router = NULL;
 
-    while (currlen < len)
+    currlen = FC_HDR_GENERAL_LENGTH;
+
+    // action
+    memcpy(&action, buff + currlen, sizeof(u8));
+    currlen += sizeof(u8);
+    // reserved
+    for (i = 0; i < 3; ++i)
     {
-        currlen += FC_HDR_GENERAL_LENGTH;
-
-        // action
-        memcpy(&action, buff + currlen, sizeof(u8));
+        memcpy(&reserved, buff + currlen, sizeof(u8));
         currlen += sizeof(u8);
-        // reserved
-        for (i = 0; i < 3; ++i)
-        {
-            memcpy(&reserved, buff + currlen, sizeof(u8));
-            currlen += sizeof(u8);
-        }
-        // bgpid
-        memcpy(&bgpid, buff + currlen, sizeof(u32));
-        bgpid = ntohl(bgpid);
-        currlen += sizeof(u32);
-        // local-asn
-        memcpy(&local_asn, buff + currlen, sizeof(u32));
-        local_asn = ntohl(local_asn);
-        currlen += sizeof(u32);
-        // neighbor-num
-        memcpy(&neighbor_num, buff + currlen, sizeof(u32));
-        neighbor_num = ntohl(neighbor_num);
-        currlen += sizeof(u32);
+    }
+    // bgpid
+    memcpy(&bgpid, buff + currlen, sizeof(u32));
+    bgpid = ntohl(bgpid);
+    currlen += sizeof(u32);
+    // local-asn
+    memcpy(&local_asn, buff + currlen, sizeof(u32));
+    local_asn = ntohl(local_asn);
+    currlen += sizeof(u32);
+    // neighbor-num
+    memcpy(&neighbor_num, buff + currlen, sizeof(u32));
+    neighbor_num = ntohl(neighbor_num);
+    currlen += sizeof(u32);
 
-        if (local_asn != g_fc_server.local_asn)
+    if (local_asn != g_fc_server.local_asn)
+    {
+        DIAG_ERROR("ERROR: topo link info, bgpid: %08X belongs to asn: %d, "
+                   "but not belongs to local asn: %d\n",
+                   bgpid, local_asn, g_fc_server.local_asn);
+        return -1;
+    }
+    // g_fc_server.routers should be prepared in reading config
+    for (target_router = g_fc_server.routers;
+         target_router != NULL;
+         target_router = target_router->next)
+    {
+        if (target_router->bgpid == bgpid)
         {
-            printf("ERROR: msg type=4, not local asn\n");
-            return -1;
-        }
-        // g_fc_server.routers should be prepared in reading config
-        for (target_router = g_fc_server.routers;
-             target_router != NULL;
-             target_router = target_router->next)
-        {
-            if (target_router->bgpid == bgpid)
-            {
-                break;
-            }
-        }
-
-        if (target_router == NULL)
-        {
-            printf("ERROR: Cannot find the bgp router, bgpid: %08X\n", bgpid);
-            fc_server_destroy(SIGUSR1);
-        }
-
-        // fd
-        if (target_router->fd != 0 && target_router->fd != clisockfd)
-        {
-            // TODO del all neighbors
-            // TODO close the target-link fd
-        }
-        target_router->fd = clisockfd;
-
-        switch (action)
-        {
-        case FC_ACT_ADD:
-            currlen = fc_server_topo_add(target_router,
-                                         neighbor_num, buff, currlen);
-            break;
-        case FC_ACT_DEL:
-            // TODO
-            currlen = fc_server_topo_del(target_router,
-                                         neighbor_num, buff, currlen);
-            break;
-        default:
-            printf("ERROR: Unkown action: %d for neighbor links\n", action);
             break;
         }
     }
 
+    if (target_router == NULL)
+    {
+        DIAG_ERROR("ERROR: Cannot find the bgp router, bgpid: %08X\n", bgpid);
+        fc_server_destroy(SIGUSR1);
+    }
+
+    // fd
+    if (target_router->fd != 0 && target_router->fd != clisockfd)
+    {
+        // TODO del all neighbors
+        // TODO close the target-link fd
+    }
+    target_router->fd = clisockfd;
+
+    switch (action)
+    {
+    case FC_ACT_ADD:
+        currlen = fc_server_topo_add(target_router,
+                                     neighbor_num, buff, currlen);
+        break;
+    case FC_ACT_DEL:
+        // TODO
+        currlen = fc_server_topo_del(target_router,
+                                     neighbor_num, buff, currlen);
+        break;
+    default:
+        DIAG_ERROR("ERROR: Unkown action: %d for neighbor links\n", action);
+        break;
+    }
+
     fc_server_topo_print(target_router);
 
-    TXTPUR("### TOPO LINK INFO ENDED ###\n");
+    DIAG_INFO("### TOPO LINK INFO ENDED ###\n");
 
     return ret;
 }
@@ -1043,25 +1046,21 @@ fc_bm_verify_fc(FC_msg_bm_t *bm)
         meta.asn = bm->fclist[i].current_asn;
         node = htbl_meta_find(&g_fc_server.ht_as, &meta);
 
-        printf("asn: %u, ski: ", node->asn);
-        for (int k = 0; k < FC_SKI_LENGTH; ++k)
-        {
-            printf("%02X", node->ski[k]);
-        }
-        printf("\n");
+        DIAG_INFO("asn: %u, ", node->asn);
+        fc_print_bin("ski", node->ski, FC_SKI_LENGTH);
 
         ret = fc_ecdsa_verify(node->pubkey, msg, msglen,
                               bm->fclist[i].sig, bm->fclist[i].siglen);
         switch (ret)
         {
         case 1:
-            TXTGRN("verify fc %d ok\n", i);
+            DIAG_INFO("verify fc %d ok\n", i);
             break;
         case 0:
-            TXTRED("verify fc %d failed\n", i);
+            DIAG_ERROR("verify fc %d failed\n", i);
             break;
         default:
-            BAKRED("verify fc %d error\n", i);
+            DIAG_ERROR("verify fc %d error\n", i);
             break;
         }
     }
@@ -1092,9 +1091,9 @@ fc_gen_acl_linux(int clisockfd, const FC_msg_bm_t *bm)
     ret = fc_bm_find_server(asn, ifaddr, ifname);
     if (ret < 0)
     {
-        printf("ERROR: there is no such asn: %u\n", asn);
+        DIAG_ERROR("ERROR: there is no such asn: %u\n", asn);
     }
-    printf("-=+=-# ifaddr %s, ifname %s #-=+=-\n", ifaddr, ifname);
+    DIAG_INFO("-=+=-# ifaddr %s, ifname %s #-=+=-\n", ifaddr, ifname);
     flag_offpath = fc_asn_is_offpath(g_fc_server.local_asn, bm);
 
     inet_ntop(AF_INET, &(((struct sockaddr_in *)&(bm->dst_ip[0].ip))->sin_addr),
@@ -1116,7 +1115,7 @@ fc_gen_acl_linux(int clisockfd, const FC_msg_bm_t *bm)
                         saddr, bm->src_ip[0].prefix_length,
                         daddr, bm->dst_ip[0].prefix_length);
                 ret = system(cmd);
-                // printf("ret = %d, cmd: %s\n", ret, cmd);
+                // DIAG_INFO("ret = %d, cmd: %s\n", ret, cmd);
             }
         }
         else // filter: !a->d
@@ -1149,7 +1148,7 @@ fc_gen_acl_linux(int clisockfd, const FC_msg_bm_t *bm)
                                 daddr, bm->dst_ip[0].prefix_length);
                     }
                     ret = system(cmd);
-                    // printf("ret = %d, cmd: %s\n", ret, cmd);
+                    // DIAG_INFO("ret = %d, cmd: %s\n", ret, cmd);
                 }
             }
         }
@@ -1236,9 +1235,9 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
 
             if (router_info == NULL)
             {
-                TXTRED("Sorry, there is no router link info.\n");
-                TXTRED("Have you configured it in configuration file: %s?\n",
-                       g_fc_server.config_fname);
+                DIAG_ERROR("Sorry, there is no router link info.\n");
+                DIAG_ERROR("Have you configured it in configuration file: %s?\n",
+                           g_fc_server.config_fname);
                 still_loop = false;
             }
 
@@ -1249,15 +1248,16 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
 
                 if (link_info == NULL)
                 {
-                    TXTRED("Router (bgpid: %08X) does not hold any link.\n",
-                           router_info->bgpid);
+                    DIAG_ERROR("Router (bgpid: %08X) does not hold any link.\n",
+                               router_info->bgpid);
                     still_loop = false;
                 }
 
                 while (link_info)
                 {
-                    iface_info = link_info->iface_list;
-                    while (iface_info)
+                    for (iface_info = link_info->iface_list;
+                         iface_info != NULL;
+                         iface_info = iface_info->next)
                     {
                         ht_acl_group_info_t *item = NULL;
                         item = mln_hash_search(g_fc_server.ht_acl_group_info,
@@ -1265,10 +1265,10 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
                         FC_ASSERT_RETP(item);
                         if (flag_offpath) // offpath node
                         {
-                            printf("offpath node srcip: %s/%d, dstip: %s/%d, "
-                                   "iface_index: %d, direction: both\n",
-                                   saddr, sprefixlen, daddr, dprefixlen,
-                                   iface_info->iface_index);
+                            DIAG_INFO("offpath node srcip: %s/%d, dstip: %s/%d, "
+                                      "iface_index: %d, direction: both\n",
+                                      saddr, sprefixlen, daddr, dprefixlen,
+                                      iface_info->iface_index);
 
                             if (flag_withdraw) // withdraw/del
                             {
@@ -1292,16 +1292,16 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
 
                                 if (acl_rule_info)
                                 {
-                                    printf("offpath withdraw acl-in direction, "
-                                           "[%s:%d] group index: %u, "
-                                           "ipversion: %d rule_id: %u, "
-                                           "src prefix: %s/%d, dst prefix: %s/%d, "
-                                           "iface index: %d\n",
-                                           __FUNCTION__, __LINE__,
-                                           item->acl_in_index, bm->ipversion,
-                                           acl_rule_info->rule_id,
-                                           saddr, sprefixlen, daddr, dprefixlen,
-                                           iface_info->iface_index);
+                                    DIAG_INFO("offpath withdraw acl-in direction, "
+                                              "[%s:%d] group index: %u, "
+                                              "ipversion: %d rule_id: %u, "
+                                              "src prefix: %s/%d, dst prefix: %s/%d, "
+                                              "iface index: %d\n",
+                                              __FUNCTION__, __LINE__,
+                                              item->acl_in_index, bm->ipversion,
+                                              acl_rule_info->rule_id,
+                                              saddr, sprefixlen, daddr, dprefixlen,
+                                              iface_info->iface_index);
                                     py_apply_acl(&router_info->py_config,
                                                  item->acl_in_index,
                                                  bm->ipversion,
@@ -1317,16 +1317,16 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
                                 else
                                 {
 
-                                    printf("no such offpath withdraw acl-in direction, "
-                                           "[%s:%d] group index: %u, "
-                                           "ipversion: %d fake rule_id: %u, "
-                                           "src prefix: %s/%d, dst prefix: %s/%d, "
-                                           "iface index: %d\n",
-                                           __FUNCTION__, __LINE__,
-                                           item->acl_in_index, bm->ipversion,
-                                           rule_id,
-                                           saddr, sprefixlen, daddr, dprefixlen,
-                                           iface_info->iface_index);
+                                    DIAG_INFO("no such offpath withdraw acl-in direction, "
+                                              "[%s:%d] group index: %u, "
+                                              "ipversion: %d fake rule_id: %u, "
+                                              "src prefix: %s/%d, dst prefix: %s/%d, "
+                                              "iface index: %d\n",
+                                              __FUNCTION__, __LINE__,
+                                              item->acl_in_index, bm->ipversion,
+                                              rule_id,
+                                              saddr, sprefixlen, daddr, dprefixlen,
+                                              iface_info->iface_index);
                                 }
 
                                 //! offpath withdraw acl-out direction
@@ -1344,16 +1344,16 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
 
                                 if (acl_rule_info)
                                 {
-                                    printf("offpath withdraw acl-out direction, "
-                                           "[%s:%d] group index: %u, "
-                                           "ipversion: %d rule_id: %u, "
-                                           "src prefix: %s/%d, dst prefix: %s/%d, "
-                                           "iface index: %d\n",
-                                           __FUNCTION__, __LINE__,
-                                           item->acl_in_index, bm->ipversion,
-                                           acl_rule_info->rule_id,
-                                           saddr, sprefixlen, daddr, dprefixlen,
-                                           iface_info->iface_index);
+                                    DIAG_INFO("offpath withdraw acl-out direction, "
+                                              "[%s:%d] group index: %u, "
+                                              "ipversion: %d rule_id: %u, "
+                                              "src prefix: %s/%d, dst prefix: %s/%d, "
+                                              "iface index: %d\n",
+                                              __FUNCTION__, __LINE__,
+                                              item->acl_in_index, bm->ipversion,
+                                              acl_rule_info->rule_id,
+                                              saddr, sprefixlen, daddr, dprefixlen,
+                                              iface_info->iface_index);
                                     py_apply_acl(&router_info->py_config,
                                                  item->acl_out_index,
                                                  bm->ipversion,
@@ -1368,16 +1368,16 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
                                 }
                                 else
                                 {
-                                    printf("no such offpath withdraw acl-out direction, "
-                                           "[%s:%d] group index: %u, "
-                                           "ipversion: %d fake rule_id: %u, "
-                                           "src prefix: %s/%d, dst prefix: %s/%d, "
-                                           "iface index: %d\n",
-                                           __FUNCTION__, __LINE__,
-                                           item->acl_in_index, bm->ipversion,
-                                           rule_id,
-                                           saddr, sprefixlen, daddr, dprefixlen,
-                                           iface_info->iface_index);
+                                    DIAG_INFO("no such offpath withdraw acl-out direction, "
+                                              "[%s:%d] group index: %u, "
+                                              "ipversion: %d fake rule_id: %u, "
+                                              "src prefix: %s/%d, dst prefix: %s/%d, "
+                                              "iface index: %d\n",
+                                              __FUNCTION__, __LINE__,
+                                              item->acl_in_index, bm->ipversion,
+                                              rule_id,
+                                              saddr, sprefixlen, daddr, dprefixlen,
+                                              iface_info->iface_index);
                                 }
                                 free(rule);
                             }
@@ -1385,15 +1385,15 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
                             {
                                 //! offpath update acl-in direction
                                 rule_id = ++item->acl_rule_in_id;
-                                printf("offpath update acl-in direction, "
-                                       "[%s:%d] group index: %u, "
-                                       "ipversion: %d rule_id: %u, "
-                                       "src prefix: %s/%d, dst prefix: %s/%d, "
-                                       "iface index: %d\n",
-                                       __FUNCTION__, __LINE__, item->acl_in_index,
-                                       bm->ipversion, rule_id,
-                                       saddr, sprefixlen, daddr, dprefixlen,
-                                       iface_info->iface_index);
+                                DIAG_INFO("offpath update acl-in direction, "
+                                          "[%s:%d] group index: %u, "
+                                          "ipversion: %d rule_id: %u, "
+                                          "src prefix: %s/%d, dst prefix: %s/%d, "
+                                          "iface index: %d\n",
+                                          __FUNCTION__, __LINE__, item->acl_in_index,
+                                          bm->ipversion, rule_id,
+                                          saddr, sprefixlen, daddr, dprefixlen,
+                                          iface_info->iface_index);
                                 py_apply_acl(&router_info->py_config,
                                              item->acl_in_index,
                                              bm->ipversion,
@@ -1420,15 +1420,15 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
 
                                 //! offpath update acl-in direction
                                 rule_id = ++item->acl_rule_out_id;
-                                printf("offpath update acl-out direction, "
-                                       "[%s:%d] group index: %u, "
-                                       "ipversion: %d rule_id: %u, "
-                                       "src prefix: %s/%d, dst prefix: %s/%d, "
-                                       "iface index: %d\n",
-                                       __FUNCTION__, __LINE__, item->acl_out_index,
-                                       bm->ipversion, rule_id,
-                                       saddr, sprefixlen, daddr, dprefixlen,
-                                       iface_info->iface_index);
+                                DIAG_INFO("offpath update acl-out direction, "
+                                          "[%s:%d] group index: %u, "
+                                          "ipversion: %d rule_id: %u, "
+                                          "src prefix: %s/%d, dst prefix: %s/%d, "
+                                          "iface index: %d\n",
+                                          __FUNCTION__, __LINE__, item->acl_out_index,
+                                          bm->ipversion, rule_id,
+                                          saddr, sprefixlen, daddr, dprefixlen,
+                                          iface_info->iface_index);
                                 py_apply_acl(&router_info->py_config,
                                              item->acl_out_index,
                                              bm->ipversion,
@@ -1475,10 +1475,10 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
                             //     direction = FC_TOPO_DIRECTION_BOTH;
                             //     direction_str = "both";
                             // }
-                            printf("onpath node srcip: %s/%d, dstip: %s/%d, "
-                                   "iface_index: %d, direction: %s\n",
-                                   saddr, sprefixlen, daddr, dprefixlen,
-                                   iface_info->iface_index, direction_str);
+                            DIAG_INFO("onpath node srcip: %s/%d, dstip: %s/%d, "
+                                      "iface_index: %d, direction: %s\n",
+                                      saddr, sprefixlen, daddr, dprefixlen,
+                                      iface_info->iface_index, direction_str);
                             if (direction == FC_TOPO_DIRECTION_NONE)
                             {
                                 continue;
@@ -1502,15 +1502,15 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
 
                                     if (acl_rule_info)
                                     {
-                                        printf("onpath withdraw acl-in direction, "
-                                               "[%s:%d] group index: %u, "
-                                               "ipversion: %d rule_id: %u, "
-                                               "src prefix: %s/%d, dst prefix: %s/%d, "
-                                               "iface index: %d\n",
-                                               __FUNCTION__, __LINE__, item->acl_in_index,
-                                               bm->ipversion, acl_rule_info->rule_id,
-                                               saddr, sprefixlen, daddr, dprefixlen,
-                                               iface_info->iface_index);
+                                        DIAG_INFO("onpath withdraw acl-in direction, "
+                                                  "[%s:%d] group index: %u, "
+                                                  "ipversion: %d rule_id: %u, "
+                                                  "src prefix: %s/%d, dst prefix: %s/%d, "
+                                                  "iface index: %d\n",
+                                                  __FUNCTION__, __LINE__, item->acl_in_index,
+                                                  bm->ipversion, acl_rule_info->rule_id,
+                                                  saddr, sprefixlen, daddr, dprefixlen,
+                                                  iface_info->iface_index);
                                         py_apply_acl(&router_info->py_config,
                                                      item->acl_in_index,
                                                      bm->ipversion,
@@ -1525,30 +1525,30 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
                                     }
                                     else
                                     {
-                                        printf("no such onpath withdraw acl-in direction, "
-                                               "[%s:%d] group index: %u, "
-                                               "ipversion: %d fake rule_id: %u, "
-                                               "src prefix: %s/%d, dst prefix: %s/%d, "
-                                               "iface index: %d\n",
-                                               __FUNCTION__, __LINE__, item->acl_in_index,
-                                               bm->ipversion, rule_id,
-                                               saddr, sprefixlen, daddr, dprefixlen,
-                                               iface_info->iface_index);
+                                        DIAG_INFO("no such onpath withdraw acl-in direction, "
+                                                  "[%s:%d] group index: %u, "
+                                                  "ipversion: %d fake rule_id: %u, "
+                                                  "src prefix: %s/%d, dst prefix: %s/%d, "
+                                                  "iface index: %d\n",
+                                                  __FUNCTION__, __LINE__, item->acl_in_index,
+                                                  bm->ipversion, rule_id,
+                                                  saddr, sprefixlen, daddr, dprefixlen,
+                                                  iface_info->iface_index);
                                     }
                                     free(rule);
                                 }
                                 else
                                 {
                                     rule_id = ++item->acl_rule_in_id;
-                                    printf("onpath update acl-in direction, "
-                                           "[%s:%d] group index: %u, "
-                                           "ipversion: %d rule_id: %u, "
-                                           "src prefix: %s/%d, dst prefix: %s/%d, "
-                                           "iface index: %d\n",
-                                           __FUNCTION__, __LINE__, item->acl_in_index,
-                                           bm->ipversion, rule_id,
-                                           saddr, sprefixlen, daddr, dprefixlen,
-                                           iface_info->iface_index);
+                                    DIAG_INFO("onpath update acl-in direction, "
+                                              "[%s:%d] group index: %u, "
+                                              "ipversion: %d rule_id: %u, "
+                                              "src prefix: %s/%d, dst prefix: %s/%d, "
+                                              "iface index: %d\n",
+                                              __FUNCTION__, __LINE__, item->acl_in_index,
+                                              bm->ipversion, rule_id,
+                                              saddr, sprefixlen, daddr, dprefixlen,
+                                              iface_info->iface_index);
                                     py_apply_acl(&router_info->py_config,
                                                  item->acl_in_index,
                                                  bm->ipversion,
@@ -1590,15 +1590,15 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
 
                                     if (acl_rule_info)
                                     {
-                                        printf("onpath withdraw acl-in direction, "
-                                               "[%s:%d] group index: %u, "
-                                               "ipversion: %d rule_id: %u, "
-                                               "src prefix: %s/%d, dst prefix: %s/%d, "
-                                               "iface index: %d\n",
-                                               __FUNCTION__, __LINE__, item->acl_out_index,
-                                               bm->ipversion, acl_rule_info->rule_id,
-                                               saddr, sprefixlen, daddr, dprefixlen,
-                                               iface_info->iface_index);
+                                        DIAG_INFO("onpath withdraw acl-in direction, "
+                                                  "[%s:%d] group index: %u, "
+                                                  "ipversion: %d rule_id: %u, "
+                                                  "src prefix: %s/%d, dst prefix: %s/%d, "
+                                                  "iface index: %d\n",
+                                                  __FUNCTION__, __LINE__, item->acl_out_index,
+                                                  bm->ipversion, acl_rule_info->rule_id,
+                                                  saddr, sprefixlen, daddr, dprefixlen,
+                                                  iface_info->iface_index);
                                         py_apply_acl(&router_info->py_config,
                                                      item->acl_out_index,
                                                      bm->ipversion,
@@ -1613,30 +1613,30 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
                                     }
                                     else
                                     {
-                                        printf("no such onpath withdraw acl-in direction, "
-                                               "[%s:%d] group index: %u, "
-                                               "ipversion: %d fake rule_id: %u, "
-                                               "src prefix: %s/%d, dst prefix: %s/%d, "
-                                               "iface index: %d\n",
-                                               __FUNCTION__, __LINE__, item->acl_out_index,
-                                               bm->ipversion, rule_id,
-                                               saddr, sprefixlen, daddr, dprefixlen,
-                                               iface_info->iface_index);
+                                        DIAG_INFO("no such onpath withdraw acl-in direction, "
+                                                  "[%s:%d] group index: %u, "
+                                                  "ipversion: %d fake rule_id: %u, "
+                                                  "src prefix: %s/%d, dst prefix: %s/%d, "
+                                                  "iface index: %d\n",
+                                                  __FUNCTION__, __LINE__, item->acl_out_index,
+                                                  bm->ipversion, rule_id,
+                                                  saddr, sprefixlen, daddr, dprefixlen,
+                                                  iface_info->iface_index);
                                     }
                                     free(rule);
                                 }
                                 else
                                 {
                                     rule_id = ++item->acl_rule_out_id;
-                                    printf("onpath update acl-out direction, "
-                                           "[%s:%d] group index: %u, "
-                                           "ipversion: %d rule_id: %u, "
-                                           "src prefix: %s/%d, dst prefix: %s/%d, "
-                                           "iface index: %d\n",
-                                           __FUNCTION__, __LINE__, item->acl_out_index,
-                                           bm->ipversion, rule_id,
-                                           saddr, sprefixlen, daddr, dprefixlen,
-                                           iface_info->iface_index);
+                                    DIAG_INFO("onpath update acl-out direction, "
+                                              "[%s:%d] group index: %u, "
+                                              "ipversion: %d rule_id: %u, "
+                                              "src prefix: %s/%d, dst prefix: %s/%d, "
+                                              "iface index: %d\n",
+                                              __FUNCTION__, __LINE__, item->acl_out_index,
+                                              bm->ipversion, rule_id,
+                                              saddr, sprefixlen, daddr, dprefixlen,
+                                              iface_info->iface_index);
                                     py_apply_acl(&router_info->py_config,
                                                  item->acl_out_index,
                                                  bm->ipversion,
@@ -1660,7 +1660,6 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
                                 }
                             }
                         }
-                        iface_info = iface_info->next;
                     }
                     link_info = link_info->next;
                 }
@@ -1675,7 +1674,7 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
 static int
 fc_gen_acl(int clisockfd, const FC_msg_bm_t *bm)
 {
-    TXTPUR("### Gen ACL START ###\n");
+    DIAG_INFO("### Gen ACL START ###\n");
 
     switch (g_fc_server.use_data_plane)
     {
@@ -1688,12 +1687,12 @@ fc_gen_acl(int clisockfd, const FC_msg_bm_t *bm)
     case FC_DP_MODE_NONE:
         break;
     default:
-        printf("NOT SUPPORTED DP MODE: %d\n",
-               g_fc_server.use_data_plane);
+        DIAG_ERROR("ERROR: NOT SUPPORTED DP MODE: %d\n",
+                   g_fc_server.use_data_plane);
         break;
     }
 
-    TXTPUR("### Gen ACL ENDED ###\n");
+    DIAG_INFO("### Gen ACL ENDED ###\n");
 
     return 0;
 }
@@ -1701,27 +1700,27 @@ fc_gen_acl(int clisockfd, const FC_msg_bm_t *bm)
 static void
 fc_bm_print(const FC_msg_bm_t *bm)
 {
-    int i = 0, j = 0;
+    int i = 0;
     struct sockaddr_in *in4 = NULL;
     struct sockaddr_in6 *in6 = NULL;
     char ipstr[INET6_ADDRSTRLEN];
-    printf("bm version: %d\n", bm->bmversion);
-    printf("ip version: %d\n", bm->ipversion);
-    printf("flags: %02X\n", bm->flags);
-    printf("algoid: %d\n", bm->algoid);
-    printf("src ip prefix num: %d\n", bm->src_ip_num);
-    printf("dst ip prefix num: %d\n", bm->dst_ip_num);
-    printf("fc num: %d\n", bm->fc_num);
-    printf("siglen: %d\n", bm->siglen);
-    printf("local_asn: %08X\n", bm->local_asn);
-    printf("version: %08X\n", bm->version);
-    printf("subversion: %08X\n", bm->subversion);
+    DIAG_INFO("bm version: %d\n", bm->bmversion);
+    DIAG_INFO("ip version: %d\n", bm->ipversion);
+    DIAG_INFO("flags: %02X\n", bm->flags);
+    DIAG_INFO("algoid: %d\n", bm->algoid);
+    DIAG_INFO("src ip prefix num: %d\n", bm->src_ip_num);
+    DIAG_INFO("dst ip prefix num: %d\n", bm->dst_ip_num);
+    DIAG_INFO("fc num: %d\n", bm->fc_num);
+    DIAG_INFO("siglen: %d\n", bm->siglen);
+    DIAG_INFO("local_asn: %08X\n", bm->local_asn);
+    DIAG_INFO("version: %08X\n", bm->version);
+    DIAG_INFO("subversion: %08X\n", bm->subversion);
 
-    printf("src ip prefix:\n");
+    DIAG_INFO("src ip prefix:\n");
     for (i = 0; i < bm->src_ip_num; ++i)
     {
         memset(ipstr, 0, INET6_ADDRSTRLEN);
-        printf("  idx: %d, ", i);
+        DIAG_INFO("  idx: %d, ", i);
         switch (bm->ipversion)
         {
         case IPV4:
@@ -1729,66 +1728,57 @@ fc_bm_print(const FC_msg_bm_t *bm)
             inet_ntop(AF_INET,
                       &in4->sin_addr,
                       ipstr, sizeof(struct sockaddr_in));
-            printf("%s/%d\n", ipstr, bm->src_ip[i].prefix_length);
+            DIAG_INFO("%s/%d\n", ipstr, bm->src_ip[i].prefix_length);
             break;
         case IPV6:
             in6 = (struct sockaddr_in6 *)&bm->src_ip[i].ip;
             inet_ntop(AF_INET6,
                       &in6->sin6_addr,
                       ipstr, sizeof(struct sockaddr_in6));
-            printf("%s/%d\n", ipstr, bm->src_ip[i].prefix_length);
+            DIAG_INFO("%s/%d\n", ipstr, bm->src_ip[i].prefix_length);
             break;
         }
     }
-    printf("dst ip prefix:\n");
+    DIAG_INFO("dst ip prefix:\n");
     for (i = 0; i < bm->dst_ip_num; ++i)
     {
         memset(ipstr, 0, INET6_ADDRSTRLEN);
-        printf("  idx: %d, ", i);
+        DIAG_INFO("  idx: %d, ", i);
         switch (bm->ipversion)
         {
         case IPV4:
             inet_ntop(AF_INET,
                       &((struct sockaddr_in *)&bm->dst_ip[i].ip)->sin_addr,
                       ipstr, sizeof(struct sockaddr_in));
-            printf("%s/%d\n", ipstr, bm->dst_ip[i].prefix_length);
+            DIAG_INFO("%s/%d\n", ipstr, bm->dst_ip[i].prefix_length);
             break;
         case IPV6:
             inet_ntop(AF_INET6,
                       &((struct sockaddr_in6 *)&bm->dst_ip[i].ip)->sin6_addr,
                       ipstr, sizeof(struct sockaddr_in6));
-            printf("%s/%d\n", ipstr, bm->dst_ip[i].prefix_length);
+            DIAG_INFO("%s/%d\n", ipstr, bm->dst_ip[i].prefix_length);
             break;
         }
     }
-    printf("fc list:\n");
+    DIAG_INFO("fc list:\n");
     for (i = 0; i < bm->fc_num; ++i)
     {
-        printf("  idx: %d, 3 asn: %d, %d, %d, algo-id: %d, flags: %d, siglen: %d sig: ",
-               i,
-               bm->fclist[i].previous_asn,
-               bm->fclist[i].current_asn,
-               bm->fclist[i].nexthop_asn,
-               bm->fclist[i].algo_id,
-               bm->fclist[i].flags,
-               bm->fclist[i].siglen);
+        DIAG_INFO("  idx: %d, 3 asn: %d, %d, %d, algo-id: %d, flags: %d, siglen: %d, ",
+                  i,
+                  bm->fclist[i].previous_asn,
+                  bm->fclist[i].current_asn,
+                  bm->fclist[i].nexthop_asn,
+                  bm->fclist[i].algo_id,
+                  bm->fclist[i].flags,
+                  bm->fclist[i].siglen);
+        fc_print_bin("sig", bm->fclist[i].sig, bm->fclist[i].siglen);
+    }
 
-        for (j = 0; j < bm->fclist[i].siglen; ++j)
-        {
-            printf("%02X", bm->fclist[i].sig[j]);
-        }
-        printf("\n");
-    }
-    printf("ski: ");
-    for (i = 0; i < FC_SKI_LENGTH; ++i)
-    {
-        printf("%02X", bm->ski[i]);
-    }
-    printf("\n");
+    fc_print_bin("bin", bm->ski, FC_SKI_LENGTH);
 }
 
 static int
-fc_msg_bm_decap_fixed(FC_msg_bm_t *bm, const char *buff, int currlen)
+fc_msg_bm_decap_fixed(FC_msg_bm_t *bm, const unsigned char *buff, int currlen)
 {
     memcpy(bm, buff, FC_HDR_BM_FIX_LENGTH);
     currlen += FC_HDR_BM_FIX_LENGTH;
@@ -1805,7 +1795,8 @@ fc_msg_bm_decap_fixed(FC_msg_bm_t *bm, const char *buff, int currlen)
 }
 
 static int
-fc_msg_bm_decap_srcip(FC_msg_bm_t *bm, const char *buff, int currlen, int ip_addr_len)
+fc_msg_bm_decap_srcip(FC_msg_bm_t *bm, const unsigned char *buff,
+                      int currlen, int ip_addr_len)
 {
     int i = 0;
     for (i = 0; i < bm->src_ip_num; ++i)
@@ -1834,7 +1825,8 @@ fc_msg_bm_decap_srcip(FC_msg_bm_t *bm, const char *buff, int currlen, int ip_add
 }
 
 static int
-fc_msg_bm_decap_dstip(FC_msg_bm_t *bm, const char *buff, int currlen, int ip_addr_len)
+fc_msg_bm_decap_dstip(FC_msg_bm_t *bm, const unsigned char *buff,
+                      int currlen, int ip_addr_len)
 {
     int i = 0;
     for (i = 0; i < bm->dst_ip_num; ++i)
@@ -1862,7 +1854,7 @@ fc_msg_bm_decap_dstip(FC_msg_bm_t *bm, const char *buff, int currlen, int ip_add
 }
 
 static int
-fc_msg_bm_decap_fclist(FC_msg_bm_t *bm, const char *buff, int currlen)
+fc_msg_bm_decap_fclist(FC_msg_bm_t *bm, const unsigned char *buff, int currlen)
 {
     int i = 0;
     for (i = 0; i < bm->fc_num; ++i)
@@ -1900,10 +1892,10 @@ fc_msg_bm_decap_fclist(FC_msg_bm_t *bm, const char *buff, int currlen)
 
         if (bm->fclist[i].nexthop_asn == bm->fclist[i].previous_asn)
         {
-            fprintf(stderr, "Not needed fclist, 3 asns: %08X %08X %08X\n",
-                    bm->fclist[i].previous_asn,
-                    bm->fclist[i].current_asn,
-                    bm->fclist[i].nexthop_asn);
+            DIAG_INFO("Not needed fclist, 3 asns: %08X %08X %08X\n",
+                      bm->fclist[i].previous_asn,
+                      bm->fclist[i].current_asn,
+                      bm->fclist[i].nexthop_asn);
             return -1;
         }
     }
@@ -1912,8 +1904,9 @@ fc_msg_bm_decap_fclist(FC_msg_bm_t *bm, const char *buff, int currlen)
 }
 
 static int
-fc_msg_bm_bgpd_handler(int clisockfd, FC_msg_bm_t *bm, char *buffer,
-                       const unsigned char *msg, char *buff, int currlen)
+fc_msg_bm_bgpd_handler(int clisockfd, FC_msg_bm_t *bm, unsigned char *buffer,
+                       const unsigned char *msg,
+                       unsigned char *buff, int currlen)
 {
     unsigned char *sigbuff = NULL;
     unsigned int sigbufflen = 0;
@@ -1921,7 +1914,7 @@ fc_msg_bm_bgpd_handler(int clisockfd, FC_msg_bm_t *bm, char *buffer,
     // TODO verify signature from bgpd
 
     // add signature for sending to peers
-    printf("prikey_fname: %s\n", g_fc_server.prikey_fname);
+    DIAG_INFO("prikey_fname: %s\n", g_fc_server.prikey_fname);
     fc_ecdsa_sign(g_fc_server.prikey, msg, currlen, &sigbuff, &sigbufflen);
     memcpy(bm->ski, g_fc_server.ski, FC_SKI_LENGTH);
     memcpy(buff + currlen, g_fc_server.ski, FC_SKI_LENGTH);
@@ -1944,62 +1937,55 @@ fc_msg_bm_bgpd_handler(int clisockfd, FC_msg_bm_t *bm, char *buffer,
 
 static int
 fc_msg_bm_bc_handler(FC_msg_bm_t *bm, const unsigned char *msg,
-                     const char *buff, int currlen)
+                     const unsigned char *buff, int currlen)
 {
-    int k = 0, ret = 0;
+    int ret = 0;
 
-    TXTPUR("### Verify BM Signature Start ###\n");
+    DIAG_INFO("### Verify BM Signature Start ###\n");
     // verify and remove signature
     memcpy(bm->ski, buff + currlen, FC_SKI_LENGTH);
     memcpy(bm->signature, buff + currlen + FC_SKI_LENGTH, bm->siglen);
 
-    printf("bm asn: %u, ski: ", bm->local_asn);
-    for (k = 0; k < FC_SKI_LENGTH; ++k)
-    {
-        printf("%02X", bm->ski[k]);
-    }
-    printf("\n");
+    DIAG_INFO("bm asn: %u, ", bm->local_asn);
+    fc_print_bin("ski", bm->ski, FC_SKI_LENGTH);
 
     FC_ht_node_as_t *node;
     FC_node_as_t meta = {0};
     meta.asn = bm->local_asn;
     node = htbl_meta_find(&g_fc_server.ht_as, &meta);
-    printf("node asn: %u, ski: ", node->asn);
-    for (int k = 0; k < FC_SKI_LENGTH; ++k)
-    {
-        printf("%02X", node->ski[k]);
-    }
-    printf("\n");
+    DIAG_INFO("node asn: %u, ", node->asn);
+    fc_print_bin("ski", node->ski, FC_SKI_LENGTH);
+
     ret = fc_ecdsa_verify(node->pubkey,
                           msg, currlen, bm->signature, bm->siglen);
 
     switch (ret)
     {
     case 1:
-        TXTGRN("verify sig ok\n");
+        DIAG_INFO("verify sig ok\n");
         break;
     case 0:
-        TXTRED("verify sig failed\n");
+        DIAG_ERROR("verify sig failed\n");
         break;
     default:
-        BAKRED("verify sig error\n");
+        DIAG_ERROR("verify sig error\n");
         break;
     }
 
-    TXTPUR("### Verify BM Signature End ###\n");
+    DIAG_INFO("### Verify BM Signature End ###\n");
 
     return ret;
 }
 
 // buff is starting from bm's ipversion
 // msg_type: is broadcast msg
-int fc_server_bm_handler(int clisockfd, char *buffer,
+int fc_server_bm_handler(int clisockfd, unsigned char *buffer,
                          int bufferlen, int msg_type)
 {
     FC_msg_bm_t bm = {0};
     unsigned char msg[FC_BUFF_SIZE] = {0};
     int curlen = 0, ret = 0, ip_addr_len = 0;
-    char *buff = buffer + FC_HDR_GENERAL_LENGTH;
+    unsigned char *buff = buffer + FC_HDR_GENERAL_LENGTH;
 
     // bmversion
     switch (buff[0])
@@ -2007,7 +1993,7 @@ int fc_server_bm_handler(int clisockfd, char *buffer,
     case FC_MSG_BM_VERSION: // current bm version
         break;
     default:
-        fprintf(stderr, "BM version %d is not supported\n", buff[0]);
+        DIAG_ERROR("BM version %d is not supported\n", buff[0]);
         return -1;
     }
 
@@ -2021,7 +2007,7 @@ int fc_server_bm_handler(int clisockfd, char *buffer,
         ip_addr_len = IP6_LENGTH;
         break;
     default:
-        fprintf(stderr, "IP version %d is not supported now\n", buff[1]);
+        DIAG_ERROR("IP version %d is not supported now\n", buff[1]);
         return -1;
     }
 
@@ -2080,97 +2066,78 @@ fc_server_msg_topo_init(int clisockfd)
 
 int fc_server_handler(int clisockfd, char *buff, int buffsize, int recvlen)
 {
-    TXTPUR("### Process One Packet Start ###\n");
+    int currlen = 0;
+    int i = 0;
 
-    int bufflen = 0;
-    // for (int i = 0; i < recvlen; i++)
-    // {
-    //     printf("\033[5m%02X", (uint8_t)buff[i]);
-    // }
-    // printf("\033[0m");
-
-    memcpy(&bufflen, &buff[2], sizeof(u16));
-    bufflen = ntohs(bufflen);
-    printf("bufflen: %d, recvlen: %d, fc-version: %d\n",
-           bufflen, recvlen, buff[0]);
-
-    if (buff[0] == FC_MSG_VERSION)
+    // many messages may be stuck.
+    while (currlen < recvlen)
     {
-        switch (buff[1])
+        i++;
+        DIAG_INFO("### Process Packet: %d Start ###\n", i);
+
+        u8 fc_msg_version = buff[currlen];
+        u8 fc_msg_type = buff[currlen + 1];
+        u16 fc_msg_len = 0;
+        memcpy(&fc_msg_len, &buff[currlen + 2], sizeof(u16));
+        fc_msg_len = ntohs(fc_msg_len);
+
+        DIAG_INFO("packet index: %d, recvlen: %d, currlen: %d, "
+                  "fc-version: %d, fc-type: %d, fc-msglen: %d\n",
+                  i, recvlen, currlen, fc_msg_version, fc_msg_type, fc_msg_len);
+
+        if (fc_msg_version != FC_MSG_VERSION)
+        {
+            DIAG_ERROR("WRONG FC HDR VERSION: %d\n", fc_msg_version);
+            currlen = currlen + FC_HDR_GENERAL_LENGTH + fc_msg_len;
+            continue;
+        }
+
+        unsigned char msg[BUFSIZ] = {0};
+        int msglen = fc_msg_len + FC_HDR_GENERAL_LENGTH;
+        memcpy(msg, buff + currlen, msglen); // including general header
+        currlen = currlen + FC_HDR_GENERAL_LENGTH + fc_msg_len;
+
+        switch (fc_msg_type)
         {
         case FC_MSG_PUBKEY: // pubkey
-            printf("Not support pubkey\n");
-            fc_server_pubkey_handler(clisockfd, buff, recvlen);
-            return 0;
+            DIAG_ERROR("Not support pubkey\n");
+            fc_server_pubkey_handler(clisockfd, msg, msglen);
+            break;
         case FC_MSG_BGPD: // bm
-            fc_server_bm_handler(clisockfd, buff, recvlen, FC_MSG_BGPD);
+            fc_server_bm_handler(clisockfd, msg, msglen, FC_MSG_BGPD);
             break;
         case FC_MSG_BC: // broadcast msg
-            fc_server_bm_handler(clisockfd, buff, recvlen, FC_MSG_BC);
+            fc_server_bm_handler(clisockfd, msg, msglen, FC_MSG_BC);
             break;
         case FC_MSG_TOPO:
-            fc_server_topo_handler(clisockfd, buff, recvlen);
+            fc_server_topo_handler(clisockfd, msg, msglen);
             fc_server_msg_topo_init(clisockfd);
             break;
         default:
-            printf("Not support %d\n", buff[0]);
-            return -1;
+            DIAG_ERROR("Not supported message type: %d\n", fc_msg_type);
+            break;
         }
+
+        DIAG_INFO("### Process Packet: %d End ###\n", i);
     }
-    else
-    {
-        printf("recvlen: %d\n", recvlen);
-        if (recvlen > 1)
-        {
-            printf("FC HDR VERSION: %d\n", buff[0]);
-        }
-    }
-    TXTPUR("### Process One Packet End ###\n");
-
-    return 0;
-}
-
-static inline int
-print_line(char ch, char *string)
-{
-    int i = 0, line_len = 78, ln = 0, rn = 0, string_len = 0;
-
-    string_len = strlen(string);
-    ln = (line_len - string_len) / 2;
-    rn = line_len - string_len - ln;
-
-    printf("*");
-    for (i = 0; i < ln; ++i)
-        printf("%c", ch);
-    printf("%s", string);
-    for (i = 0; i < rn; ++i)
-        printf("%c", ch);
-    printf("*\n");
 
     return 0;
 }
 
 static inline void
-fc_welcome_banner()
+fc_welcome_banner(void)
 {
-    print_line('*', "");
-    print_line(' ', FC_VERSION_STR);
-    print_line(' ', "Home page: <https://gitee.com/basil1728/fcbgp-new>");
-    print_line(' ', "A private repository. Not avaliable without permission.");
-    print_line(' ', "Need help or report bugs please mailto: guoyangfei@zgclab.edu.cn");
-    print_line(' ', "SSL_VERSION: " OPENSSL_VERSION_TEXT);
-    print_line('*', "");
+    fc_cmd_version();
 }
 
-static inline void
-fc_help(void)
+void fc_help(void)
 {
     fc_welcome_banner();
-    printf("\n");
-    printf("\t-f <config.json>  Specify the location of config.json.\n");
-    printf("\t                   Default location is /etc/frr/assets/\n");
-    printf("\t-h                 Print this message.\n");
-    printf("\t-v                 Print FC Server version.\n");
+    fprintf(stdout, "\n");
+    fprintf(stdout, "\t-f <config.json>  Specify the location of config.json.\n");
+    fprintf(stdout, "\t                  Default location is /etc/frr/assets/\n");
+    fprintf(stdout, "\t-h                Print this message.\n");
+    fprintf(stdout, "\t-v                Print FC Server version.\n");
 }
 
 static void
@@ -2192,7 +2159,7 @@ fc_parse_args(int argc, char **argv)
             fc_help();
             exit(EXIT_SUCCESS);
         default:
-            printf("unknown opt: %d\n", opt);
+            DIAG_ERROR("unknown opt: %d\n", opt);
             fc_help();
             exit(EXIT_FAILURE);
         }
@@ -2204,8 +2171,9 @@ fc_parse_args(int argc, char **argv)
     }
 }
 
-int fc_main()
+void *fc_main(void *args)
 {
+    (void)args;
     int ret = 0;
 
     signal(SIGINT, fc_server_destroy);
@@ -2217,6 +2185,7 @@ int fc_main()
     fc_hashtable_create(&g_fc_server.ht_as, &g_fc_htbl_as_ops);
 
     // aclinfo ht
+
     ht_aclinfo_create(&g_fc_server.ht_acl_group_info);
 
     fc_read_config();
@@ -2231,7 +2200,7 @@ int fc_main()
     ret = fc_server_create();
     FC_ASSERT_RET(ret);
 
-    return 0;
+    return NULL;
 }
 
 void fc_server_destroy(int signum)
@@ -2240,7 +2209,7 @@ void fc_server_destroy(int signum)
 
     if (signum == SIGINT || signum == SIGUSR1)
     {
-        printf("recevied SIGINT\n");
+        DIAG_INFO("recevied signal: %d\n", signum);
         diag_fini();
 
         // close all routers
@@ -2292,7 +2261,7 @@ void fc_server_destroy(int signum)
         FC_MEM_FREE(g_fc_server.config_fname);
         FC_MEM_FREE(g_fc_server.fc_db_fname);
 
-        printf("bye bye!\n");
+        DIAG_INFO("bye bye~\n");
         exit(EXIT_SUCCESS);
     }
 }
@@ -2307,7 +2276,19 @@ int main(int argc, char **argv)
     g_fc_server.certs_location = NULL;
 
     fc_parse_args(argc, argv);
-    fc_main();
+
+    pthread_t tid, ret = 0;
+    ret = pthread_create(&tid, NULL, fc_main, NULL);
+    if (ret < 0)
+    {
+        perror("pthread_create failed");
+        return 1;
+    }
+    pthread_detach(tid);
+
+    // as we only read from g_fc_server,
+    // so it is not necessary to use pthread_mutex
+    fc_main_front(NULL);
 
     return 0;
 }

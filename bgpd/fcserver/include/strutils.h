@@ -1,7 +1,7 @@
 /**
  * @file strutils.h
  * @author basilguo@163.com
- * @brief 
+ * @brief
  * @version 0.0.1
  * @date 2024-07-25
  *
@@ -11,12 +11,17 @@
 #define STRUTILS_H
 
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif /* __cplusplus */
 
-    extern char *fc_combine_path(const char *const path, const char *const filename);
-    extern void fc_utils_str_toupper(char *str, const int size);
-
+    extern char *fc_combine_path(const char *const path,
+                                 const char *const filename);
+    extern void fc_utils_str_toupper(char *str,
+                                     const int size);
+    extern int fc_print_bin(const char *msg,
+                            const unsigned char *bin,
+                            const int binlen);
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */

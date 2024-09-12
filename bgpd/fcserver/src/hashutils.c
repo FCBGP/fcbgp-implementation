@@ -6,6 +6,7 @@
  ********************************************************************************/
 
 #include "hashutils.h"
+#include "libdiag.h"
 #include "sysconfig.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -33,19 +34,19 @@ fc_as_node_display(void *node)
     int i = 0;
     FC_ht_node_as_t *node_as = (FC_ht_node_as_t *)node;
 
-    printf("asn: %d\n", node_as->asn);
-    printf("  acs:\n");
-    printf("    ipv4:\n");
+    DIAG_INFO("asn: %d\n", node_as->asn);
+    DIAG_INFO("  acs:\n");
+    DIAG_INFO("    ipv4:\n");
     for (i = 0; i < node_as->acs.ipv4_num; ++i)
     {
-        printf("      ifname: %s\n", node_as->acs.ipv4[i].ifname);
-        printf("      ifaddr: %s\n", node_as->acs.ipv4[i].ifaddr);
+        DIAG_INFO("      ifname: %s\n", node_as->acs.ipv4[i].ifname);
+        DIAG_INFO("      ifaddr: %s\n", node_as->acs.ipv4[i].ifaddr);
     }
-    printf("    ipv6:\n");
+    DIAG_INFO("    ipv6:\n");
     for (i = 0; i < node_as->acs.ipv6_num; ++i)
     {
-        printf("      ifname: %s\n", node_as->acs.ipv6[i].ifname);
-        printf("      ifaddr: %s\n", node_as->acs.ipv6[i].ifaddr);
+        DIAG_INFO("      ifname: %s\n", node_as->acs.ipv6[i].ifname);
+        DIAG_INFO("      ifaddr: %s\n", node_as->acs.ipv6[i].ifaddr);
     }
 
     return 0;
@@ -55,7 +56,7 @@ static u32
 fc_as_hash(u32 asn)
 {
     u32 ret = jhash_1word(asn, 0xdeadbeef);
-    // printf("ret : %d\n", ret);
+    // DIAG_INFO("ret : %d\n", ret);
     return ret;
 }
 
@@ -223,7 +224,7 @@ int fc_hashtable_create(htbl_ctx_t *ht, htbl_ops_t *ops)
     ret = htbl_init(ht);
     FC_ASSERT_RET(ret);
     /*
-       printf("htbl_init return %d ptr size %d spinlock size %d atomic size %d hlist size %d rwlock size %d hnode size %d node size %d",
+       DIAG_INFO("htbl_init return %d ptr size %d spinlock size %d atomic size %d hlist size %d rwlock size %d hnode size %d node size %d",
        ret, (int)sizeof(void *), (int)sizeof(spinlock_t), (int)sizeof(atomic_t),
        (int)sizeof(htbl_hlist_t), (int)sizeof(rwlock_t),
        (int)sizeof(htbl_node_t), (int)sizeof(FC_ht_node_as_t));
@@ -280,7 +281,7 @@ int ht_aclinfo_insert(mln_hash_t *h, u32 iface_index,
 
         if (mln_hash_insert(h, &(item->iface_index), item) < 0)
         {
-            fprintf(stderr, "insert failed.\n");
+            DIAG_ERROR("insert failed.\n");
             return -1;
         }
     }

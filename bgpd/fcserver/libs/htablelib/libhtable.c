@@ -1,4 +1,5 @@
 #include "libhtable.h"
+#include "libdiag.h"
 
 void *htbl_meta_find(htbl_ctx_t *ctx, void *meta)
 {
@@ -203,7 +204,7 @@ void htbl_display(htbl_ctx_t *ctx)
         htbl_hlist_t *hlist = ctx->buckets + i;
 
         if (hlist->nodecnt) {
-            printf("%p: --%04d-- nodes %d changes %d:\n", ctx, i, hlist->nodecnt, hlist->changes);
+            DIAG_INFO("%p: --%04d-- nodes %d changes %d:\n", ctx, i, hlist->nodecnt, hlist->changes);
             hlist_for_each_entry(hobj, pos, &hlist->head, node_hlist) {
                 htbl_node_display(ctx, hobj);
             }
@@ -220,7 +221,7 @@ void htbl_display(htbl_ctx_t *ctx)
         }
     }
 
-    printf("%p: nodecnt %d min nodecnt %d max nodecnt %d bucketused %d bucketcnt %d\n",
+    DIAG_INFO("%p: nodecnt %d min nodecnt %d max nodecnt %d bucketused %d bucketcnt %d\n",
             ctx, ctx->nodecnt, minnodecnt, maxnodecnt, bucket_used, ctx->bucketcnt);
 }
 

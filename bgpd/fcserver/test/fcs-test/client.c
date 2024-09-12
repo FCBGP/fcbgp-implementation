@@ -6,15 +6,15 @@
  * Description:  This client will mock the BGPd to send BM to FCServer.
  *******************************************************************************/
 
+#include <arpa/inet.h>
+#include <netinet/in.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/types.h>
-#include <arpa/inet.h>
-#include <stdint.h>
-#include <netinet/in.h>
 
 #define MAX_SIZE 2048
 
@@ -43,11 +43,11 @@ int prepare_msg_bm(char *msg, int msg_type)
 
     // u8 version
     u8v = 1;
-    memcpy(msg+len, &u8v, sizeof(u8));
+    memcpy(msg + len, &u8v, sizeof(u8));
     len += sizeof(u8);
     // u8 type
     u8v = msg_type; // bm from bgpd or fcs
-    memcpy(msg+len, &u8v, sizeof(u8));
+    memcpy(msg + len, &u8v, sizeof(u8));
     len += sizeof(u8);
     // u16 length
     lengthpos = len;
@@ -55,57 +55,57 @@ int prepare_msg_bm(char *msg, int msg_type)
     len += sizeof(u16);
     // u8 ipversion
     u8v = 4;
-    memcpy(msg+len, &u8v, sizeof(u8));
+    memcpy(msg + len, &u8v, sizeof(u8));
     len += sizeof(u8);
     // u8 type
     u8v = 0;
-    memcpy(msg+len, &u8v, sizeof(u8));
+    memcpy(msg + len, &u8v, sizeof(u8));
     len += sizeof(u8);
     // u8 action
     u8v = 0;
-    memcpy(msg+len, &u8v, sizeof(u8));
+    memcpy(msg + len, &u8v, sizeof(u8));
     len += sizeof(u8);
     // u8 fc_num
     u8v = 1;
-    memcpy(msg+len, &u8v, sizeof(u8));
+    memcpy(msg + len, &u8v, sizeof(u8));
     len += sizeof(u8);
     // u8 src_ip_num
     u8v = 1;
-    memcpy(msg+len, &u8v, sizeof(u8));
+    memcpy(msg + len, &u8v, sizeof(u8));
     len += sizeof(u8);
     // u8 dst_ip_num
     u8v = 1;
-    memcpy(msg+len, &u8v, sizeof(u8));
+    memcpy(msg + len, &u8v, sizeof(u8));
     len += sizeof(u8);
     // u16 siglen
     u16v = htons(72);
-    memcpy(msg+len, &u16v, sizeof(u16));
+    memcpy(msg + len, &u16v, sizeof(u16));
     len += sizeof(u16);
     // u32 local_asn
     u32v = htonl(10);
-    memcpy(msg+len, &u32v, sizeof(u32));
+    memcpy(msg + len, &u32v, sizeof(u32));
     len += sizeof(u32);
     // u32 version
     u32v = 0;
-    memcpy(msg+len, &u32v, sizeof(u32));
+    memcpy(msg + len, &u32v, sizeof(u32));
     len += sizeof(u32);
     // u32 subversion
     u32v = 0;
-    memcpy(msg+len, &u32v, sizeof(u32));
+    memcpy(msg + len, &u32v, sizeof(u32));
     len += sizeof(u32);
     // FC_ip_t src_ip[]
     u32v = htonl(0x0a0b0c0d);
-    memcpy(msg+len, &u32v, sizeof(u32));
+    memcpy(msg + len, &u32v, sizeof(u32));
     len += sizeof(u32);
     u8v = 24;
-    memcpy(msg+len, &u8v, sizeof(u8));
+    memcpy(msg + len, &u8v, sizeof(u8));
     len += sizeof(u8);
     // FC_ip_t dst_ip[]
     u32v = htonl(0x01020304);
-    memcpy(msg+len, &u32v, sizeof(u32));
+    memcpy(msg + len, &u32v, sizeof(u32));
     len += sizeof(u32);
     u8v = 24;
-    memcpy(msg+len, &u8v, sizeof(u8));
+    memcpy(msg + len, &u8v, sizeof(u8));
     len += sizeof(u8);
 #if 0
     // il num
@@ -125,67 +125,67 @@ int prepare_msg_bm(char *msg, int msg_type)
     {
         // pasn
         u32v = htonl(20);
-        memcpy(msg+len, &u32v, sizeof(u32));
+        memcpy(msg + len, &u32v, sizeof(u32));
         len += sizeof(u32);
         // casn
         u32v = htonl(10);
-        memcpy(msg+len, &u32v, sizeof(u32));
+        memcpy(msg + len, &u32v, sizeof(u32));
         len += sizeof(u32);
         // nasn
         u32v = htonl(30);
-        memcpy(msg+len, &u32v, sizeof(u32));
+        memcpy(msg + len, &u32v, sizeof(u32));
         len += sizeof(u32);
         // u8 ski[20]
-        for (int i = 0; i < 20; ++ i)
+        for (int i = 0; i < 20; ++i)
         {
             u8v = 0;
-            memcpy(msg+len, &u8v, sizeof(u8));
+            memcpy(msg + len, &u8v, sizeof(u8));
             len += sizeof(u8);
         }
         // u8 algo_id
         u8v = 1;
-        memcpy(msg+len, &u8v, sizeof(u8));
+        memcpy(msg + len, &u8v, sizeof(u8));
         len += sizeof(u8);
         // u8 flags
         u8v = 0;
-        memcpy(msg+len, &u8v, sizeof(u8));
+        memcpy(msg + len, &u8v, sizeof(u8));
         len += sizeof(u8);
         // u16 siglen
         u16v = htons(72);
-        memcpy(msg+len, &u16v, sizeof(u16));
+        memcpy(msg + len, &u16v, sizeof(u16));
         len += sizeof(u16);
         // u8 signature[80]
-        for (int i = 0; i < 72; ++ i)
+        for (int i = 0; i < 72; ++i)
         {
             u8v = i;
-            memcpy(msg+len, &u8v, sizeof(u8));
+            memcpy(msg + len, &u8v, sizeof(u8));
             len += sizeof(u8);
         }
     }
     // u8 ski[20]
-    for (int i = 0; i < 20; ++ i)
+    for (int i = 0; i < 20; ++i)
     {
         u8v = 0;
-        memcpy(msg+len, &u8v, sizeof(u8));
+        memcpy(msg + len, &u8v, sizeof(u8));
         len += sizeof(u8);
     }
     // u8 signature[80]
-    for (int i = 0; i < 72; ++ i)
+    for (int i = 0; i < 72; ++i)
     {
         u8v = i;
-        memcpy(msg+len, &u8v, sizeof(u8));
+        memcpy(msg + len, &u8v, sizeof(u8));
         len += sizeof(u8);
     }
 
     // length
     length = htons(len);
-    memcpy(msg+lengthpos, &length, sizeof(u16));
+    memcpy(msg + lengthpos, &length, sizeof(u16));
 
     return len;
 }
 
 int prepare_msg_topo(char *msg, u8 msg_type,
-        u8 action, bool del_all_neighbor, bool del_all_il)
+                     u8 action, bool del_all_neighbor, bool del_all_il)
 {
     int len = 0, length = 0, lengthpos = 0;
     u8 u8v = 0;
@@ -193,95 +193,99 @@ int prepare_msg_topo(char *msg, u8 msg_type,
 
     // u8 version
     u8v = 1;
-    memcpy(msg+len, &u8v, sizeof(u8));
+    memcpy(msg + len, &u8v, sizeof(u8));
     len += sizeof(u8);
     // u8 type
     u8v = msg_type; // bm from bgpd or fcs
-    memcpy(msg+len, &u8v, sizeof(u8));
+    memcpy(msg + len, &u8v, sizeof(u8));
     len += sizeof(u8);
     // u16 length
     lengthpos = len;
     len += sizeof(u16);
     // action
-    memcpy(msg+len, &action, sizeof(u8));
+    memcpy(msg + len, &action, sizeof(u8));
     len += sizeof(u8);
     // reserved;
     u8v = 0;
-    memcpy(msg+len, &u8v, sizeof(u8) * 3);
+    memcpy(msg + len, &u8v, sizeof(u8) * 3);
     len += 3 * sizeof(u8);
     // bgpid
     u32v = htonl(0xc0a80a01);
-    memcpy(msg+len, &u32v, sizeof(u32));
+    memcpy(msg + len, &u32v, sizeof(u32));
     len += sizeof(u32);
     // local-asn
     u32v = htonl(10);
-    memcpy(msg+len, &u32v, sizeof(u32));
+    memcpy(msg + len, &u32v, sizeof(u32));
     len += sizeof(u32);
+
     // neighbor_num;
-    if (action == 1 && del_all_neighbor) {
+    if (action == 1 && del_all_neighbor)
+    {
         u32v = htonl(0xffffffff);
-    } else {
+    }
+    else
+    {
         u32v = htonl(3);
     }
-    memcpy(msg+len, &u32v, sizeof(u32));
+    memcpy(msg + len, &u32v, sizeof(u32));
     len += sizeof(u32);
+
     // neighbors
-    if (action == 0 || ! del_all_neighbor)
+    if (action == 0 || !del_all_neighbor)
     {
         // neighbor-asn
         u32v = htonl(20);
-        memcpy(msg+len, &u32v, sizeof(u32));
+        memcpy(msg + len, &u32v, sizeof(u32));
         len += sizeof(u32);
         // il-num
         u32v = htonl(1);
-        memcpy(msg+len, &u32v, sizeof(u32));
+        memcpy(msg + len, &u32v, sizeof(u32));
         len += sizeof(u32);
         // iface-list
         u32v = htonl(0x10000001);
-        memcpy(msg+len, &u32v, sizeof(u32));
+        memcpy(msg + len, &u32v, sizeof(u32));
         len += sizeof(u32);
         // neighbor-asn
         u32v = htonl(30);
-        memcpy(msg+len, &u32v, sizeof(u32));
+        memcpy(msg + len, &u32v, sizeof(u32));
         len += sizeof(u32);
         // il-num
-        if (action == 1 && del_all_il) {
-            u32v = htonl(0xffffffff);
-            memcpy(msg+len, &u32v, sizeof(u32));
+        if (del_all_il)
+        {
+            u32v = htonl(0x0);
+            memcpy(msg + len, &u32v, sizeof(u32));
             len += sizeof(u32);
-        } else {
+        }
+        else
+        {
             u32v = htonl(2);
-            memcpy(msg+len, &u32v, sizeof(u32));
+            memcpy(msg + len, &u32v, sizeof(u32));
             len += sizeof(u32);
             // iface-list
             u32v = htonl(0x10000002);
-            memcpy(msg+len, &u32v, sizeof(u32));
+            memcpy(msg + len, &u32v, sizeof(u32));
             len += sizeof(u32);
             u32v = htonl(0x10000003);
-            memcpy(msg+len, &u32v, sizeof(u32));
+            memcpy(msg + len, &u32v, sizeof(u32));
             len += sizeof(u32);
-        }
-
-        if (! del_all_il)
-        {
             // neighbor-asn
             u32v = htonl(40);
-            memcpy(msg+len, &u32v, sizeof(u32));
+            memcpy(msg + len, &u32v, sizeof(u32));
             len += sizeof(u32);
             // il-num
             u32v = htonl(1);
-            memcpy(msg+len, &u32v, sizeof(u32));
+            memcpy(msg + len, &u32v, sizeof(u32));
             len += sizeof(u32);
             // iface-list
             u32v = htonl(0x10000004);
-            memcpy(msg+len, &u32v, sizeof(u32));
+            memcpy(msg + len, &u32v, sizeof(u32));
             len += sizeof(u32);
         }
     }
 
     // length
     length = htons(len);
-    memcpy(msg+lengthpos, &length, sizeof(u16));
+    memcpy(msg + lengthpos, &length, sizeof(u16));
 
     return len;
 }
@@ -296,7 +300,7 @@ int prepare_msg_for_type4(char *msg)
         printf("\n");
         printf("\t1: add topo information(20-10, 30=10, 40-10)\n");
         printf("\t2: del topo information(20-10, 30=10, 40-10)\n");
-        printf("\t3: del topo information(30=10), il-num = 0xffffffff\n");
+        printf("\t3: del topo information(30=10), il-num = 0x0\n");
         printf("\t4: del all topo information, neighbor-num = 0xffffffff\n");
         printf("Enter your choice (1,2,3,4, q): ");
         scanf("%c", &choice);
@@ -304,19 +308,19 @@ int prepare_msg_for_type4(char *msg)
         {
         case '1':
             len = prepare_msg_topo(msg, 4, 0, /* add/update */
-                    0 /* del_all_neighbor */, 0 /* del_all_il */);
+                                   0 /* del_all_neighbor */, 0 /* del_all_il */);
             break;
         case '2':
             len = prepare_msg_topo(msg, 4, 1, /* add/update */
-                    0 /* del_all_neighbor */, 0 /* del_all_il */);
+                                   0 /* del_all_neighbor */, 0 /* del_all_il */);
             break;
         case '3':
             len = prepare_msg_topo(msg, 4, 1, /* add/update */
-                    0 /* del_all_neighbor */, 1 /* del_all_il */);
+                                   0 /* del_all_neighbor */, 1 /* del_all_il */);
             break;
         case '4':
             len = prepare_msg_topo(msg, 4, 1, /* add/update */
-                    1 /* del_all_neighbor */, 1 /* del_all_il */);
+                                   1 /* del_all_neighbor */, 1 /* del_all_il */);
             break;
         case 'q':
             exit(EXIT_SUCCESS);
@@ -389,7 +393,7 @@ int main(int argc, char *argv[])
     int yes = 0;
     setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
 
-    if (bind(sockfd, (struct sockaddr*)&clisockaddr, sizeof(clisockaddr)) < 0)
+    if (bind(sockfd, (struct sockaddr *)&clisockaddr, sizeof(clisockaddr)) < 0)
     {
         perror("bind()");
         exit(EXIT_FAILURE);
@@ -415,14 +419,12 @@ int main(int argc, char *argv[])
         if ('q' == getchar())
             break;
 
-
         ret = send(sockfd, msg, msglen, 0);
         printf("msglen: %d, ret: %d\n", msglen, ret);
 
         printf("The %d time to send\n\n", count);
-        count ++;
+        count++;
     }
-
 
     return 0;
 }

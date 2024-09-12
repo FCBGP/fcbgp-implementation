@@ -4,10 +4,11 @@ INCS_DIR = $(foreach i,$(LIBS_DIR),-I$(i))
 INCS_DIR += -Iinclude -I/usr/include/python3.10
 INCS_DIR += -I/usr/local/melon/include/
 
-SRC_fcs  = fcserver.c fcconfig.c dbutils.c sigutils.c hashutils.c pyutils.c strutils.c
+SRC_fcs  = fcserver.c fcfront.c fcconfig.c dbutils.c sigutils.c hashutils.c pyutils.c strutils.c
 SRC_DIR = $(foreach i,$(SRC_fcs),src/$(i))
 
-SRC_libs  = libs/diaglib/libdiag.c libs/baselib/libstring.c
+SRC_libs += libs/linenoise/linenoise.c
+SRC_libs += libs/diaglib/libdiag.c libs/baselib/libstring.c
 SRC_libs += libs/cJSONlib/cJSON.c
 SRC_libs += libs/htablelib/libhtable.c libs/baselib/liblist.c
 SRC_libs += libs/baselib/libcrc32.c
@@ -16,7 +17,7 @@ CC := gcc
 CFLAGS += -L/usr/lib/python3.10/config-3.10-x86_64-linux-gnu -L/usr/local/melon/lib/
 CFLAGS += -DTEST_MAIN
 CFLAGS += -g -Wall $(INCS_DIR) -Wno-deprecated-declarations
-LDFLAGS_fcs += -lcrypto -lsqlite3 -lm -lpython3.10 -lmelon
+LDFLAGS_fcs += -lcrypto -lsqlite3 -lm -lpython3.10 -lmelon -lpthread
 
 all: server
 	sudo bin/server

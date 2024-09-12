@@ -5,10 +5,10 @@
  * Description:  JSON UTILS
  ********************************************************************************/
 
-#include "cJSON.h"
-
-#include "defines.h"
 #include "fcconfig.h"
+#include "cJSON.h"
+#include "defines.h"
+#include "libdiag.h"
 #include "sigutils.h"
 #include "strutils.h"
 
@@ -74,7 +74,7 @@ static inline void
 fc_cjson_print(const cJSON *const root)
 {
     char *output = cJSON_Print(root);
-    printf("%s\n", output);
+    DIAG_INFO("%s\n", output);
     FC_MEM_FREE(output);
 }
 
@@ -422,8 +422,8 @@ fc_json_read_router_info_list(const cJSON *const root)
     }
     else
     {
-        TXTYLW("Useless router_info_list configuration "
-               "as the data plane is not real router machine.\n");
+        DIAG_ERROR("Useless router_info_list configuration "
+                   "as the data plane is not real router machine.\n");
     }
 }
 
@@ -462,12 +462,8 @@ static int fc_json_read_as_info_list(const cJSON *const root)
         memcpy(meta.cert, cert->valuestring, strlen(cert->valuestring));
         fpath = fc_combine_path(g_fc_server.certs_location, meta.cert);
         fc_get_ecpubkey_and_ski(meta.asn, fpath, &meta.pubkey, meta.ski);
-        printf("meta.ski: ");
-        for (j = 0; j < FC_SKI_LENGTH; j++)
-        {
-            printf("%02X", meta.ski[j]);
-        }
-        printf("\n");
+
+        fc_print_bin("meta.ski", meta.ski, FC_SKI_LENGTH);
 
         if (meta.asn == g_fc_server.local_asn)
         {
@@ -514,10 +510,10 @@ static int fc_json_read_as_info_list(const cJSON *const root)
         node = htbl_meta_insert(&g_fc_server.ht_as, &meta, &ret);
         if (!node)
         {
-            TXTRED("insert failed\n");
+            DIAG_ERROR("insert failed\n");
             return -1;
         }
-        printf("====================================================\n");
+        DIAG_INFO("====================================================\n");
     }
 
     return 0;

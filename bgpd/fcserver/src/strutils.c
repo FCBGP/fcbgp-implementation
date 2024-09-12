@@ -15,6 +15,7 @@ extern "C"
 
 #include "strutils.h"
 #include "colorp.h"
+#include "libdiag.h"
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -34,7 +35,7 @@ extern "C"
         char *combined_path = (char *)malloc(combined_len);
         if (combined_path == NULL)
         {
-            BAKRED("malloc for combined_path failed\n");
+            DIAG_ERROR("malloc for combined_path failed\n");
             return NULL;
         }
         memset(combined_path, 0, combined_len);
@@ -68,6 +69,22 @@ extern "C"
 
             str[size] = '\0';
         }
+    }
+
+    int fc_print_bin(const char *msg, const unsigned char *bin, const int binlen)
+    {
+        int curlen = 0;
+        int binstrlen = 2 * binlen + 1;
+        char *binstr = calloc(binstrlen, sizeof(unsigned char));
+        for (int i = 0; i < binlen; i++)
+        {
+            snprintf(binstr + curlen, binstrlen, "%02X", bin[i]);
+            curlen += 2;
+        }
+        DIAG_INFO("%s: %s\n", msg, binstr);
+        free(binstr);
+
+        return 0;
     }
 #ifdef __cplusplus
 }
