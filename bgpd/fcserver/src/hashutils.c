@@ -276,8 +276,7 @@ int ht_aclinfo_insert(mln_hash_t *h, u32 iface_index,
     {
         item = calloc(1, sizeof(ht_acl_group_info_t));
         item->iface_index = iface_index;
-        item->acl_in_index = ++target_router->acl_group_index;
-        item->acl_out_index = ++target_router->acl_group_index;
+        item->acl_group_index = ++target_router->acl_group_index;
 
         if (mln_hash_insert(h, &(item->iface_index), item) < 0)
         {

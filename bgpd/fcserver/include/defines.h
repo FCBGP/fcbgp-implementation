@@ -310,8 +310,7 @@ typedef struct ht_acl_rule_info_st
 typedef struct ht_acl_group_info_st
 {
     u32 iface_index;
-    u32 acl_in_index;
-    u32 acl_out_index;
+    u32 acl_group_index;
     u32 acl_rule_in_id;
     u32 acl_rule_out_id;
     ht_acl_rule_info_t *ht_acl_rule_info;
