@@ -1161,7 +1161,7 @@ static int
 fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
 {
     int i = 0, j = 0, ret = 0, fc_index = 0;
-    bool flag_offpath = false, flag_withdraw = false;
+    bool flag_offpath = true, flag_withdraw = false;
     bool still_loop = true, from_bgpd = false;
     FC_router_info_t *router_info = NULL;
     FC_router_link_info_t *link_info = NULL;
@@ -1178,25 +1178,18 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
     fc_sock_get_addr_from_peer_fd(clisockfd, (struct sockaddr *)&sockaddr,
                                   ipbuf, INET6_ADDRSTRLEN);
 
-    from_bgpd = false;
-    flag_offpath = true;
-    for (fc_index = 0; fc_index < bm->fc_num; ++fc_index)
+    flag_withdraw = (bm->flags & FC_BM_FLAGS_WITHDRAW) != 0;
+
+    // bm from bgpd means node onpath
+    flag_offpath = false;
+    from_bgpd = (bm->local_asn == g_fc_server.local_asn);
+    if (!from_bgpd)
     {
-        if (fc_index == 0 &&
-            bm->fclist[fc_index].nexthop_asn == g_fc_server.local_asn)
-        {
-            from_bgpd = true;
-            flag_offpath = false;
-            break;
-        }
-        if (bm->fclist[fc_index].current_asn == g_fc_server.local_asn)
-        {
-            flag_offpath = false;
-            break;
-        }
+        flag_offpath = fc_asn_is_offpath(g_fc_server.local_asn, bm);
     }
 
-    flag_withdraw = (bm->flags & FC_BM_FLAGS_WITHDRAW) != 0;
+    DIAG_DEBUG("fc-index: %d, from-bgpd? %d, offpath? %d, withdraw? %d\n",
+               fc_index, from_bgpd, flag_offpath, flag_withdraw);
 
     // maybe can be removed as dst_ip_num is always 1
     for (i = 0; still_loop && i < bm->dst_ip_num; ++i)
@@ -1266,7 +1259,7 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
                         if (flag_offpath) // offpath node
                         {
                             DIAG_INFO("offpath node srcip: %s/%d, dstip: %s/%d, "
-                                      "iface_index: %d, direction: both\n",
+                                      "iface_index: %08X, direction: both\n",
                                       saddr, sprefixlen, daddr, dprefixlen,
                                       iface_info->iface_index);
 
@@ -1275,20 +1268,17 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
                                 //! offpath withdraw acl-in direction
                                 ht_acl_rule_info_t *acl_rule_info = NULL;
                                 ht_acl_rule_info_t *rule =
-                                    (ht_acl_rule_info_t *)
-                                        calloc(1, sizeof(ht_acl_rule_info_t));
+                                    (ht_acl_rule_info_t *)calloc(1, sizeof(ht_acl_rule_info_t));
                                 rule->ipversion = bm->ipversion;
                                 memcpy(rule->saddr, saddr, INET6_ADDRSTRLEN);
                                 rule->sprefixlen = sprefixlen;
                                 memcpy(rule->daddr, daddr, INET6_ADDRSTRLEN);
                                 rule->dprefixlen = dprefixlen;
                                 rule->rule_id = 0;
+                                rule->direction = FC_TOPO_DIRECTION_NONE;
                                 rule->acl_group_index = item->acl_in_index;
-                                acl_rule_info_key =
-                                    fnv1a_hash(rule, sizeof(rule));
-                                HASH_FIND_INT(item->ht_acl_rule_info,
-                                              &acl_rule_info_key,
-                                              acl_rule_info);
+                                acl_rule_info_key = fnv1a_hash(rule, sizeof(rule));
+                                HASH_FIND_INT(item->ht_acl_rule_info, &acl_rule_info_key, acl_rule_info);
 
                                 if (acl_rule_info)
                                 {
@@ -1296,7 +1286,7 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
                                               "[%s:%d] group index: %u, "
                                               "ipversion: %d rule_id: %u, "
                                               "src prefix: %s/%d, dst prefix: %s/%d, "
-                                              "iface index: %d\n",
+                                              "iface_index: %08X\n",
                                               __FUNCTION__, __LINE__,
                                               item->acl_in_index, bm->ipversion,
                                               acl_rule_info->rule_id,
@@ -1321,7 +1311,7 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
                                               "[%s:%d] group index: %u, "
                                               "ipversion: %d fake rule_id: %u, "
                                               "src prefix: %s/%d, dst prefix: %s/%d, "
-                                              "iface index: %d\n",
+                                              "iface_index: %08X\n",
                                               __FUNCTION__, __LINE__,
                                               item->acl_in_index, bm->ipversion,
                                               rule_id,
@@ -1336,11 +1326,10 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
                                 memcpy(rule->daddr, daddr, INET6_ADDRSTRLEN);
                                 rule->dprefixlen = dprefixlen;
                                 rule->rule_id = 0;
+                                rule->direction = FC_TOPO_DIRECTION_NONE;
                                 rule->acl_group_index = item->acl_out_index;
                                 acl_rule_info_key = fnv1a_hash(rule, sizeof(rule));
-                                HASH_FIND_INT(item->ht_acl_rule_info,
-                                              &acl_rule_info_key,
-                                              acl_rule_info);
+                                HASH_FIND_INT(item->ht_acl_rule_info, &acl_rule_info_key, acl_rule_info);
 
                                 if (acl_rule_info)
                                 {
@@ -1348,7 +1337,7 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
                                               "[%s:%d] group index: %u, "
                                               "ipversion: %d rule_id: %u, "
                                               "src prefix: %s/%d, dst prefix: %s/%d, "
-                                              "iface index: %d\n",
+                                              "iface_index: %08X\n",
                                               __FUNCTION__, __LINE__,
                                               item->acl_in_index, bm->ipversion,
                                               acl_rule_info->rule_id,
@@ -1372,7 +1361,7 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
                                               "[%s:%d] group index: %u, "
                                               "ipversion: %d fake rule_id: %u, "
                                               "src prefix: %s/%d, dst prefix: %s/%d, "
-                                              "iface index: %d\n",
+                                              "iface_index: %08X\n",
                                               __FUNCTION__, __LINE__,
                                               item->acl_in_index, bm->ipversion,
                                               rule_id,
@@ -1389,7 +1378,7 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
                                           "[%s:%d] group index: %u, "
                                           "ipversion: %d rule_id: %u, "
                                           "src prefix: %s/%d, dst prefix: %s/%d, "
-                                          "iface index: %d\n",
+                                          "iface_index: %08X\n",
                                           __FUNCTION__, __LINE__, item->acl_in_index,
                                           bm->ipversion, rule_id,
                                           saddr, sprefixlen, daddr, dprefixlen,
@@ -1403,20 +1392,19 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
                                              iface_info->iface_index,
                                              FC_TOPO_DIRECTION_IN);
                                 ht_acl_rule_info_t *acl_rule_info =
-                                    (ht_acl_rule_info_t *)
-                                        calloc(1, sizeof(ht_acl_rule_info_t));
+                                    (ht_acl_rule_info_t *)calloc(1, sizeof(ht_acl_rule_info_t));
                                 acl_rule_info->ipversion = bm->ipversion;
                                 memcpy(acl_rule_info->saddr, saddr, INET6_ADDRSTRLEN);
                                 acl_rule_info->sprefixlen = sprefixlen;
                                 memcpy(acl_rule_info->daddr, daddr, INET6_ADDRSTRLEN);
                                 acl_rule_info->dprefixlen = dprefixlen;
                                 acl_rule_info->rule_id = 0; // here should be 0
+                                acl_rule_info->direction = FC_TOPO_DIRECTION_NONE;
                                 acl_rule_info->acl_group_index = item->acl_in_index;
-                                acl_rule_info_key =
-                                    fnv1a_hash(acl_rule_info, sizeof(acl_rule_info));
+                                acl_rule_info_key = fnv1a_hash(acl_rule_info, sizeof(acl_rule_info));
                                 acl_rule_info->rule_id = rule_id; // fill it
-                                HASH_ADD_INT(item->ht_acl_rule_info,
-                                             acl_rule_info_key, acl_rule_info);
+                                acl_rule_info->direction = FC_TOPO_DIRECTION_IN;
+                                HASH_ADD_INT(item->ht_acl_rule_info, acl_rule_info_key, acl_rule_info);
 
                                 //! offpath update acl-in direction
                                 rule_id = ++item->acl_rule_out_id;
@@ -1424,7 +1412,7 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
                                           "[%s:%d] group index: %u, "
                                           "ipversion: %d rule_id: %u, "
                                           "src prefix: %s/%d, dst prefix: %s/%d, "
-                                          "iface index: %d\n",
+                                          "iface_index: %08X\n",
                                           __FUNCTION__, __LINE__, item->acl_out_index,
                                           bm->ipversion, rule_id,
                                           saddr, sprefixlen, daddr, dprefixlen,
@@ -1446,37 +1434,50 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
                                 memcpy(acl_rule_info->daddr, daddr, INET6_ADDRSTRLEN);
                                 acl_rule_info->dprefixlen = dprefixlen;
                                 acl_rule_info->rule_id = 0; // here should be 0
+                                acl_rule_info->direction = FC_TOPO_DIRECTION_NONE;
                                 acl_rule_info->acl_group_index = item->acl_out_index;
-                                acl_rule_info_key =
-                                    fnv1a_hash(acl_rule_info, sizeof(acl_rule_info));
+                                acl_rule_info_key = fnv1a_hash(acl_rule_info, sizeof(acl_rule_info));
                                 acl_rule_info->rule_id = rule_id; // fill it
-                                HASH_ADD_INT(item->ht_acl_rule_info,
-                                             acl_rule_info_key, acl_rule_info);
+                                acl_rule_info->direction = FC_TOPO_DIRECTION_OUT;
+                                HASH_ADD_INT(item->ht_acl_rule_info, acl_rule_info_key, acl_rule_info);
                             }
                         }
                         else // onpath node
                         {
                             direction = FC_TOPO_DIRECTION_NONE;
                             const char *direction_str = "none";
-                            if (from_bgpd ||
-                                link_info->neighbor_asn == bm->fclist[fc_index].nexthop_asn)
+                            if (from_bgpd)
                             {
                                 direction = FC_TOPO_DIRECTION_IN;
                                 direction_str = "in";
                             }
-                            else if (link_info->neighbor_asn == bm->fclist[fc_index].previous_asn)
+                            /*
+                            else
                             {
-                                direction = FC_TOPO_DIRECTION_OUT;
-                                direction_str = "out";
-                            }
-                            // this is for the other ifaces that do not link to nasn or pasn.
-                            // else
-                            // {
-                            //     direction = FC_TOPO_DIRECTION_BOTH;
-                            //     direction_str = "both";
-                            // }
+                                if (fc_index < bm->fc_num)
+                                {
+                                    if (link_info->neighbor_asn ==
+                                        bm->fclist[fc_index].nexthop_asn)
+                                    {
+                                        direction = FC_TOPO_DIRECTION_IN;
+                                        direction_str = "in";
+                                    }
+                                    else if (link_info->neighbor_asn ==
+                                             bm->fclist[fc_index].previous_asn)
+                                    {
+                                        direction = FC_TOPO_DIRECTION_OUT;
+                                        direction_str = "out";
+                                    }
+                                }
+                                // this is for the other ifaces that do not link to nasn or pasn.
+                                else
+                                {
+                                    direction = FC_TOPO_DIRECTION_BOTH;
+                                    direction_str = "both";
+                                }
+                            }*/
                             DIAG_INFO("onpath node srcip: %s/%d, dstip: %s/%d, "
-                                      "iface_index: %d, direction: %s\n",
+                                      "iface_index: %08X, direction: %s\n",
                                       saddr, sprefixlen, daddr, dprefixlen,
                                       iface_info->iface_index, direction_str);
                             if (direction == FC_TOPO_DIRECTION_NONE)
@@ -1496,6 +1497,7 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
                                     memcpy(rule->daddr, daddr, INET6_ADDRSTRLEN);
                                     rule->dprefixlen = dprefixlen;
                                     rule->rule_id = 0;
+                                    rule->direction = FC_TOPO_DIRECTION_NONE;
                                     rule->acl_group_index = item->acl_in_index;
                                     acl_rule_info_key = fnv1a_hash(rule, sizeof(rule));
                                     HASH_FIND_INT(item->ht_acl_rule_info, &acl_rule_info_key, acl_rule_info);
@@ -1506,7 +1508,7 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
                                                   "[%s:%d] group index: %u, "
                                                   "ipversion: %d rule_id: %u, "
                                                   "src prefix: %s/%d, dst prefix: %s/%d, "
-                                                  "iface index: %d\n",
+                                                  "iface_index: %08X\n",
                                                   __FUNCTION__, __LINE__, item->acl_in_index,
                                                   bm->ipversion, acl_rule_info->rule_id,
                                                   saddr, sprefixlen, daddr, dprefixlen,
@@ -1529,7 +1531,7 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
                                                   "[%s:%d] group index: %u, "
                                                   "ipversion: %d fake rule_id: %u, "
                                                   "src prefix: %s/%d, dst prefix: %s/%d, "
-                                                  "iface index: %d\n",
+                                                  "iface_index: %08X\n",
                                                   __FUNCTION__, __LINE__, item->acl_in_index,
                                                   bm->ipversion, rule_id,
                                                   saddr, sprefixlen, daddr, dprefixlen,
@@ -1544,7 +1546,7 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
                                               "[%s:%d] group index: %u, "
                                               "ipversion: %d rule_id: %u, "
                                               "src prefix: %s/%d, dst prefix: %s/%d, "
-                                              "iface index: %d\n",
+                                              "iface_index: %08X\n",
                                               __FUNCTION__, __LINE__, item->acl_in_index,
                                               bm->ipversion, rule_id,
                                               saddr, sprefixlen, daddr, dprefixlen,
@@ -1565,9 +1567,12 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
                                     acl_rule_info->sprefixlen = sprefixlen;
                                     memcpy(acl_rule_info->daddr, daddr, INET6_ADDRSTRLEN);
                                     acl_rule_info->dprefixlen = dprefixlen;
-                                    acl_rule_info->rule_id = rule_id;
+                                    acl_rule_info->rule_id = 0;
+                                    acl_rule_info->direction = FC_TOPO_DIRECTION_NONE;
                                     acl_rule_info->acl_group_index = item->acl_in_index;
                                     acl_rule_info_key = fnv1a_hash(acl_rule_info, sizeof(acl_rule_info));
+                                    acl_rule_info->rule_id = rule_id;
+                                    acl_rule_info->direction = FC_TOPO_DIRECTION_IN;
                                     HASH_ADD_INT(item->ht_acl_rule_info, acl_rule_info_key, acl_rule_info);
                                 }
                             }
@@ -1584,6 +1589,7 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
                                     memcpy(rule->daddr, daddr, INET6_ADDRSTRLEN);
                                     rule->dprefixlen = dprefixlen;
                                     rule->rule_id = 0;
+                                    rule->direction = FC_TOPO_DIRECTION_NONE;
                                     rule->acl_group_index = item->acl_out_index;
                                     acl_rule_info_key = fnv1a_hash(rule, sizeof(rule));
                                     HASH_FIND_INT(item->ht_acl_rule_info, &acl_rule_info_key, acl_rule_info);
@@ -1594,7 +1600,7 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
                                                   "[%s:%d] group index: %u, "
                                                   "ipversion: %d rule_id: %u, "
                                                   "src prefix: %s/%d, dst prefix: %s/%d, "
-                                                  "iface index: %d\n",
+                                                  "iface_index: %08X\n",
                                                   __FUNCTION__, __LINE__, item->acl_out_index,
                                                   bm->ipversion, acl_rule_info->rule_id,
                                                   saddr, sprefixlen, daddr, dprefixlen,
@@ -1617,7 +1623,7 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
                                                   "[%s:%d] group index: %u, "
                                                   "ipversion: %d fake rule_id: %u, "
                                                   "src prefix: %s/%d, dst prefix: %s/%d, "
-                                                  "iface index: %d\n",
+                                                  "iface_index: %08X\n",
                                                   __FUNCTION__, __LINE__, item->acl_out_index,
                                                   bm->ipversion, rule_id,
                                                   saddr, sprefixlen, daddr, dprefixlen,
@@ -1632,7 +1638,7 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
                                               "[%s:%d] group index: %u, "
                                               "ipversion: %d rule_id: %u, "
                                               "src prefix: %s/%d, dst prefix: %s/%d, "
-                                              "iface index: %d\n",
+                                              "iface_index: %08X\n",
                                               __FUNCTION__, __LINE__, item->acl_out_index,
                                               bm->ipversion, rule_id,
                                               saddr, sprefixlen, daddr, dprefixlen,
@@ -1653,9 +1659,12 @@ fc_gen_acl_h3c(int clisockfd, const FC_msg_bm_t *bm)
                                     acl_rule_info->sprefixlen = sprefixlen;
                                     memcpy(acl_rule_info->daddr, daddr, INET6_ADDRSTRLEN);
                                     acl_rule_info->dprefixlen = dprefixlen;
-                                    acl_rule_info->rule_id = rule_id;
+                                    acl_rule_info->rule_id = 0;
+                                    acl_rule_info->direction = FC_TOPO_DIRECTION_NONE;
                                     acl_rule_info->acl_group_index = item->acl_out_index;
                                     acl_rule_info_key = fnv1a_hash(acl_rule_info, sizeof(acl_rule_info));
+                                    acl_rule_info->rule_id = rule_id;
+                                    acl_rule_info->direction = FC_TOPO_DIRECTION_OUT;
                                     HASH_ADD_INT(item->ht_acl_rule_info, acl_rule_info_key, acl_rule_info);
                                 }
                             }
@@ -1929,7 +1938,7 @@ fc_msg_bm_bgpd_handler(int clisockfd, FC_msg_bm_t *bm, unsigned char *buffer,
 
     // broadcast to onpath nodes
     buffer[1] = FC_MSG_BC;
-    u16 new_length = htons(FC_HDR_GENERAL_LENGTH + currlen);
+    u16 new_length = htons(currlen);
     memcpy(&buffer[2], &new_length, sizeof(u16));
     fc_bm_broadcast_to_peer(clisockfd, bm, buffer, FC_HDR_GENERAL_LENGTH + currlen);
     return 0;

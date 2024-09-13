@@ -54,12 +54,13 @@ extern int fc_server_topo_handler(int clisockfd, const unsigned char *buff, int 
 extern void *fc_main_front(void *args);
 extern void fc_help(void);
 
-extern void fc_cmd_help();
-extern void fc_cmd_acl();
-extern void fc_cmd_info();
-extern void fc_cmd_link();
-extern void fc_cmd_version();
-extern void fc_cmd_quit();
-extern void fc_cmd_help();
+extern void fc_cmd_help(void);
+extern void fc_cmd_acl(void);
+extern void fc_cmd_bm(void);
+extern void fc_cmd_info(void);
+extern void fc_cmd_link(void);
+extern void fc_cmd_version(void);
+extern void fc_cmd_quit(void);
+extern void fc_cmd_help(void);
 
 #endif // BGP_FC_H

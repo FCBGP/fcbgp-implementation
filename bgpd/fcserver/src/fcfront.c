@@ -17,6 +17,7 @@ extern "C"
 #include "defines.h"
 #include "fcserver.h"
 #include "linenoise.h"
+#include "mln_hash.h"
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -36,6 +37,7 @@ extern "C"
     static fc_cmd_t cmds[] = {
         {"help", "print this message.", fc_cmd_help},
         {"acl", "show local router acls.", fc_cmd_acl},
+        {"bm", "show local router bms.", fc_cmd_bm},
         {"info", "show local router info.", fc_cmd_info},
         {"link", "show local router links.", fc_cmd_link},
         {"version", "show fc server version.", fc_cmd_version},
@@ -70,9 +72,40 @@ extern "C"
         }
     }
 
+    int fc_acl_rule_iterator_handler(mln_hash_t *h, void *key, void *val, void *udata)
+    {
+        u32 iface_index = *(u32 *)key;
+        ht_acl_group_info_t *acl_group_info = (ht_acl_group_info_t *)key;
+        ht_acl_rule_info_t *acl_rule_info = NULL, *tmp = NULL;
+        HASH_ITER(hh, acl_group_info->ht_acl_rule_info, acl_rule_info, tmp)
+        {
+            printf("group index: %u, direction(1 for in, 2 for out): %d, iface index: %08X\n"
+                   "\tipversion: %d rule_id: %u, src prefix: %s/%d, dst prefix: %s/%d\n",
+                   acl_rule_info->acl_group_index,
+                   acl_rule_info->direction,
+                   iface_index,
+                   acl_rule_info->ipversion,
+                   acl_rule_info->rule_id,
+                   acl_rule_info->saddr,
+                   acl_rule_info->sprefixlen,
+                   acl_rule_info->daddr,
+                   acl_rule_info->dprefixlen);
+        }
+
+        printf("Press Enter to continue...\n");
+        getchar();
+        return 0;
+    }
+
     void fc_cmd_acl(void)
     {
-        printf("not supported now\n");
+        mln_hash_iterate(g_fc_server.ht_acl_group_info,
+                         fc_acl_rule_iterator_handler,
+                         NULL);
+    }
+
+    void fc_cmd_bm(void)
+    {
         int bm_nums = 0, i = 0;
         struct sockaddr_in *sockaddr = NULL;
         struct sockaddr_in6 *sockaddr6 = NULL;
@@ -83,7 +116,7 @@ extern "C"
              i < bm_nums;
              ++i, bm = &bms[i])
         {
-            printf("bm:\n");
+            printf("bm:    %d/%d\n", i + 1, bm_nums);
             printf("  ipversion: %d\n", bm->ipversion);
             printf("  flags: %02X\n", bm->flags);
             printf("  src-ip-num: %d, src-ip:\n", bm->src_ip_num);
@@ -131,6 +164,12 @@ extern "C"
                        bm->fclist[j].previous_asn,
                        bm->fclist[j].current_asn,
                        bm->fclist[j].nexthop_asn);
+            }
+
+            if ((i + 1) % 2 == 0 && (i + 1) != bm_nums)
+            {
+                printf("Press Enter to continue...\n");
+                getchar();
             }
         }
 

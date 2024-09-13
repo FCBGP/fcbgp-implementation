@@ -2207,7 +2207,7 @@ static int bgp_update_receive(struct peer *peer, bgp_size_t size)
                 memcpy(bmbuff+bmbufflen, fcbuff, fclist->length);
                 bmbufflen += fclist->length;
                 // total length
-                totallength = htons(bmbufflen);
+                totallength = htons(bmbufflen-4); // 4 for general header length
                 memcpy(bmbuff+2, &totallength, sizeof(u16));
                 fc_send_packet_to_fcserver(ipversion, bmbuff, bmbufflen);
             }

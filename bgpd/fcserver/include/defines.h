@@ -27,7 +27,7 @@
 #define STR(x) #x
 #define FC_MAJOR_VERSION STR(0)
 #define FC_MINOR_VERSION STR(2)
-#define FC_PATCH_VERSION STR(4)
+#define FC_PATCH_VERSION STR(5)
 #define FC_PRJ_VERSION FC_MAJOR_VERSION "." FC_MINOR_VERSION "." FC_PATCH_VERSION
 #define FC_VERSION_STR "FC Server V" FC_PRJ_VERSION \
                        " compiled at " __DATE__ " " __TIME__ ""
@@ -303,6 +303,7 @@ typedef struct ht_acl_rule_info_st
     u8 dprefixlen;
     u32 acl_group_index;
     u16 rule_id;
+    u8 direction;
     UT_hash_handle hh; /* makes this structure hashable */
 } ht_acl_rule_info_t;
 

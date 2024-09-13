@@ -4,7 +4,9 @@ from lxml import etree
 from lxml.builder import ElementMaker
 import logging
 
-logging.basicConfig(filename='/opt/log/fcs.py.log', level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(filename='/opt/log/fcs.py.log',
+                    level=logging.INFO,
+                    format='%(asctime)s - %(levelname)s - %(message)s')
 
 h3c_device = {
     'host': '2001:db8::1111',

@@ -8,13 +8,9 @@
 
 #include <netinet/in.h>
 #include <sys/socket.h>
-
 #include <json-c/json.h>
-
 #include "lib/hash.h"
-
 #include "bgpd/bgpd.h"
-
 #include "bgpd/bgp_fc.h"
 
 FC_config_t fc_config = {0};
@@ -451,23 +447,19 @@ fc_combine_path(const char *path, const char *filename)
 static int fc_set_hash_algo_id(const char *hash_algorithm,
                                        int *hash_algorithm_id)
 {
-    if (!strcmp(hash_algorithm, "sha256") ||
-        !strcmp(hash_algorithm, "SHA256"))
+    if (!strcasecmp(hash_algorithm, "sha256"))
     {
         *hash_algorithm_id = FC_HASH_ALGO_SHA256;
     }
-    else if (!strcmp(hash_algorithm, "sha1") ||
-             !strcmp(hash_algorithm, "SHA1"))
+    else if (!strcasecmp(hash_algorithm, "sha1"))
     {
         *hash_algorithm_id = FC_HASH_ALGO_SHA1;
     }
-    else if (!strcmp(hash_algorithm, "crc32") ||
-             !strcmp(hash_algorithm, "CRC32"))
+    else if (!strcasecmp(hash_algorithm, "crc32"))
     {
         *hash_algorithm_id = FC_HASH_ALGO_CRC32;
     }
-    else if (!strcmp(hash_algorithm, "md5") ||
-             !strcmp(hash_algorithm, "MD5"))
+    else if (!strcasecmp(hash_algorithm, "md5"))
     {
         *hash_algorithm_id = FC_HASH_ALGO_MD5;
     }
@@ -586,8 +578,8 @@ fc_json_read_config(struct bgp_master *bm)
 
 /* SIGN/VERIFY UTILS */
 static int
-fc_sha_encode(const char *const msg, int msglen, unsigned char *digest,
-              unsigned int *digest_len, const char *sha_hash_algo)
+fc_hash_encode(const char *const msg, int msglen, unsigned char *digest,
+              unsigned int *digestlen, const char *sha_hash_algo)
 {
     int ret = 1;
     EVP_MD *md = NULL;
@@ -638,7 +630,7 @@ fc_sha_encode(const char *const msg, int msglen, unsigned char *digest,
      * }
      **/
     /* Allocate the output buffer */
-    if (!EVP_DigestFinal_ex(mdctx, digest, digest_len))
+    if (!EVP_DigestFinal_ex(mdctx, digest, digestlen))
     {
         goto error;
     }
@@ -656,17 +648,35 @@ error:
 }
 
 static int
-fc_sha1_encode(const char *const msg, int msglen, unsigned char *digest,
-               unsigned int *digest_len)
+fc_crc_encode(const char *const msg, int msglen, unsigned char *digest,
+              unsigned int *digestlen)
 {
-    return fc_sha_encode(msg, msglen, digest, digest_len, "SHA1");
+    uint32_t res = 0;
+    res = crc32_run(0, msg, msglen);
+    memcpy(digest, &res, 4);
+    *digestlen = 4;
+    return 0;
+}
+
+static int
+fc_md5_encode(const char *const msg, int msglen, unsigned char *digest,
+              unsigned int *digestlen)
+{
+    return fc_hash_encode(msg, msglen, digest, digestlen, "MD5");
+}
+
+static int
+fc_sha1_encode(const char *const msg, int msglen, unsigned char *digest,
+               unsigned int *digestlen)
+{
+    return fc_hash_encode(msg, msglen, digest, digestlen, "SHA1");
 }
 
 static int
 fc_sha256_encode(const char *const msg, int msglen, unsigned char *digest,
-                 unsigned int *digest_len)
+                 unsigned int *digestlen)
 {
-    return fc_sha_encode(msg, msglen, digest, digest_len, "SHA256");
+    return fc_hash_encode(msg, msglen, digest, digestlen, "SHA256");
 }
 
 int fc_read_eckey_from_filepath(const char *file, int is_pub_key, EC_KEY **pkey)
@@ -730,17 +740,12 @@ fc_hash(const char *const msg, int msglen,
         fc_sha1_encode(msg, msglen, digest, digestlen);
         break;
     case FC_HASH_ALGO_MD5:
-        strmd5sum(msg, digest, msglen);
-        *digestlen = 16;
+        fc_md5_encode(msg, msglen, digest, digestlen);
         break;
     case FC_HASH_ALGO_CRC32:
-        uint32_t res = 0;
-        res = crc32_run(0, msg, msglen);
-        memcpy(digest, &res, 4);
-        *digestlen = 4;
         break;
     default:
-        printf("I don't know what algorithm should I use.");
+        zlog_err("I don't know what algorithm should I use.");
         return -1;
     }
     timespec_get(&ets, TIME_UTC);
