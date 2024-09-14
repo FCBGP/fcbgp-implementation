@@ -1,12 +1,14 @@
 # h3c.acl.netconf.log
 
-> **Author**        Basil Guo
+> **Author** Basil Guo
 >
-> **Date**          Sep. 03, 2024
+> **Date** Sep. 03, 2024
 >
-> **Description**   
+> **Description**
 
 [TOC]
+
+> this document is deprecated: [please refer this doc.](./h3c-netconf-deny-traffic-globaly-and-permit-one.cn.md)
 
 Here we show a complete H3C ACL Netconf configuration.
 It contains 3 configurations, i.e., one for ruleset, one for rule, one for interface who enables this ruleset than includes the rule.

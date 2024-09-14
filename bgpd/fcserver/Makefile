@@ -1,21 +1,25 @@
 LIBSDIR = $(shell cd libs; /bin/ls -d */)
 LIBS_DIR = $(foreach i,$(LIBSDIR),libs/$(i))
 INCS_DIR = $(foreach i,$(LIBS_DIR),-I$(i))
-INCS_DIR += -Iinclude -I/usr/include/python3.10
+INCS_DIR += -Iinclude $(shell pkg-config --cflags python3)
 INCS_DIR += -I/usr/local/melon/include/
 
-SRC_fcs  = fcserver.c fcfront.c fcconfig.c dbutils.c sigutils.c hashutils.c pyutils.c strutils.c
-SRC_DIR = $(foreach i,$(SRC_fcs),src/$(i))
+SRC_fcs := fcserver.c fcfront.c fcconfig.c
+SRC_messages := topo.c bm.c acl.c
+SRC_utils := dbutils.c sigutils.c hashutils.c pyutils.c strutils.c
+SRC_DIR_fcs := $(foreach i,$(SRC_fcs),src/$(i))
+SRC_DIR_messages := $(foreach i,$(SRC_messages), src/messages/$(i))
+SRC_DIR_utils := $(foreach i,$(SRC_utils), src/utils/$(i))
+SRC_DIR := $(SRC_DIR_fcs) $(SRC_DIR_messages) $(SRC_DIR_utils)
 
-SRC_libs += libs/linenoise/linenoise.c
+SRC_libs := libs/linenoise/linenoise.c
 SRC_libs += libs/diaglib/libdiag.c libs/baselib/libstring.c
 SRC_libs += libs/cJSONlib/cJSON.c
 SRC_libs += libs/htablelib/libhtable.c libs/baselib/liblist.c
 SRC_libs += libs/baselib/libcrc32.c
 CC := gcc
 
-CFLAGS += -L/usr/lib/python3.10/config-3.10-x86_64-linux-gnu -L/usr/local/melon/lib/
-CFLAGS += -DTEST_MAIN
+CFLAGS += $(shell pkg-config --libs python3) -L/usr/local/melon/lib/
 CFLAGS += -g -Wall $(INCS_DIR) -Wno-deprecated-declarations
 LDFLAGS_fcs += -lcrypto -lsqlite3 -lm -lpython3.10 -lmelon -lpthread
 

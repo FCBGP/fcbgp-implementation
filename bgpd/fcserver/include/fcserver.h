@@ -38,10 +38,14 @@
 #define FC_BM_UPDATE_TYPE_ADD 0x00
 #define FC_BM_UPDATE_TYPE_DEL 0x40
 
-#define FC_TOPO_DIRECTION_NONE 0x00
-#define FC_TOPO_DIRECTION_IN 0x01
-#define FC_TOPO_DIRECTION_OUT 0x02
-#define FC_TOPO_DIRECTION_BOTH 0x03
+typedef enum
+{
+    FC_TOPO_DIRECTION_NONE = 0x00,
+    FC_TOPO_DIRECTION_IN = 0x01,
+    FC_TOPO_DIRECTION_OUT = 0x02,
+    FC_TOPO_DIRECTION_BOTH = 0x03,
+} direction_e;
+
 
 extern void *fc_main(void *args);
 extern int fc_server_create(void);
@@ -50,10 +54,18 @@ extern int fc_server_handler(int clisockfd, char *buff, int buffsize, int recvle
 extern int fc_server_pubkey_handler(int clisockfd, const unsigned char *buff, int bufflen);
 extern int fc_server_bm_handler(int clisockfd, unsigned char *buff, int bufflen, int msg_type);
 extern int fc_server_topo_handler(int clisockfd, const unsigned char *buff, int bufflen);
+extern int fc_server_topo_del_all_routers(void);
+extern int fc_sock_get_addr_from_peer_fd(int fd,
+                                         struct sockaddr *sockaddr,
+                                         char *ipbuf,
+                                         int buffsize);
+
+extern bool fc_asn_is_offpath(u32 asn, const FC_msg_bm_t *bm);
+extern int fc_acl_gen(int clisockfd, const FC_msg_bm_t *bm);
+extern int fc_bm_find_server(uint32_t asn, char *ifaddr, char *ifname);
 
 extern void *fc_main_front(void *args);
 extern void fc_help(void);
-
 extern void fc_cmd_help(void);
 extern void fc_cmd_acl(void);
 extern void fc_cmd_bm(void);
