@@ -104,40 +104,37 @@ enum
     FC_HASH_ALGO_CRC32,
 };
 
-#define FC_ASSERT_RET_BASE(ret, msg)                       \
-    do                                                     \
-    {                                                      \
-        if (ret != 0)                                      \
-        {                                                  \
-            fprintf(stderr, "%s:%d error: ret is not 0.  " \
-                            "msg: %s\n",                   \
-                    __func__, __LINE__, msg);              \
-            exit(-1);                                      \
-        }                                                  \
+#define FC_ASSERT_RET_BASE(ret, msg)                  \
+    do                                                \
+    {                                                 \
+        if (ret != 0)                                 \
+        {                                             \
+            DIAG_ERROR("%s:%d error: ret is not 0.  " \
+                       "msg: %s\n",                   \
+                       __func__, __LINE__, msg);      \
+        }                                             \
     } while (0)
 
 #define FC_ASSERT_RET(ret) FC_ASSERT_RET_BASE(ret, "")
 
-#define FC_ASSERT_RETP(retp)                                  \
-    do                                                        \
-    {                                                         \
-        if (retp == NULL)                                     \
-        {                                                     \
-            fprintf(stderr, "%s:%d error: pointer is NULL\n", \
-                    __func__, __LINE__);                      \
-            exit(-1);                                         \
-        }                                                     \
+#define FC_ASSERT_RETP(retp)                             \
+    do                                                   \
+    {                                                    \
+        if (retp == NULL)                                \
+        {                                                \
+            DIAG_ERROR("%s:%d error: pointer is NULL\n", \
+                       __func__, __LINE__);              \
+        }                                                \
     } while (0)
 
-#define FC_MEM_CHECK(expr)                                  \
-    do                                                      \
-    {                                                       \
-        if (!(expr))                                        \
-        {                                                   \
-            fprintf(stderr, "[%s:%d] ERROR: memory leak\n", \
-                    __func__, __LINE__);                    \
-            exit(-1);                                       \
-        }                                                   \
+#define FC_MEM_CHECK(expr)                             \
+    do                                                 \
+    {                                                  \
+        if (!(expr))                                   \
+        {                                              \
+            DIAG_ERROR("[%s:%d] ERROR: memory leak\n", \
+                       __func__, __LINE__);            \
+        }                                              \
     } while (0)
 
 #define FC_MEM_FREE(ptr) \

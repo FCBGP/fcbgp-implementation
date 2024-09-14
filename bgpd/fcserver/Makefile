@@ -22,6 +22,9 @@ LDFLAGS_fcs += -lcrypto -lsqlite3 -lm -lpython3.10 -lmelon -lpthread
 all: server
 	sudo bin/server
 
+run:
+	sudo bin/server
+
 server: $(SRC_DIR)
 	@mkdir -p bin
 	$(CC) $(CFLAGS) -o bin/$@ $(SRC_DIR) $(SRC_libs) $(LFLAGS) $(LDFLAGS_fcs)

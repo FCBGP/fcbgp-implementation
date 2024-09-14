@@ -9,6 +9,8 @@
 #include "sigutils.h"
 #include "libcrc32.h"
 #include "libmd5.h"
+#include <errno.h>
+#include <string.h>
 
 int fc_base64_encode(const unsigned char *msg, size_t length, char *b64msg)
 {
@@ -228,7 +230,7 @@ int fc_read_eckey_from_file(const char *fpath, FC_KEY_TYPE key_type, EC_KEY **pk
     case FC_KEY_TYPE_PUBLIC:
         if ((fp = fopen(fpath, "rb")) == NULL)
         {
-            perror("fopen()");
+            DIAG_ERROR("fopen(), %s\n", strerror(errno));
             return -1;
         }
 
@@ -237,7 +239,7 @@ int fc_read_eckey_from_file(const char *fpath, FC_KEY_TYPE key_type, EC_KEY **pk
     case FC_KEY_TYPE_PRIVATE:
         if ((fp = fopen(fpath, "rb")) == NULL)
         {
-            perror("fopen()");
+            DIAG_ERROR("fopen(), %s\n", strerror(errno));
             return -1;
         }
         *pkey = PEM_read_ECPrivateKey(fp, NULL, NULL, NULL);

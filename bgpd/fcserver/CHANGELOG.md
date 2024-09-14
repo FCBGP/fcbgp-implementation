@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## 2024.09.14
+
+- [x] publish: v0.2.5
+- [x] fix: h3c acl.
+- [x] permit traffic through all on-path node. deny traffic across all off-path node.
+- [x] frontend used linenoise.
+
 ## 2024.09.04
 
 - [x] publish: v0.2.4
@@ -7,8 +14,8 @@
 - [x] add: an router configuration named as `acl_group_start_index` and keep it incrementing. Default is 3900. H3C says its ACL index is in [1, 3999].
 - [x] add: ut libs.
 
-
 ## 2024.09.02
+
 - [x] v0.2.3
 - [x] fix h3c netconf delivery.
 
@@ -20,7 +27,7 @@
 ## 2024.08.30
 
 - [x] v0.2.1
-- [x] update key tools. It can gen ec public key and query the ski and public key from *.cert
+- [x] update key tools. It can gen ec public key and query the ski and public key from \*.cert
 - [x] refactor the bm msg process. Divide the big function into small functions according to bm msg analysis.
 - [x] fix EC Key bug. The hardcoded the EC Key has been removed. Now it uses the right EC Key for signing and verifying.
 

@@ -10,11 +10,13 @@
 #include <Python.h>
 #include <arpa/inet.h>
 #include <ctype.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <netinet/in.h>
 #include <openssl/opensslv.h>
 #include <pthread.h>
 #include <stdbool.h>
+#include <string.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <time.h>
@@ -80,7 +82,7 @@ fc_sock_get_addr_from_peer_fd(int fd, struct sockaddr *sockaddr,
     ret = getpeername(fd, sockaddr, &socklen);
     if (ret != 0)
     {
-        perror("getpeername()");
+        DIAG_ERROR("getpeername(): %s\n", strerror(errno));
         return FC_ERR_SERVER_GPN;
     }
 
@@ -121,7 +123,7 @@ fc_mlp_server_sock()
     g_fc_server.sockfd = socket(AF_INET6, SOCK_STREAM, 0);
     if (g_fc_server.sockfd < 0)
     {
-        perror("socket()");
+        DIAG_ERROR("socket(): %s\n", strerror(errno));
         return FC_ERR_SERVER_SOCK_SOCKET;
     }
 
@@ -129,7 +131,7 @@ fc_mlp_server_sock()
     ret = fc_sock_set_nonblock(g_fc_server.sockfd);
     if (ret < 0)
     {
-        perror("fcntl()");
+        DIAG_ERROR("fcntl(): %s\n", strerror(errno));
         return FC_ERR_SERVER_FCNTL;
     }
 
@@ -138,7 +140,7 @@ fc_mlp_server_sock()
                      &yes, sizeof(int));
     if (ret == -1)
     {
-        perror("setsockopt()");
+        DIAG_ERROR("setsockopt(), %s\n", strerror(errno));
         return FC_ERR_SERVER_SOCK_OPT;
     }
 
@@ -152,7 +154,7 @@ fc_mlp_server_sock()
     ret = bind(g_fc_server.sockfd, (struct sockaddr *)&sockaddr, socklen);
     if (ret < 0)
     {
-        perror("bind()");
+        DIAG_ERROR("bind(), %s\n", strerror(errno));
         return FC_ERR_SERVER_SOCK_BIND;
     }
 
@@ -160,7 +162,7 @@ fc_mlp_server_sock()
     ret = listen(g_fc_server.sockfd, FC_SOCK_BACKLOG);
     if (ret < 0)
     {
-        perror("listen()");
+        DIAG_ERROR("listen(), %s\n", strerror(errno));
         return FC_ERR_SERVER_SOCK_LISTEN;
     }
 
@@ -190,7 +192,7 @@ fc_mlp_server_epoll_conn()
             }
             else
             {
-                perror("accept()");
+                DIAG_ERROR("accept(), %s\n", strerror(errno));
                 break;
             }
         }
@@ -202,7 +204,7 @@ fc_mlp_server_epoll_conn()
                         clisockfd, &event);
         if (ret < 0)
         {
-            perror("epoll_ctl()");
+            DIAG_ERROR("epoll_ctl(), %s\n", strerror(errno));
             return FC_ERR_SERVER_EPOLL_CTL;
         }
         DIAG_INFO("New connection fd: %d\n", clisockfd);
@@ -226,7 +228,7 @@ fc_mlp_server_epoll_recv(int fd, char *buff,
              * so go back to the main loop. */
             if (errno != EAGAIN)
             {
-                perror("read()");
+                DIAG_ERROR("read(), %s\n", strerror(errno));
                 *done = 1;
             }
             break;
@@ -267,7 +269,7 @@ fc_mlp_server_epoll()
     g_fc_server.epollfd = epoll_create1(flags);
     if (g_fc_server.epollfd < 0)
     {
-        perror("epoll_create()");
+        DIAG_ERROR("epoll_create(), %s\n", strerror(errno));
         return FC_ERR_SERVER_EPOLL_CREATE;
     }
 
@@ -278,7 +280,7 @@ fc_mlp_server_epoll()
                     g_fc_server.sockfd, &event);
     if (ret < 0)
     {
-        perror("epoll_ctl()");
+        DIAG_ERROR("epoll_ctl(), %s\n", strerror(errno));
         return FC_ERR_SERVER_EPOLL_CTL;
     }
 
@@ -458,7 +460,7 @@ fc_bm_sent_to_peer(const char *addr, const FC_msg_bm_t *bm,
 
     if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
     {
-        perror("socket()");
+        DIAG_ERROR("socket(), %s\n", strerror(errno));
         return -1;
     }
     sockaddr.sin_family = AF_INET;
@@ -467,7 +469,7 @@ fc_bm_sent_to_peer(const char *addr, const FC_msg_bm_t *bm,
     if ((ret = connect(sockfd, (struct sockaddr *)&sockaddr,
                        sizeof(sockaddr))) < 0)
     {
-        perror("connect()");
+        DIAG_ERROR("connect(), %s\n", strerror(errno));
         return -1;
     }
 
@@ -963,7 +965,8 @@ int fc_server_topo_handler(int clisockfd, const unsigned char *buff, int len)
     if (target_router == NULL)
     {
         DIAG_ERROR("ERROR: Cannot find the bgp router, bgpid: %08X\n", bgpid);
-        fc_server_destroy(SIGUSR1);
+        // fc_server_destroy(SIGUSR1);
+        return -1;
     }
 
     // fd
@@ -2104,6 +2107,7 @@ int fc_server_handler(int clisockfd, char *buff, int buffsize, int recvlen)
         unsigned char msg[BUFSIZ] = {0};
         int msglen = fc_msg_len + FC_HDR_GENERAL_LENGTH;
         memcpy(msg, buff + currlen, msglen); // including general header
+        fc_print_bin("new packet", msg + currlen, FC_HDR_GENERAL_LENGTH + fc_msg_len);
         currlen = currlen + FC_HDR_GENERAL_LENGTH + fc_msg_len;
 
         switch (fc_msg_type)
@@ -2290,7 +2294,7 @@ int main(int argc, char **argv)
     ret = pthread_create(&tid, NULL, fc_main, NULL);
     if (ret < 0)
     {
-        perror("pthread_create failed");
+        DIAG_ERROR("pthread_create failed, %s\n", strerror(errno));
         return 1;
     }
     pthread_detach(tid);

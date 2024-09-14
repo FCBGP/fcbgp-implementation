@@ -41,6 +41,7 @@ extern "C"
         {"info", "show local router info.", fc_cmd_info},
         {"link", "show local router links.", fc_cmd_link},
         {"version", "show fc server version.", fc_cmd_version},
+        {"exit", "alias of quit.", fc_cmd_quit},
         {"quit", "quit the program.", fc_cmd_quit},
     };
 
@@ -260,9 +261,24 @@ extern "C"
         }
     }
 
-    char *hints(const char *buf, int *color, int *bold)
+    char *hints_cb(const char *buf, int *color, int *bold)
     {
+        for (int i = 0; i < FC_CMD_N_NUM; ++i)
+        {
+            if (buf[0] == cmds[i].cmd[0] && strcasecmp(buf, cmds[i].cmd) != 0)
+            {
+                char *hint = strdup(cmds[i].cmd);
+                *color = 35;
+                *bold = 0;
+                return hint + strlen(buf);
+            }
+        }
         return NULL;
+    }
+
+    void hints_free(void *data)
+    {
+        free(data);
     }
 
     void *fc_main_front(void *args)
@@ -274,6 +290,7 @@ extern "C"
          * user uses the <tab> key. */
         linenoiseSetCompletionCallback(completion);
         linenoiseSetHintsCallback(hints);
+        linenoiseFreeHintsCallback(hints_free);
 
         /* Load history from file. The history file is just a plain text file
          * where entries are separated by newlines. */
