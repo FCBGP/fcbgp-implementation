@@ -289,7 +289,7 @@ extern "C"
         /* Set the completion callback. This will be called every time the
          * user uses the <tab> key. */
         linenoiseSetCompletionCallback(completion);
-        linenoiseSetHintsCallback(hints);
+        linenoiseSetHintsCallback(hints_cb);
         linenoiseFreeHintsCallback(hints_free);
 
         /* Load history from file. The history file is just a plain text file
