@@ -10,7 +10,6 @@
 
 #include "libdiag.h"
 #include "libhtable.h"
-#include "mln_hash.h"
 #include "pyutils.h"
 #include "strutils.h"
 #include "sysconfig.h"
@@ -311,6 +310,7 @@ typedef struct ht_acl_group_info_st
     u32 acl_rule_in_id;
     u32 acl_rule_out_id;
     ht_acl_rule_info_t *ht_acl_rule_info;
+    UT_hash_handle hh;
 } ht_acl_group_info_t;
 
 typedef struct FC_router_iface_info_st
@@ -365,7 +365,8 @@ typedef struct FC_server_s
 
     int routers_num;
     FC_router_info_t *routers;
-    mln_hash_t *ht_acl_group_info;
+    ht_acl_group_info_t *ht_acl_group_info;
+
 
     char *fc_db_fname;
     char *config_fname;

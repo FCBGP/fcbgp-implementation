@@ -39,14 +39,6 @@ $ git clone https://github.com/CESNET/libnetconf2.git
 $ git checkout v3.0.17
 $ mkdir build; cd build; cmake ..; make ; sudo make install
 
-# melon
-$ git clone https://github.com/Water-Melon/Melon.git
-$ cd Melon
-$ ./configure [--prefix=LIB_INSTALL_PATH | ...]
-$ make; sudo make install
-$ echo /usr/local/melon/lib >> /etc/ld.so.conf
-$ sudo ldconfig
-
 # for python & ncclient
 $ sudo apt install python3.10 python3.10-dev python3-pip
 $ pip3 install ncclient

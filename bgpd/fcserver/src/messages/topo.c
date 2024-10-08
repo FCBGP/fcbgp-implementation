@@ -16,8 +16,27 @@ extern "C"
 #include "defines.h"
 #include "libdiag.h"
 #include "hashutils.h"
+#include "fcserver.h"
+#include "dbutils.h"
 #include <stdio.h>
 #include <stdlib.h>
+
+    int fc_server_topo_init_msg(int clisockfd)
+    {
+        FC_msg_bm_t *pbm = NULL;
+        int i = 0, bmnum = 0;
+
+        pbm = fc_db_read_bms(&bmnum);
+
+        for (i = 0; i < bmnum; ++i)
+        {
+            fc_acl_gen(clisockfd, &pbm[i]);
+        }
+
+        free(pbm);
+
+        return 0;
+    }
 
     static int
     fc_server_topo_find_iface(FC_router_link_info_t *link_info,

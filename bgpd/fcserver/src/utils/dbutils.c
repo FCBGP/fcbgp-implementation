@@ -118,6 +118,8 @@ fc_db_cb_get_one_bm(void *data, int argc, char **argv, char **azColName)
     fc_db_bm_ptr->subversion = atoi(argv[10]);
 
     char *src_ip_prefix_str = argv[11];
+    struct sockaddr_in *sockaddr = NULL;
+    struct sockaddr_in6 *sockaddr6 = NULL;
     for (token = strtok(src_ip_prefix_str, outer_delim), i = 0;
          token != NULL && i < fc_db_bm_ptr->src_ip_num;
          token = strtok(NULL, outer_delim), i++)
@@ -127,12 +129,12 @@ fc_db_cb_get_one_bm(void *data, int argc, char **argv, char **azColName)
         switch (fc_db_bm_ptr->ipversion)
         {
         case IPV4:
-            struct sockaddr_in *sockaddr =
+            sockaddr =
                 (struct sockaddr_in *)&fc_db_bm_ptr->src_ip[i].ip;
             inet_pton(AF_INET, src_ip, &sockaddr->sin_addr);
             break;
         case IPV6:
-            struct sockaddr_in6 *sockaddr6 =
+            sockaddr6 =
                 (struct sockaddr_in6 *)&fc_db_bm_ptr->src_ip[i].ip;
             inet_pton(AF_INET6, src_ip, &sockaddr6->sin6_addr);
             break;
@@ -150,12 +152,12 @@ fc_db_cb_get_one_bm(void *data, int argc, char **argv, char **azColName)
         switch (fc_db_bm_ptr->ipversion)
         {
         case IPV4:
-            struct sockaddr_in *sockaddr =
+            sockaddr =
                 (struct sockaddr_in *)&fc_db_bm_ptr->dst_ip[i].ip;
             inet_pton(AF_INET, dst_ip, &sockaddr->sin_addr);
             break;
         case IPV6:
-            struct sockaddr_in6 *sockaddr6 =
+            sockaddr6 =
                 (struct sockaddr_in6 *)&fc_db_bm_ptr->dst_ip[i].ip;
             inet_pton(AF_INET6, dst_ip, &sockaddr6->sin6_addr);
             break;

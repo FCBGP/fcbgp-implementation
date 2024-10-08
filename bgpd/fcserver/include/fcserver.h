@@ -47,7 +47,7 @@ typedef enum
 } direction_e;
 
 
-extern void *fc_main(void *args);
+extern void *fc_server_main_backend(void *args);
 extern int fc_server_create(void);
 extern void fc_server_destroy(int signum);
 extern int fc_server_handler(int clisockfd, char *buff, int buffsize, int recvlen);
@@ -63,9 +63,10 @@ extern int fc_sock_get_addr_from_peer_fd(int fd,
 extern bool fc_asn_is_offpath(u32 asn, const FC_msg_bm_t *bm);
 extern int fc_acl_gen(int clisockfd, const FC_msg_bm_t *bm);
 extern int fc_bm_find_server(uint32_t asn, char *ifaddr, char *ifname);
+extern int fc_server_topo_init_msg(int clisockfd);
 
 extern void *fc_main_front(void *args);
-extern void fc_help(void);
+extern void fc_server_info_help(void);
 extern void fc_cmd_help(void);
 extern void fc_cmd_acl(void);
 extern void fc_cmd_bm(void);

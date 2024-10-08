@@ -137,7 +137,7 @@ extern "C"
         /*
          * offpath node: deny <src, dst>
          * onpath node: deny <src, dst>
-         *      from bgpd: permit link pasn out
+         *      bm from bgpd: permit link pasn out
          *      route source: permit link nasn in
          *      mid node: permit link to pasn out,
          *                permit link to nasn in
@@ -230,8 +230,10 @@ extern "C"
                              iface_info = iface_info->next)
                         {
                             ht_acl_group_info_t *item = NULL;
-                            item = mln_hash_search(g_fc_server.ht_acl_group_info,
-                                                   &iface_info->iface_index);
+                            u32 iface_index = 0;
+                            HASH_FIND_INT(g_fc_server.ht_acl_group_info,
+                                          &iface_index,
+                                          item);
                             FC_ASSERT_RETP(item);
                             if (is_offpath) // offpath node
                             {

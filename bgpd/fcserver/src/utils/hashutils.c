@@ -243,75 +243,44 @@ int fc_hashtable_destroy(htbl_ctx_t *ht)
     return 0;
 }
 
-static mln_u64_t
-ht_aclinfo_hash_handler(mln_hash_t *h, void *key)
-{
-    return *((u32 *)key) % h->len;
-}
-
-static int
-ht_aclinfo_cmp_handler(mln_hash_t *h, void *key1, void *key2)
-{
-    return !(*((u32 *)key1) - *((u32 *)key2));
-}
-
-static void
-ht_aclinfo_free_handler(void *val)
-{
-    free(val);
-}
-
-int ht_aclinfo_insert(mln_hash_t *h, u32 iface_index,
+int ht_aclinfo_insert(ht_acl_group_info_t *ht,
+                      u32 iface_index,
                       FC_router_info_t *target_router)
 {
-    ht_acl_group_info_t *ret = NULL, *item = NULL;
+    ht_acl_group_info_t *acl_group_info = NULL, *item = NULL;
 
-    FC_ASSERT_RETP(h);
+    FC_ASSERT_RETP(ht);
 
     // 1. search it in ht
-    ret = mln_hash_search(h, &iface_index);
+    HASH_FIND_INT(ht, &iface_index, acl_group_info);
 
     // 2. if not exist, insert it
-    if (!ret)
+    if (!acl_group_info)
     {
         item = calloc(1, sizeof(ht_acl_group_info_t));
         item->iface_index = iface_index;
         item->acl_group_index = ++target_router->acl_group_index;
-
-        if (mln_hash_insert(h, &(item->iface_index), item) < 0)
-        {
-            DIAG_ERROR("insert failed.\n");
-            return -1;
-        }
+        HASH_ADD_INT(ht, iface_index, item);
     }
 
     return 0;
 }
 
-int ht_aclinfo_create(mln_hash_t **h)
+int ht_aclinfo_create(ht_acl_group_info_t **ht)
 {
-    struct mln_hash_attr hattr;
-
-    hattr.pool = NULL;
-    hattr.pool_alloc = NULL;
-    hattr.pool_free = NULL;
-    hattr.hash = ht_aclinfo_hash_handler;
-    hattr.cmp = ht_aclinfo_cmp_handler;
-    hattr.key_freer = NULL;
-    hattr.val_freer = ht_aclinfo_free_handler;
-    hattr.len_base = 47;
-    hattr.expandable = 0;
-    hattr.calc_prime = 0;
-
-    *h = mln_hash_new(&hattr);
-    FC_ASSERT_RETP(*h);
-
+    (void)ht;
     return 0;
 }
 
-int ht_aclinfo_destroy(mln_hash_t *h)
+int ht_aclinfo_destroy(ht_acl_group_info_t *ht)
 {
-    mln_hash_free(h, M_HASH_F_VAL);
+    ht_acl_group_info_t *acl_group_info = NULL, *tmp = NULL;
+    HASH_ITER(hh, ht, acl_group_info, tmp)
+    {
+        HASH_DEL(ht, acl_group_info);
+        free(acl_group_info);
+    }
+
     return 0;
 }
 

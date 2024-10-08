@@ -443,12 +443,6 @@ int fc_server_create(void)
     return ret;
 }
 
-int fc_server_pubkey_handler(int clisockfd, const unsigned char *buff, int len)
-{
-    DIAG_INFO("TODO pubkey\n");
-    return 0;
-}
-
 bool fc_asn_is_offpath(u32 asn, const FC_msg_bm_t *bm)
 {
     int i = 0;
@@ -464,24 +458,6 @@ bool fc_asn_is_offpath(u32 asn, const FC_msg_bm_t *bm)
     }
 
     return true;
-}
-
-static int
-fc_server_msg_topo_init(int clisockfd)
-{
-    FC_msg_bm_t *pbm = NULL;
-    int i = 0, bmnum = 0;
-
-    pbm = fc_db_read_bms(&bmnum);
-
-    for (i = 0; i < bmnum; ++i)
-    {
-        fc_acl_gen(clisockfd, &pbm[i]);
-    }
-
-    free(pbm);
-
-    return 0;
 }
 
 int fc_server_handler(int clisockfd, char *buff, int buffsize, int recvlen)
@@ -532,7 +508,7 @@ int fc_server_handler(int clisockfd, char *buff, int buffsize, int recvlen)
             break;
         case FC_MSG_TOPO:
             fc_server_topo_handler(clisockfd, msg, msglen);
-            fc_server_msg_topo_init(clisockfd);
+            fc_server_topo_init_msg(clisockfd);
             break;
         default:
             DIAG_ERROR("Not supported message type: %d\n", fc_msg_type);
@@ -546,14 +522,14 @@ int fc_server_handler(int clisockfd, char *buff, int buffsize, int recvlen)
 }
 
 static inline void
-fc_welcome_banner(void)
+fc_server_info_welcome_banner(void)
 {
     fc_cmd_version();
 }
 
-void fc_help(void)
+void fc_server_info_help(void)
 {
-    fc_welcome_banner();
+    fc_server_info_welcome_banner();
     fprintf(stdout, "\n");
     fprintf(stdout, "\t-f <config.json>  Specify the location of config.json.\n");
     fprintf(stdout, "\t                  Default location is /etc/frr/assets/\n");
@@ -562,7 +538,7 @@ void fc_help(void)
 }
 
 static void
-fc_parse_args(int argc, char **argv)
+fc_server_args_parse(int argc, char **argv)
 {
     int opt = 0;
 
@@ -574,14 +550,14 @@ fc_parse_args(int argc, char **argv)
             memcpy(g_fc_server.config_fname, optarg, strlen(optarg));
             break;
         case 'v':
-            fc_welcome_banner();
+            fc_server_info_welcome_banner();
             exit(EXIT_SUCCESS);
         case 'h':
-            fc_help();
+            fc_server_info_help();
             exit(EXIT_SUCCESS);
         default:
             DIAG_ERROR("unknown opt: %d\n", opt);
-            fc_help();
+            fc_server_info_help();
             exit(EXIT_FAILURE);
         }
     }
@@ -592,14 +568,14 @@ fc_parse_args(int argc, char **argv)
     }
 }
 
-void *fc_main(void *args)
+void *fc_server_main_backend(void *args)
 {
     (void)args;
     int ret = 0;
 
     signal(SIGINT, fc_server_destroy);
 
-    fc_welcome_banner();
+    fc_server_info_welcome_banner();
 
     diag_init(g_fc_server.prog_name);
 
@@ -696,10 +672,10 @@ int main(int argc, char **argv)
     g_fc_server.prikey_fname = NULL;
     g_fc_server.certs_location = NULL;
 
-    fc_parse_args(argc, argv);
+    fc_server_args_parse(argc, argv);
 
     pthread_t tid, ret = 0;
-    ret = pthread_create(&tid, NULL, fc_main, NULL);
+    ret = pthread_create(&tid, NULL, fc_server_main_backend, NULL);
     if (ret < 0)
     {
         DIAG_ERROR("pthread_create failed, %s\n", strerror(errno));

@@ -254,6 +254,7 @@ static int
 fc_hash(const unsigned char *const msg, int msglen,
         unsigned char *digest, unsigned int *digestlen)
 {
+    uint32_t res = 0;
     // struct timespec sts = {0}, ets = {0};
     // timespec_get(&sts, TIME_UTC);
     switch (g_fc_server.hash_algorithm_id)
@@ -268,7 +269,6 @@ fc_hash(const unsigned char *const msg, int msglen,
         fc_md5_encode(msg, msglen, digest, digestlen);
         break;
     case FC_HASH_ALGO_CRC32:
-        uint32_t res = 0;
         res = crc32_run(0, (char *)msg, msglen);
         memcpy(digest, &res, 4);
         *digestlen = 4;

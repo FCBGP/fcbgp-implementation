@@ -17,7 +17,6 @@ extern "C"
 #include "defines.h"
 #include "fcserver.h"
 #include "linenoise.h"
-#include "mln_hash.h"
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -73,7 +72,9 @@ extern "C"
         }
     }
 
-    int fc_acl_rule_iterator_handler(mln_hash_t *h, void *key, void *val, void *udata)
+    static int fc_acl_rule_iterator_handler(void *key,
+                                            void *val,
+                                            void *udata)
     {
         u32 iface_index = *(u32 *)key;
         ht_acl_group_info_t *acl_group_info = (ht_acl_group_info_t *)key;
@@ -100,9 +101,13 @@ extern "C"
 
     void fc_cmd_acl(void)
     {
-        mln_hash_iterate(g_fc_server.ht_acl_group_info,
-                         fc_acl_rule_iterator_handler,
-                         NULL);
+        ht_acl_group_info_t *acl_group_info = NULL, *tmp = NULL;
+        HASH_ITER(hh, g_fc_server.ht_acl_group_info, acl_group_info, tmp)
+        {
+            fc_acl_rule_iterator_handler(&acl_group_info->iface_index,
+                                         acl_group_info,
+                                         NULL);
+        }
     }
 
     void fc_cmd_bm(void)

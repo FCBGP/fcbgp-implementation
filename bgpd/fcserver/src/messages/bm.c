@@ -332,19 +332,21 @@ extern "C"
                           int currlen, int ip_addr_len)
     {
         int i = 0;
+        struct sockaddr_in *in4 = NULL;
+        struct sockaddr_in6 *in6 = NULL;
         for (i = 0; i < bm->src_ip_num; ++i)
         {
             bm->src_ip[i].prefix_length = *(buff + currlen + ip_addr_len);
             switch (bm->ipversion)
             {
             case IPV4:
-                struct sockaddr_in *in4 = (struct sockaddr_in *)&bm->src_ip[i].ip;
+                in4 = (struct sockaddr_in *)&bm->src_ip[i].ip;
                 in4->sin_family = AF_INET;
                 memcpy(&(in4->sin_addr), buff + currlen, ip_addr_len);
                 //    in4->sin_addr.s_addr = ntohl(in4->sin_addr.s_addr);
                 break;
             case IPV6:
-                struct sockaddr_in6 *in6 = (struct sockaddr_in6 *)&bm->src_ip[i].ip;
+                in6 = (struct sockaddr_in6 *)&bm->src_ip[i].ip;
                 in6->sin6_family = AF_INET6;
                 memcpy(&(in6->sin6_addr), buff + currlen, ip_addr_len);
                 break;
@@ -362,19 +364,21 @@ extern "C"
                           int currlen, int ip_addr_len)
     {
         int i = 0;
+        struct sockaddr_in *in4 = NULL;
+        struct sockaddr_in6 *in6 = NULL;
         for (i = 0; i < bm->dst_ip_num; ++i)
         {
             bm->dst_ip[i].prefix_length = *(buff + currlen + ip_addr_len);
             switch (bm->ipversion)
             {
             case IPV4:
-                struct sockaddr_in *in4 = (struct sockaddr_in *)&bm->dst_ip[i].ip;
+                in4 = (struct sockaddr_in *)&bm->dst_ip[i].ip;
                 in4->sin_family = AF_INET;
                 memcpy(&(in4->sin_addr), buff + currlen, ip_addr_len);
                 //   in4->sin_addr.s_addr = ntohl(in4->sin_addr.s_addr);
                 break;
             case IPV6:
-                struct sockaddr_in6 *in6 = (struct sockaddr_in6 *)&bm->dst_ip[i].ip;
+                in6 = (struct sockaddr_in6 *)&bm->dst_ip[i].ip;
                 memcpy(&(in6->sin6_addr), buff + currlen, ip_addr_len);
                 break;
             default:
