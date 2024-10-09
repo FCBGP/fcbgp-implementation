@@ -22,6 +22,7 @@
 #include <openssl/obj_mac.h>
 #include <openssl/pem.h>
 #include <openssl/x509.h>
+#include <openssl/x509v3.h>
 
 #include "defines.h"
 

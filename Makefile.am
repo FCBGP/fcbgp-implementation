@@ -187,7 +187,6 @@ include tools/subdir.am
 include mgmtd/subdir.am
 
 include bgpd/subdir.am
-include senderd/subdir.am
 include bgpd/rfp-example/librfp/subdir.am
 include bgpd/rfp-example/rfptest/subdir.am
 include ripd/subdir.am
@@ -220,7 +219,6 @@ if PKGSRC
 rcdir=@pkgsrcrcdir@
 rc_SCRIPTS = \
 	pkgsrc/bgpd.sh \
-	pkgsrc/senderd.sh \
 	pkgsrc/ospf6d.sh \
 	pkgsrc/ospfd.sh \
 	pkgsrc/ripd.sh \
@@ -266,7 +264,6 @@ EXTRA_DIST += \
 	babeld/Makefile \
 	mgmtd/Makefile \
 	bgpd/Makefile \
-	senderd/Makefile \
 	bgpd/rfp-example/librfp/Makefile \
 	bgpd/rfp-example/rfptest/Makefile \
 	doc/Makefile \
@@ -343,7 +340,7 @@ redistclean:
 	$(MAKE) distclean CONFIG_CLEAN_FILES="$(filter-out $(EXTRA_DIST), $(CONFIG_CLEAN_FILES))"
 
 indent:
-	tools/indent.py `find sharpd bgpd senderd mgmtd eigrpd include isisd lib nhrpd ospf6d ospfd pimd qpb ripd vtysh zebra -name '*.[ch]' | grep -v include/linux`
+	tools/indent.py `find sharpd bgpd mgmtd eigrpd include isisd lib nhrpd ospf6d ospfd pimd qpb ripd vtysh zebra -name '*.[ch]' | grep -v include/linux`
 
 if HAVE_GCOV
 

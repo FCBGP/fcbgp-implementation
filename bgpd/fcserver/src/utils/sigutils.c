@@ -165,6 +165,43 @@ fc_sha256_encode(const unsigned char *const msg, int msglen,
     return fc_sha_encode(msg, msglen, digest, digest_len, "SHA256");
 }
 
+static int
+fc_get_ski(X509 *cert, u8 *ski, int *skilen)
+{
+    ASN1_OCTET_STRING *os = NULL;
+    X509_EXTENSION *ext = NULL;
+    int found = 0;
+
+    int num = X509_get_ext_count(cert);
+    for (int i = 0; i < num; i++) {
+        // Get extension
+        ext = X509_get_ext(cert, i);
+        const char *extname =
+            OBJ_nid2sn(OBJ_obj2nid(X509_EXTENSION_get_object(ext)));
+
+        // Is Subject Key Identifier ext?
+        if (strcasecmp(extname, "subjectKeyIdentifier") == 0) {
+            const X509V3_EXT_METHOD *method = X509V3_EXT_get(ext);
+            void *ext_data = X509V3_EXT_d2i(ext);
+
+            if (method && ext_data) {
+                // Get data
+                os = (ASN1_OCTET_STRING *)ext_data;
+                *skilen = ASN1_STRING_length(os);
+                if (ski) {
+                    memcpy(ski, ASN1_STRING_data(os), *skilen);
+                    found = 1;
+                }
+                ASN1_OCTET_STRING_free(os);
+                break;
+            }
+        }
+    }
+
+    return found;
+}
+
+
 int fc_get_ecpubkey_and_ski(u32 asn, const char *fpath,
                             EC_KEY **ecpubkey, u8 *ecski)
 {
@@ -172,7 +209,6 @@ int fc_get_ecpubkey_and_ski(u32 asn, const char *fpath,
     EVP_PKEY *pubkey = NULL;
     BIO *bio_in = NULL;
     BIO *bio_out = NULL;
-    const ASN1_OCTET_STRING *ski = NULL;
 
     if ((bio_in = BIO_new_file(fpath, "r")) == NULL)
     {
@@ -198,11 +234,11 @@ int fc_get_ecpubkey_and_ski(u32 asn, const char *fpath,
         return -1;
     }
 
-    if ((ski = X509_get0_subject_key_id(cert)) != NULL)
+    int skilen = 0;
+    if (fc_get_ski(cert, ecski, &skilen))
     {
-        memcpy(ecski, (u8 *)ski->data, FC_SKI_LENGTH);
         DIAG_INFO("ASN: %u, ", asn);
-        fc_print_bin("ski", ecski, ski->length);
+        fc_print_bin("ski", ecski, skilen);
     }
 
     if ((pubkey = X509_get_pubkey(cert)) != NULL)
