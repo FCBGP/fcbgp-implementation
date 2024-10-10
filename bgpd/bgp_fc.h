@@ -7,6 +7,14 @@
 #ifndef BGP_FC_H
 #define BGP_FC_H
 
+#include "lib/hash.h"
+#include "lib/jhash.h"
+#include "lib/linklist.h"
+#include "lib/prefix.h"
+#include "lib/zlog.h"
+
+#include "bgpd/bgpd.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -26,6 +34,7 @@
 #include <pthread.h>
 #include <unistd.h>
 
+#include <json-c/json.h>
 #include <openssl/bio.h>
 #include <openssl/buffer.h>
 #include <openssl/core_names.h>
@@ -35,16 +44,13 @@
 #include <openssl/evp.h>
 #include <openssl/obj_mac.h>
 #include <openssl/pem.h>
+
+/*
+*/
+
 #include <openssl/x509.h>
+#include <openssl/x509v3.h>
 
-#include <json-c/json.h>
-
-#include "lib/prefix.h"
-#include "lib/jhash.h"
-#include "lib/zlog.h"
-
-#include "libhtable.h"
-#include "bgpd/bgpd.h"
 
 typedef uint8_t  u8;
 typedef uint16_t  u16;
@@ -131,41 +137,18 @@ typedef struct FC_s
     u8 sig[80]; // DER format default 64B => ~72B
 } FC_t;
 
-typedef struct FC_node_s
-{
-    FC_t fc;
-    int length; // FC length
-    struct FC_node_s *next;
-} FC_node_t;
-
 typedef struct FCList_s
 {
     int size; // number of FC in fcs
     int length; // total length of fcs
     struct prefix ipprefix;
-    FC_node_t *fcs;
+    struct list *fcs;
 } FCList_t;
-
-typedef struct FC_ht_node_prefix_s
-{
-    htbl_node_t hnode; // htbl node must be the first one
-    int length;
-    int size;
-    struct prefix ipprefix;
-    FC_node_t *fcs;
-} FC_ht_node_prefix_t;
-
-typedef struct FC_ht_meta_asprefix_s
-{
-    u32 asn;
-    htbl_ctx_t htbl;
-} FC_ht_meta_asprefix_t;
 
 typedef struct FC_ht_node_asprefix_s
 {
-    htbl_node_t hnode;
     u32 asn;
-    htbl_ctx_t htbl;
+    struct hash *htbl;  // prefix hashtable
 } FC_ht_node_asprefix_t;
 
 /* ds-asn-ips */
@@ -196,17 +179,10 @@ typedef struct FC_asn_ip_s
     FC_prefix_t prefix;
 } FC_asn_ip_t;
 
-// for hashtable meta
-typedef struct FC_node_as_s
-{
-    u32 asn;
-    FC_asn_ip_t ap;
-} FC_node_as_t;
-
 // for hashtable node
 typedef struct FC_ht_node_as_s
 {
-    htbl_node_t hnode; // htbl node must be the first one
+    // htbl_node_t hnode; // htbl node must be the first one
     u32 asn;
     FC_asn_ip_t ap;
 } FC_ht_node_as_t;
@@ -250,13 +226,6 @@ typedef struct FC_msg_bm_new_s
     u8 new_signature[80];
 } FC_msg_bm_new_t;
 
-typedef struct FC_config_s
-{
-    int fc_listen_port;
-} FC_config_t;
-
-extern FC_config_t fc_config;
-
 /* SIG */
 extern int fc_read_eckey_from_file(int is_pub_key, EC_KEY **pkey);
 extern int fc_read_eckey_from_filepath(const char *file,
@@ -272,12 +241,15 @@ extern int fc_ecdsa_sign(EC_KEY *prikey, const char *const msg, int msglen,
 extern int fc_ecdsa_verify(EC_KEY *pubkey, const char *const msg, int msglen,
         const unsigned char *sigbuff, unsigned int siglen);
 
-/* LIBHTABLE */
-extern htbl_ops_t g_fc_htbl_prefix_ops;
-extern htbl_ops_t g_fc_htbl_asprefix_ops;
-extern htbl_ctx_t g_fc_htbl_asprefix;
-extern int fc_hashtable_create(htbl_ctx_t *ht, htbl_ops_t *ops);
-extern int fc_hashtable_destroy(htbl_ctx_t *ht);
+/* HASHTABLE */
+extern unsigned int fc_ht_asprefix_hash_key(const void *data);
+extern bool fc_ht_asprefix_hash_cmp(const void *a, const void *b);
+extern unsigned int fc_ht_prefix_hash_key(const void *data);
+extern bool fc_ht_prefix_hash_cmp(const void *a, const void *b);
+extern unsigned int fc_ht_as_hash_key(const void *data);
+extern bool fc_ht_as_hash_cmp(const void *a, const void *b);
+extern unsigned int fc_ht_ski_eckey_hash_key(const void *data);
+extern bool fc_ht_ski_eckey_hash_cmp(const void *a, const void *b);
 
 /* SERVER */
 #define FC_CFG_DEFAULT_LISTEN_PORT 23160
@@ -286,5 +258,8 @@ extern int fc_send_packet_to_fcserver(u8 ipversion, char *buff, int bufflen);
 
 extern int bgp_fc_init(struct bgp_master *bm);
 extern int bgp_fc_destroy(struct bgp_master *bm);
+
+/* UTILS */
+extern void fc_print_bin(const char *msg, void *data, int len);
 
 #endif // BGP_FC_H

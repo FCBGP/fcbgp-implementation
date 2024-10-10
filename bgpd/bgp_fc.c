@@ -6,321 +6,106 @@
  *  compile will encounter errors.
  ********************************************************************************/
 
+#include "bgpd/bgp_fc.h"
+#include "bgpd/bgpd.h"
+#include "lib/hash.h"
+#include <json-c/json.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
-#include <json-c/json.h>
-#include "lib/hash.h"
-#include "bgpd/bgpd.h"
-#include "bgpd/bgp_fc.h"
 
-FC_config_t fc_config = {0};
+/* UTILS */
+void fc_print_bin(const char *msg, void *data, int len)
+{
+    int i = 0, curlen = 0;
+    char pmsg[BUFSIZ] = {0};
+    zlog_debug("%s", msg);
+
+    for (i = 0; i < len; ++i)
+    {
+        snprintf(pmsg + curlen, BUFSIZ,
+                 "%02X", *((u8*)data + i));
+        curlen += 2;
+        if ((i + 1) % 16 == 0)
+        {
+            snprintf(pmsg + curlen, BUFSIZ, "\n");
+        }
+        else if ((i + 1) % 2 == 0)
+        {
+            snprintf(pmsg + curlen, BUFSIZ, " ");
+        }
+    }
+    zlog_debug("%s", pmsg);
+}
 
 /* HASHTABLE UTILS */
-static void *
-fc_as_node_create(void)
+/* asn-local-info hash utils */
+unsigned int fc_ht_as_hash_key(const void *data)
 {
-    FC_ht_node_as_t *node = malloc(sizeof(FC_ht_node_as_t));
-    return node;
+    FC_ht_node_as_t *msg = (FC_ht_node_as_t *)data;
+    return jhash_1word(msg->asn, 0xdeadbeef);
 }
 
-static int
-fc_as_node_destroy(void *node)
+bool fc_ht_as_hash_cmp(const void *a, const void *b)
 {
-    FC_ht_node_as_t *node_as = (FC_ht_node_as_t *)node;
-    free(node_as);
-    return 0;
+    FC_ht_node_as_t *msg1 = (FC_ht_node_as_t *)a;
+    FC_ht_node_as_t *msg2 = (FC_ht_node_as_t *)b;
+    return msg1->asn == msg2->asn;
 }
 
-static int
-fc_as_node_display(void *node)
+/* asn-prefix hash utils */
+unsigned int fc_ht_asprefix_hash_key(const void *data)
 {
-    char ipstr[INET6_ADDRSTRLEN] = {0};
-    int i = 0;
-    FC_ht_node_as_t *node_as = (FC_ht_node_as_t *)node;
-
-    zlog_debug("asn: %d", node_as->asn);
-    zlog_debug("  %s", "acs:");
-    zlog_debug("    ipv4: %s", node_as->ap.acs.ipv4);
-    zlog_debug("    ipv6: %s", node_as->ap.acs.ipv6);
-    zlog_debug("  %s", "prefix:");
-    for (i = 0; i < node_as->ap.prefix.ip4s_num; ++i)
-    {
-        inet_ntop(AF_INET, &node_as->ap.prefix.ip4s[i].ip,
-                  ipstr, (socklen_t)sizeof(ipstr));
-        zlog_debug("    ipv4: %s/%d",
-                   ipstr, node_as->ap.prefix.ip4s[i].prefix_length);
-    }
-    for (i = 0; i < node_as->ap.prefix.ip6s_num; ++i)
-    {
-        inet_ntop(AF_INET6, &node_as->ap.prefix.ip6s[i].ip,
-                  ipstr, (socklen_t)sizeof(ipstr));
-        zlog_debug("    ipv6: %s/%d",
-                   ipstr, node_as->ap.prefix.ip6s[i].prefix_length);
-    }
-
-    return 0;
-}
-
-static u32
-fc_as_hash(u32 asn)
-{
-    u32 ret = jhash_1word(asn, 0xdeadbeef);
-    zlog_debug("ret : %d", ret);
+    unsigned int ret = 0xdeadbeef;
+    const FC_ht_node_asprefix_t *msg = (const FC_ht_node_asprefix_t *)data;
+    ret = jhash_1word(msg->asn, ret);
     return ret;
 }
 
-static int
-fc_as_node_hash(void *node)
+bool fc_ht_asprefix_hash_cmp(const void *a, const void *b)
 {
-    FC_ht_node_as_t *node_as = (FC_ht_node_as_t *)node;
-    return fc_as_hash(node_as->asn);
+    const FC_ht_node_asprefix_t *msg1 = (const FC_ht_node_asprefix_t *)a;
+    const FC_ht_node_asprefix_t *msg2 = (const FC_ht_node_asprefix_t *)b;
+    return msg1->asn == msg2->asn;
 }
 
-static int
-fc_as_meta_hash(void *meta)
+/* prefix-FCList hash utils */
+unsigned int fc_ht_prefix_hash_key(const void *data)
 {
-    FC_node_as_t *meta_as = (FC_node_as_t *)meta;
-    return fc_as_hash(meta_as->asn);
-}
-
-static int
-fc_as_meta_cmp(void *base, void *meta)
-{
-    FC_ht_node_as_t *node_as = (FC_ht_node_as_t *)base;
-    FC_node_as_t *meta_as = (FC_node_as_t *)meta;
-
-    return !!(node_as->asn != meta_as->asn);
-}
-
-static int
-fc_as_meta_save(void *base, void *meta)
-{
-    FC_ht_node_as_t *node_as = (FC_ht_node_as_t *)base;
-    FC_node_as_t *meta_as = (FC_node_as_t *)meta;
-
-    node_as->asn = meta_as->asn;
-    memcpy(&node_as->ap, &meta_as->ap, sizeof(FC_asn_ip_t));
-
-    return 0;
-}
-
-htbl_ops_t g_fc_htbl_as_ops = {
-    .node_create_func = fc_as_node_create,
-    .node_destroy_func = fc_as_node_destroy,
-    .node_display_func = fc_as_node_display,
-    .node_hash_func = fc_as_node_hash,
-    .meta_hash_func = fc_as_meta_hash,
-    .meta_cmp_func = fc_as_meta_cmp,
-    .meta_save_func = fc_as_meta_save,
-};
-
-static void *
-fc_prefix_node_create(void)
-{
-    FC_ht_node_prefix_t *node = malloc(sizeof(FC_ht_node_prefix_t));
-    node->fcs = malloc(sizeof(FC_t) * FC_MAX_SIZE);
-    return node;
-}
-
-static int
-fc_prefix_node_destroy(void *node)
-{
-    FC_ht_node_prefix_t *node_prefix = (FC_ht_node_prefix_t *)node;
-    free(node_prefix->fcs);
-    free(node_prefix);
-
-    return 0;
-}
-
-static int
-fc_prefix_hash(struct prefix *prefix)
-{
-    int i = 0;
-    int ret = 0;
-
-    ret = jhash_2words(prefix->family, prefix->prefixlen, 0xdeadbeef);
-
+    const FCList_t *msg = (const FCList_t *)data;
+    int i = 0, ret = 0;
+    ret = jhash_2words(msg->ipprefix.family,
+                       msg->ipprefix.prefixlen,
+                       0xdeadbeef);
     for (i = 0; i < 4; ++i)
-        ret = jhash_2words(ret, prefix->u.val32[i], 0xdeadbeef);
-
+        ret = jhash_2words(ret, msg->ipprefix.u.val32[i], 0xdeadbeef);
     return ret;
 }
 
-static int
-fc_prefix_node_hash(void *node)
+bool fc_ht_prefix_hash_cmp(const void *a, const void *b)
 {
-    FC_ht_node_prefix_t *node_prefix = (FC_ht_node_prefix_t *)node;
-    return fc_prefix_hash(&node_prefix->ipprefix);
-}
+    FCList_t *prefix1 = (FCList_t *)a;
+    FCList_t *prefix2 = (FCList_t *)b;
 
-static int
-fc_prefix_meta_hash(void *meta)
-{
-    FCList_t *meta_prefix = (FCList_t *)meta;
-    return fc_prefix_hash(&meta_prefix->ipprefix);
-}
-
-static int
-fc_prefix_meta_cmp(void *base, void *meta)
-{
-    FC_ht_node_prefix_t *node_prefix = (FC_ht_node_prefix_t *)base;
-    FCList_t *meta_prefix = (FCList_t *)meta;
-
-    int ret = 0; // 0 for equal and 1 for inequal
-    int i = 0;
-
-    if (node_prefix->ipprefix.family == meta_prefix->ipprefix.family)
+    if (prefix1->ipprefix.family == prefix2->ipprefix.family)
     {
-        if (node_prefix->ipprefix.prefixlen == meta_prefix->ipprefix.prefixlen)
+        if (prefix1->ipprefix.prefixlen == prefix2->ipprefix.prefixlen)
         {
-            for (i = 0; i < 4; ++i)
+            for (int i = 0; i < 4; ++i)
             {
-                if (node_prefix->ipprefix.u.val32[i] != meta_prefix->ipprefix.u.val32[i])
+                if (prefix1->ipprefix.u.val32[i] !=
+                    prefix2->ipprefix.u.val32[i])
                 {
-                    ret = 1;
-                    break;
+                    return false;
                 }
             }
-            return ret;
         }
     }
 
-    return ret;
+    return true;
 }
 
-static int
-fc_prefix_meta_save(void *base, void *meta)
-{
-    FC_ht_node_prefix_t *node_prefix = (FC_ht_node_prefix_t *)base;
-    FCList_t *meta_prefix = (FCList_t *)meta;
-
-    node_prefix->size = meta_prefix->size;
-    node_prefix->length = meta_prefix->length;
-    node_prefix->fcs = meta_prefix->fcs;
-    memcpy(&node_prefix->ipprefix, &meta_prefix->ipprefix, sizeof(struct prefix));
-
-    return 0;
-}
-
-static int
-fc_prefix_node_display(void *node)
-{
-    return 0;
-}
-
-htbl_ops_t g_fc_htbl_prefix_ops = {
-    .node_create_func = fc_prefix_node_create,
-    .node_destroy_func = fc_prefix_node_destroy,
-    .node_display_func = fc_prefix_node_display,
-    .node_hash_func = fc_prefix_node_hash,
-    .meta_hash_func = fc_prefix_meta_hash,
-    .meta_cmp_func = fc_prefix_meta_cmp,
-    .meta_save_func = fc_prefix_meta_save,
-};
-
-static void *
-fc_asprefix_node_create(void)
-{
-    FC_ht_node_asprefix_t *node = malloc(sizeof(FC_ht_node_asprefix_t));
-    memset(node, 0, sizeof(FC_ht_node_asprefix_t));
-    return node;
-}
-
-static int
-fc_asprefix_node_destroy(void *node)
-{
-    FC_ht_node_asprefix_t *node_as = (FC_ht_node_asprefix_t *)node;
-    free(node_as);
-    return 0;
-}
-
-static int
-fc_asprefix_node_display(void *node)
-{ // TODO
-    return 0;
-}
-
-static int
-fc_asprefix_hash(u32 asn)
-{
-    int ret = 0;
-    ret = jhash_1word(asn, 0xdeadbeef);
-    return ret;
-}
-
-static int
-fc_asprefix_node_hash(void *node)
-{
-    FC_ht_node_asprefix_t *node_asprefix = (FC_ht_node_asprefix_t *)node;
-    return fc_asprefix_hash(node_asprefix->asn);
-}
-
-static int
-fc_asprefix_meta_hash(void *meta)
-{
-    FC_node_as_t *meta_asprefix = (FC_node_as_t *)meta;
-    return fc_asprefix_hash(meta_asprefix->asn);
-}
-
-static int
-fc_asprefix_meta_cmp(void *base, void *meta)
-{
-    FC_ht_node_asprefix_t *node_asprefix = (FC_ht_node_asprefix_t *)base;
-    FC_ht_meta_asprefix_t *meta_asprefix = (FC_ht_meta_asprefix_t *)meta;
-
-    return node_asprefix->asn != meta_asprefix->asn;
-}
-
-static int
-fc_asprefix_meta_save(void *base, void *meta)
-{
-    FC_ht_node_asprefix_t *node_asprefix = (FC_ht_node_asprefix_t *)base;
-    FC_ht_meta_asprefix_t *meta_asprefix = (FC_ht_meta_asprefix_t *)meta;
-
-    node_asprefix->asn = meta_asprefix->asn;
-    memcpy(&node_asprefix->htbl, &meta_asprefix->htbl, sizeof(htbl_ctx_t));
-
-    return 0;
-}
-
-htbl_ops_t g_fc_htbl_asprefix_ops = {
-    .node_create_func = fc_asprefix_node_create,
-    .node_destroy_func = fc_asprefix_node_destroy,
-    .node_display_func = fc_asprefix_node_display,
-    .node_hash_func = fc_asprefix_node_hash,
-    .meta_hash_func = fc_asprefix_meta_hash,
-    .meta_cmp_func = fc_asprefix_meta_cmp,
-    .meta_save_func = fc_asprefix_meta_save,
-};
-
-htbl_ctx_t g_fc_htbl_asprefix = {0};
-
-// 这里需要注意到是，htbl_ops需要是在ht之后不能销毁的
-// 所以只能使用g_htbl_ops这种用法了
-int fc_hashtable_create(htbl_ctx_t *ht, htbl_ops_t *ops)
-{
-    int ret = 0;
-    ht->bucketcnt = FCSRV_HTBL_BUCKETS_SIZE;
-    ht->ops = ops;
-
-    ret = htbl_init(ht);
-    FC_ASSERT_RET(ret);
-
-    return 0;
-}
-
-int fc_hashtable_destroy(htbl_ctx_t *ht)
-{
-    if (ht)
-    {
-        htbl_fini(ht);
-    }
-    return 0;
-}
-
-/* HASH UTILS */
-static unsigned int
-hash_key(const void *data)
+/* ski-ecpubkey hash utils*/
+unsigned int fc_ht_ski_eckey_hash_key(const void *data)
 {
     int i = 0;
     unsigned int ret = 0xdeadbeef;
@@ -337,8 +122,7 @@ hash_key(const void *data)
     return ret;
 }
 
-static bool
-hash_cmp(const void *a, const void *b)
+bool fc_ht_ski_eckey_hash_cmp(const void *a, const void *b)
 {
     const SKI_ECKEY_t *msg1 = (const SKI_ECKEY_t *)a;
     const SKI_ECKEY_t *msg2 = (const SKI_ECKEY_t *)b;
@@ -445,7 +229,7 @@ fc_combine_path(const char *path, const char *filename)
 }
 
 static int fc_set_hash_algo_id(const char *hash_algorithm,
-                                       int *hash_algorithm_id)
+                               int *hash_algorithm_id)
 {
     if (!strcasecmp(hash_algorithm, "sha256"))
     {
@@ -474,7 +258,7 @@ static int fc_set_hash_algo_id(const char *hash_algorithm,
 static int
 fc_json_read_config(struct bgp_master *bm)
 {
-    struct hash *ht = bm->ht_ski_ecpubkey;
+    struct hash *ht = bm->fc_config.fc_ht_ski_ecpubkey;
     int i, as_num = 0, ret = 0;
     const char *fpath = NULL, *fname = NULL;
     char *fullpath = NULL;
@@ -493,11 +277,11 @@ fc_json_read_config(struct bgp_master *bm)
     jlisten_port = json_object_object_get(root, "listen_port");
     if (jlisten_port)
     {
-        fc_config.fc_listen_port = json_object_get_int(jlisten_port);
+        bm->fc_config.fc_listen_port = json_object_get_int(jlisten_port);
     }
     else
     {
-        fc_config.fc_listen_port = FC_CFG_DEFAULT_LISTEN_PORT;
+        bm->fc_config.fc_listen_port = FC_CFG_DEFAULT_LISTEN_PORT;
     }
 
     hash_algorithm = json_object_object_get(root, "hash_algorithm");
@@ -505,11 +289,12 @@ fc_json_read_config(struct bgp_master *bm)
     {
 
         const char *tmp_str = json_object_get_string(hash_algorithm);
-        fc_set_hash_algo_id(tmp_str, &bm->hash_algorithm_id);
+        fc_set_hash_algo_id(tmp_str, &bm->fc_config.hash_algorithm_id);
     }
     else
     {
-        fc_set_hash_algo_id(FC_CFG_DEFAULT_HASH_ALGO, &bm->hash_algorithm_id);
+        fc_set_hash_algo_id(FC_CFG_DEFAULT_HASH_ALGO,
+                            &bm->fc_config.hash_algorithm_id);
     }
 
     certs_location = json_object_object_get(root, "certs_location");
@@ -518,13 +303,17 @@ fc_json_read_config(struct bgp_master *bm)
     private_key_fname = json_object_object_get(root, "private_key_fname");
     fname = json_object_get_string(private_key_fname);
     fullpath = fc_combine_path(fpath, fname);
-    fc_read_eckey_from_filepath(fullpath, 0, &bm->prikey);
+    fc_read_eckey_from_filepath(fullpath,
+                                0,
+                                &bm->fc_config.prikey);
     free(fullpath);
 
     certificate_fname = json_object_object_get(root, "certificate_fname");
     fname = json_object_get_string(certificate_fname);
     fullpath = fc_combine_path(fpath, fname);
-    ret = fc_get_ecpubkey_and_ski(0, fullpath, &bm->pubkey, bm->ski);
+    ret = fc_get_ecpubkey_and_ski(0, fullpath,
+                                  &bm->fc_config.pubkey,
+                                  bm->fc_config.ski);
     free(fullpath);
 
     as_info_list = json_object_object_get(root, "as_info_list");
@@ -579,7 +368,7 @@ fc_json_read_config(struct bgp_master *bm)
 /* SIGN/VERIFY UTILS */
 static int
 fc_hash_encode(const char *const msg, int msglen, unsigned char *digest,
-              unsigned int *digestlen, const char *sha_hash_algo)
+               unsigned int *digestlen, const char *sha_hash_algo)
 {
     int ret = 1;
     EVP_MD *md = NULL;
@@ -651,10 +440,10 @@ static int
 fc_crc_encode(const char *const msg, int msglen, unsigned char *digest,
               unsigned int *digestlen)
 {
-    uint32_t res = 0;
-    res = crc32_run(0, msg, msglen);
-    memcpy(digest, &res, 4);
-    *digestlen = 4;
+    // uint32_t res = 0;
+    // res = crc32_run(0, msg, msglen);
+    // memcpy(digest, &res, 4);
+    // *digestlen = 4;
     return 0;
 }
 
@@ -731,7 +520,7 @@ fc_hash(const char *const msg, int msglen,
 {
     struct timespec sts = {0}, ets = {0};
     timespec_get(&sts, TIME_UTC);
-    switch (bm->hash_algorithm_id)
+    switch (bm->fc_config.hash_algorithm_id)
     {
     case FC_HASH_ALGO_SHA256:
         fc_sha256_encode(msg, msglen, digest, digestlen);
@@ -743,6 +532,8 @@ fc_hash(const char *const msg, int msglen,
         fc_md5_encode(msg, msglen, digest, digestlen);
         break;
     case FC_HASH_ALGO_CRC32:
+        // TODO
+        fc_crc_encode(msg, msglen, digest, digestlen);
         break;
     default:
         zlog_err("I don't know what algorithm should I use.");
@@ -829,7 +620,7 @@ fc_send_packet_to_fcserver4(char *buff, int bufflen)
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
     sockaddr.sin_family = AF_INET;
-    sockaddr.sin_port = htons(fc_config.fc_listen_port);
+    sockaddr.sin_port = htons(bm->fc_config.fc_listen_port);
     inet_pton(AF_INET, "127.0.0.1", &sockaddr.sin_addr);
 
     ret = connect(sockfd, (struct sockaddr *)&sockaddr, sizeof(sockaddr));
@@ -862,7 +653,7 @@ fc_send_packet_to_fcserver6(char *buff, int bufflen)
     sockfd = socket(AF_INET6, SOCK_STREAM, 0);
 
     sockaddr.sin6_family = AF_INET6;
-    sockaddr.sin6_port = htons(fc_config.fc_listen_port);
+    sockaddr.sin6_port = htons(bm->fc_config.fc_listen_port);
     inet_pton(AF_INET6, "::1", &sockaddr.sin6_addr);
 
     ret = connect(sockfd, (struct sockaddr *)&sockaddr, sizeof(sockaddr));
@@ -902,8 +693,13 @@ int fc_send_packet_to_fcserver(u8 ipversion, char *buff, int bufflen)
 int bgp_fc_init(struct bgp_master *bm)
 {
     int ret = 0;
-    bm->ht_ski_ecpubkey = hash_create(hash_key,
-                                      hash_cmp, "SKI --- EC public key");
+
+    bm->fc_config.fc_ht_asprefix = hash_create(fc_ht_asprefix_hash_key,
+                                               fc_ht_asprefix_hash_cmp,
+                                               "FC AS Prefix Hashtable");
+    bm->fc_config.fc_ht_ski_ecpubkey = hash_create(fc_ht_ski_eckey_hash_key,
+                                                   fc_ht_ski_eckey_hash_cmp,
+                                                   "SKI --- EC public key");
     ret = fc_json_read_config(bm);
 
     if (ret != 0)

@@ -371,9 +371,6 @@ FRR_DAEMON_INFO(bgpd, BGP, .vty_port = BGP_VTY_PORT,
    state machine is handled at here. */
 int main(int argc, char **argv)
 {
-#ifdef USE_FC
-    fc_hashtable_create(&g_fc_htbl_asprefix, &g_fc_htbl_asprefix_ops);
-#endif
 	int opt;
 	int tmp_port;
 

@@ -1712,7 +1712,7 @@ static int bgp_attr_fc(struct bgp_attr_parser_args *args, FCList_t *fclist,
 	const bgp_size_t length = args->length;
     int curpos = 0;
 
-    FC_node_t *fcnode = NULL, *prevnode = NULL;
+    FC_t *fc = NULL;
 
     /* Set fc path attribute flag. */
 	attr->flag |= ATTR_FLAG_BIT(BGP_ATTR_FC);
@@ -1724,51 +1724,40 @@ static int bgp_attr_fc(struct bgp_attr_parser_args *args, FCList_t *fclist,
 
     if (length > 0)
     {
-        fclist->fcs = malloc(sizeof(FC_node_t));
-        memset(fclist->fcs, 0, sizeof(FC_node_t));
-        prevnode = fcnode = fclist->fcs;
+        fclist->fcs = list_new();
 
         while (curpos < length)
         {
-            memcpy(&fcnode->fc.previous_asn, &buff[curpos], sizeof(u32));
+            fc = malloc(sizeof(FC_t));
+            memcpy(&fc->previous_asn, &buff[curpos], sizeof(u32));
             curpos += sizeof(u32);
-            fcnode->fc.previous_asn = ntohl(fcnode->fc.previous_asn);
+            fc->previous_asn = ntohl(fc->previous_asn);
 
-            memcpy(&fcnode->fc.current_asn, &buff[curpos], sizeof(u32));
+            memcpy(&fc->current_asn, &buff[curpos], sizeof(u32));
             curpos += sizeof(u32);
-            fcnode->fc.current_asn = ntohl(fcnode->fc.current_asn);
+            fc->current_asn = ntohl(fc->current_asn);
 
-            memcpy(&fcnode->fc.nexthop_asn, &buff[curpos], sizeof(u32));
+            memcpy(&fc->nexthop_asn, &buff[curpos], sizeof(u32));
             curpos += sizeof(u32);
-            fcnode->fc.nexthop_asn = ntohl(fcnode->fc.nexthop_asn);
+            fc->nexthop_asn = ntohl(fc->nexthop_asn);
 
-            memcpy(&fcnode->fc.ski, &buff[curpos], FC_SKI_LENGTH);
+            memcpy(&fc->ski, &buff[curpos], FC_SKI_LENGTH);
             curpos += FC_SKI_LENGTH;
 
-            fcnode->fc.algo_id = buff[curpos];
+            fc->algo_id = buff[curpos];
             curpos += sizeof(u8);
 
-            fcnode->fc.flags = buff[curpos];
+            fc->flags = buff[curpos];
             curpos += sizeof(u8);
 
-            memcpy(&fcnode->fc.siglen, &buff[curpos], sizeof(u16));
+            memcpy(&fc->siglen, &buff[curpos], sizeof(u16));
             curpos += sizeof(u16);
-            fcnode->fc.siglen = ntohs(fcnode->fc.siglen);
-            memcpy(fcnode->fc.sig, &buff[curpos], fcnode->fc.siglen);
-            curpos += fcnode->fc.siglen;
+            fc->siglen = ntohs(fc->siglen);
+            memcpy(fc->sig, &buff[curpos], fc->siglen);
+            curpos += fc->siglen;
 
-            // every fc's length
-            fcnode->length = FC_FIX_LENGTH + fcnode->fc.siglen;
-
+            listnode_add(fclist->fcs, fc);
             fclist->size ++;
-
-            if (curpos < length)
-            {
-                prevnode = fcnode;
-                fcnode = malloc(sizeof(FC_node_t));
-                memset(fcnode, 0, sizeof(FC_node_t));
-                prevnode->next = fcnode;
-            }
         }
     }
 
@@ -4823,7 +4812,6 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
 
         // if (flag)
         {
-            int i = 0, j = 0;
             int msglen = 0, fcbufflen = 0, fcnum = 0;
             u8 prefixlen = 0;
             size_t fclist_sizep = 0, length = 0;
@@ -4835,12 +4823,11 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
             memset(bmbuff, 0, FC_BUFF_SIZE);
             unsigned char *sigbuff = NULL;
             unsigned int sigbufflen = 0;
-            FC_ht_node_prefix_t *fclist = NULL;
-            FC_ht_meta_asprefix_t meta_asprefix = {0};
-            FC_ht_node_asprefix_t *node_asprefix = NULL;
-            FC_t fc = { 0 };
-            FC_node_t *fcnode = NULL;
-            FCList_t meta = {0};
+            FC_ht_node_asprefix_t meta_asprefix = {0}, *node_asprefix = NULL;
+            FCList_t *fclist = NULL;
+            FC_t fc = { 0 }, *fcdata = NULL;
+            struct listnode *fcnode = NULL, *fcnextnode = NULL;
+            void *data = NULL;
 
             /*
              * sig content = ecdsa-hash(previous-asn, current-asn, nexthop-asn,
@@ -4855,7 +4842,7 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
             current_asn  = htonl(current_asn);
             nexthop_asn  = htonl(nexthop_asn);
 
-            memcpy(fc.ski, bm->ski, FC_SKI_LENGTH);
+            memcpy(fc.ski, bm->fc_config.ski, FC_SKI_LENGTH);
 
             fc.algo_id = 0x01;
             fc.flags = 0x00;
@@ -4882,25 +4869,19 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
             prefixlen = (u8) prefix_for_fc->prefixlen;
             memcpy(msg+msglen, &prefixlen, sizeof(u8));
             msglen += sizeof(u8);
-            unsigned int haha = 0;
-            zlog_debug("------------msg-----------");
-            for(haha=0; haha < msglen; haha++) {
-               zlog_debug("%02X  ", msg[haha]);
-            }
+            fc_print_bin("------------msg-----------", msg, msglen);
 
             int ret = 0;
-            ret = fc_ecdsa_sign(bm->prikey,
+            ret = fc_ecdsa_sign(bm->fc_config.prikey,
                     msg, msglen, &sigbuff, &sigbufflen);
-            if (ret > 0)
+            if (ret != 0)
             {
                 // TODO
                 zlog_debug("fc_ecdsa_sign() failed");
             }
             fc.siglen = sigbufflen;
-            zlog_debug("------------sig-----------");
-            for(haha=0; haha<sigbufflen; haha++) {
-               zlog_debug("%02X  ", sigbuff[haha]);
-            }
+            fc_print_bin("------------sig-----------", sigbuff, sigbufflen);
+
             // 2. concat: fill packet
             stream_putc(s, BGP_ATTR_FLAG_OPTIONAL | BGP_ATTR_FLAG_TRANS
                     | BGP_ATTR_FLAG_EXTLEN);
@@ -4909,12 +4890,14 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
             stream_putw(s, 0);
 
             meta_asprefix.asn = previous_asn;
-            node_asprefix = htbl_meta_find(&g_fc_htbl_asprefix,
-                    &meta_asprefix);
+            node_asprefix = (FC_ht_node_asprefix_t *)
+								hash_lookup(bm->fc_config.fc_ht_asprefix,
+                                            &meta_asprefix);
             if (node_asprefix)
             {
-                memcpy(&meta.ipprefix, prefix_for_fc, sizeof(struct prefix));
-                fclist = htbl_meta_find(&node_asprefix->htbl, &meta);
+                fclist = calloc(sizeof(FCList_t), 1);
+                memcpy(&fclist->ipprefix, prefix_for_fc, sizeof(struct prefix));
+                hash_get(node_asprefix->htbl, fclist, hash_alloc_intern);
             }
             // current fc
             stream_putl(s, fc.previous_asn);
@@ -4939,73 +4922,63 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
             if (fclist)
             {
                 char prefixstr[46] = {0};
-                char fcsigmsg[FC_BUFF_SIZE];
-                int fcsigmsglen = 0;
 
                 inet_ntop(fclist->ipprefix.family, &fclist->ipprefix.u.prefix,
                         prefixstr, sizeof(prefixstr));
 
-                length = fclist->length;
-                fcnode = fclist->fcs;
-                zlog_debug("=>fcs length: %d, size: %d, prefix: %s/%d",
-                        fclist->length, fclist->size, prefixstr,
-                        fclist->ipprefix.prefixlen);
-                for (i=0; fcnode && i<fclist->size; ++i)
+                zlog_debug("=>fcs size: %d, prefix: %s/%d",
+                        fclist->size, prefixstr, fclist->ipprefix.prefixlen);
+
+                for (ALL_LIST_ELEMENTS(fclist->fcs, fcnode, fcnextnode, data))
                 {
-                    fcsigmsglen = 0;
-                    memset(fcsigmsg, 0, FC_BUFF_SIZE);
+                    fcdata = (FC_t *)data;
 
-                    for (j=0; j<fcnode->fc.siglen && j < FC_BUFF_SIZE; j ++)
-                    {
-                        snprintf(fcsigmsg+fcsigmsglen, FC_BUFF_SIZE,
-                                "%02X", fcnode->fc.sig[j]);
-                        fcsigmsglen += 2;
-                    }
-
-                    zlog_debug("==>fc length: %d, asn: %08X-%08X-%08X, "
-                            "siglen: %d, sig: %s",
-                            fcnode->length, fcnode->fc.previous_asn,
-                            fcnode->fc.current_asn, fcnode->fc.nexthop_asn,
-                            fcnode->fc.siglen, fcsigmsg);
+                    zlog_debug("==>fc sig length: %d, asn: %08X-%08X-%08X, "
+                            "siglen: %d",
+                            fcdata->siglen, 
+							fcdata->previous_asn,
+                            fcdata->current_asn, fcdata->nexthop_asn,
+                            fcdata->siglen);
+                    fc_print_bin("fc sig: ", fcdata->sig, fcdata->siglen);
 
                     // TODO
                     u32 asn = 0;
                     u16 siglen= 0;
-                    asn = htonl(fcnode->fc.previous_asn);
+                    asn = htonl(fcdata->previous_asn);
                     memcpy(fcbuff+fcbufflen, &asn, sizeof(u32));
                     fcbufflen += sizeof(u32);
-                    stream_putl(s, fcnode->fc.previous_asn);
+                    stream_putl(s, fcdata->previous_asn);
 
-                    asn = htonl(fcnode->fc.current_asn);
+                    asn = htonl(fcdata->current_asn);
                     memcpy(fcbuff+fcbufflen, &asn, sizeof(u32));
                     fcbufflen += sizeof(u32);
-                    stream_putl(s, fcnode->fc.current_asn);
+                    stream_putl(s, fcdata->current_asn);
 
-                    asn = htonl(fcnode->fc.nexthop_asn);
+                    asn = htonl(fcdata->nexthop_asn);
                     memcpy(fcbuff+fcbufflen, &asn, sizeof(u32));
                     fcbufflen += sizeof(u32);
-                    stream_putl(s, fcnode->fc.nexthop_asn);
+                    stream_putl(s, fcdata->nexthop_asn);
 
-                    memcpy(fcbuff+fcbufflen, fcnode->fc.ski, FC_SKI_LENGTH);
+                    memcpy(fcbuff+fcbufflen, fcdata->ski, FC_SKI_LENGTH);
                     fcbufflen += FC_SKI_LENGTH;
-                    stream_put(s, fcnode->fc.ski, FC_SKI_LENGTH);
+                    stream_put(s, fcdata->ski, FC_SKI_LENGTH);
 
-                    fcbuff[fcbufflen++] = fcnode->fc.algo_id;
-                    stream_putc(s, fcnode->fc.algo_id);
-                    fcbuff[fcbufflen++] = fcnode->fc.flags;
-                    stream_putc(s, fcnode->fc.flags);
+                    fcbuff[fcbufflen++] = fcdata->algo_id;
+                    stream_putc(s, fcdata->algo_id);
+                    fcbuff[fcbufflen++] = fcdata->flags;
+                    stream_putc(s, fcdata->flags);
 
-                    siglen = htons(fcnode->fc.siglen);
+                    siglen = htons(fcdata->siglen);
                     memcpy(fcbuff+fcbufflen, &siglen, sizeof(u16));
                     fcbufflen += sizeof(u16);
-                    stream_putw(s, fcnode->fc.siglen);
+                    stream_putw(s, fcdata->siglen);
 
                     memcpy(fcbuff+fcbufflen,
-                            fcnode->fc.sig, fcnode->fc.siglen);
-                    stream_put(s, fcnode->fc.sig, fcnode->fc.siglen);
+                            fcdata->sig, fcdata->siglen);
+                    stream_put(s, fcdata->sig, fcdata->siglen);
 
                     fcnum ++;
-                    fcbufflen += fcnode->fc.siglen;
+                    fcbufflen += fcdata->siglen;
                     fcnode = fcnode->next;
                 }
             }

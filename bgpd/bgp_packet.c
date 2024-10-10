@@ -2047,53 +2047,58 @@ static int bgp_update_receive(struct peer *peer, bgp_size_t size)
 			nlri_ret = bgp_nlri_parse(peer, NLRI_ATTR_ARG,
 						  &nlris[i], 0);
 #else
-			nlri_ret = bgp_nlri_parse(peer, NLRI_ATTR_ARG,
+            nlri_ret = bgp_nlri_parse(peer, NLRI_ATTR_ARG,
 						  &nlris[i], 0, &fclist->ipprefix);
 
-            int j = 0, ret = 0, totallength = 0;
+            if (!fclist)
+            {
+                zlog_err("insert fclist failed: %s:%d", __func__, __LINE__);
+            }
+
+            int j = 0, totallength = 0;
             u32 local_asn = 0;
             char *bmbuff = calloc(FC_BUFF_SIZE, sizeof(char));
             int bmbufflen = 0;
-            FC_ht_node_prefix_t *node = NULL;
-            FC_ht_meta_asprefix_t meta_asprefix = {0};
-            FC_ht_node_asprefix_t *node_asprefix = NULL;
+            FC_ht_node_asprefix_t meta_asprefix = {0}, *node_asprefix = NULL;
 
             // 1. insert to htable
             meta_asprefix.asn = peer->as;
-            node_asprefix = htbl_meta_find(&g_fc_htbl_asprefix, &meta_asprefix);
+            node_asprefix = (FC_ht_node_asprefix_t *)
+                hash_lookup(bm->fc_config.fc_ht_asprefix, 
+				            &meta_asprefix);
             if (!node_asprefix) // if not exist, then create
             {
-                fc_hashtable_create(&meta_asprefix.htbl, &g_fc_htbl_prefix_ops);
-                node_asprefix = htbl_meta_insert(&g_fc_htbl_asprefix, &meta_asprefix, &ret);
+                node_asprefix = calloc(1, sizeof(FC_ht_node_asprefix_t));
+                node_asprefix->asn = peer->as;
+                node_asprefix->htbl = hash_create(fc_ht_prefix_hash_key,
+                                                  fc_ht_prefix_hash_cmp,
+                                                  "FC prefix Hashtable");
+                hash_get(bm->fc_config.fc_ht_asprefix,
+	 					 node_asprefix, hash_alloc_intern);
             }
-            node = htbl_meta_insert(&node_asprefix->htbl, fclist, &ret);
-            if (!node)
-            {
-                zlog_debug("htbl_meta_insert: %s:%d",
-                        __func__, __LINE__);
-            }
+            hash_get(node_asprefix->htbl, fclist, hash_alloc_intern);
 
             // 2. sent to fcserver
             // check:
-            //
-            zlog_debug("sent to fcs:, fclist-size: %d", fclist->size);
+            zlog_debug("sent to fcserver, fclist-size: %d", fclist->size);
             int check_flag = 1;
-            FC_node_t *fcnode = fclist->fcs;
-            for (j=0; j<fclist->size; ++j)
+            struct listnode *fcnode = NULL, *fcnextnode = NULL;
+            FC_t *fcdata = NULL;
+            void *data = NULL;
+            for (ALL_LIST_ELEMENTS(fclist->fcs, fcnode, fcnextnode, data))
             {
+                fcdata = (FC_t*)data;
                 zlog_debug("=>j: %d, pasn: %08X, casn: %08X, nasn: %08X",
-                        j, fcnode->fc.previous_asn,
-                        fcnode->fc.current_asn,
-                        fcnode->fc.nexthop_asn);
+                           j, fcdata->previous_asn,
+                           fcdata->current_asn,
+                           fcdata->nexthop_asn);
 
-                if (fcnode->fc.current_asn == peer->local_as)
+                if (fcdata->current_asn == peer->local_as)
                 {
                     check_flag = 0;
                     break;
                 }
-                fcnode = fcnode->next;
             }
-
 
             if (check_flag)
             {
