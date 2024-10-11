@@ -23,28 +23,54 @@ extern "C"
 #include <stdlib.h>
 
     static int
-    fc_bm_sent_to_peer(const char *addr, const FC_msg_bm_t *bm,
-                       unsigned char *buffer, int bufferlen)
+    fc_bm_sent_to_peer(const char *sockaddrstr,
+                       const FC_msg_bm_t *bm,
+                       unsigned char *buffer,
+                       int bufferlen)
     {
         int ret = 0;
         int sockfd = 0;
         int len = 0;
-        struct sockaddr_in sockaddr;
+        struct sockaddr sockaddr;
+        struct sockaddr_in *in4 = NULL;
+        struct sockaddr_in6 *in6 = NULL;
 
-        if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+        switch (g_fc_server.fcs_addr_type)
         {
-            DIAG_ERROR("socket(), %s\n", strerror(errno));
-            return -1;
+        case FC_FCS_ADDR_TYPE_V4:
+            in4 = (struct sockaddr_in *)&sockaddr;
+            if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+            {
+                DIAG_ERROR("socket(), %s\n", strerror(errno));
+                return -1;
+            }
+            in4->sin_family = AF_INET;
+            in4->sin_port = htons(g_fc_server.listen_port);
+            inet_pton(AF_INET, sockaddrstr, &(in4->sin_addr));
+            break;
+        case FC_FCS_ADDR_TYPE_V6:
+            in6 = (struct sockaddr_in6 *)&sockaddr;
+            if ((sockfd = socket(AF_INET6, SOCK_STREAM, 0)) < 0)
+            {
+                DIAG_ERROR("socket(), %s\n", strerror(errno));
+                return -1;
+            }
+            in6->sin6_family = AF_INET6;
+            in6->sin6_port = htons(g_fc_server.listen_port);
+            inet_pton(AF_INET6, sockaddrstr, &(in6->sin6_addr));
+            break;
+        default:
+            DIAG_ERROR("No such FCS Address Type: %d\n",
+                       g_fc_server.fcs_addr_type);
+            break;
         }
-        sockaddr.sin_family = AF_INET;
-        sockaddr.sin_port = htons(g_fc_server.listen_port);
-        inet_pton(AF_INET, addr, &sockaddr.sin_addr);
-        if ((ret = connect(sockfd, (struct sockaddr *)&sockaddr,
-                           sizeof(sockaddr))) < 0)
+
+        if ((ret = connect(sockfd, &sockaddr, sizeof(sockaddr))) < 0)
         {
             DIAG_ERROR("connect(), %s\n", strerror(errno));
             return -1;
         }
+
 
         while (len != bufferlen)
         {
@@ -67,12 +93,26 @@ extern "C"
 
         if (node)
         {
-            memcpy(ifaddr, node->acs.ipv4[0].ifaddr,
-                   strlen(node->acs.ipv4[0].ifaddr));
-            if (ifname)
+            switch (g_fc_server.fcs_addr_type)
             {
-                memcpy(ifname, node->acs.ipv4[0].ifname,
-                       strlen(node->acs.ipv4[0].ifname));
+            case FC_FCS_ADDR_TYPE_V4:
+                memcpy(ifaddr, node->acs.ipv4[0].ifaddr,
+                       strlen(node->acs.ipv4[0].ifaddr));
+                if (ifname)
+                {
+                    memcpy(ifname, node->acs.ipv4[0].ifname,
+                           strlen(node->acs.ipv4[0].ifname));
+                }
+                break;
+            case FC_FCS_ADDR_TYPE_V6:
+                memcpy(ifaddr, node->acs.ipv6[0].ifaddr,
+                       strlen(node->acs.ipv6[0].ifaddr));
+                if (ifname)
+                {
+                    memcpy(ifname, node->acs.ipv6[0].ifname,
+                           strlen(node->acs.ipv6[0].ifname));
+                }
+                break;
             }
             return 0;
         }
@@ -112,7 +152,8 @@ extern "C"
                     if (ret == 0)
                     {
                         DIAG_INFO("remote-acs addr: %s\n", ifaddr);
-                        fc_bm_sent_to_peer(ifaddr, bm, buffer, bufferlen);
+                        fc_bm_sent_to_peer(ifaddr,
+                                           bm, buffer, bufferlen);
                     }
                     else
                     {
@@ -127,7 +168,8 @@ extern "C"
                     if (ret == 0)
                     {
                         DIAG_INFO("remote-acs addr: %s\n", ifaddr);
-                        fc_bm_sent_to_peer(ifaddr, bm, buffer, bufferlen);
+                        fc_bm_sent_to_peer(ifaddr,
+                                           bm, buffer, bufferlen);
                     }
                     else
                     {

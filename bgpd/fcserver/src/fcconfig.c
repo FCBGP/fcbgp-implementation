@@ -246,6 +246,21 @@ fc_json_read_local_asn(const cJSON *const root)
 }
 
 static void
+fc_json_read_fcs_addr_type(const cJSON *const root)
+{
+    cJSON *elem = NULL;
+    elem = cJSON_GetObjectItem(root, "fc_fcs_addr_type");
+    g_fc_server.fcs_addr_type = FC_FCS_ADDR_TYPE_DEFAULT;
+    if (elem)
+    {
+        if (strcasecmp(elem->valuestring, "ipv6"))
+        {
+            g_fc_server.fcs_addr_type = FC_FCS_ADDR_TYPE_V6;
+        }
+    }
+}
+
+static void
 fc_json_read_fc_db_fname(const cJSON *const root)
 {
     cJSON *elem = NULL;
@@ -527,6 +542,7 @@ int fc_read_config(void)
     FC_ASSERT_RETP(root);
 
     // optional configurations which have default values
+    fc_json_read_fcs_addr_type(root);
     fc_json_read_fc_db_fname(root);
     fc_json_read_listen_port(root);
     fc_json_read_hash_algo_id(root);

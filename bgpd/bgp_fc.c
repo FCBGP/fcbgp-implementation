@@ -13,6 +13,8 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 
+FC_config_t fc_config = {0};
+
 /* UTILS */
 void fc_print_bin(const char *msg, void *data, int len)
 {
@@ -23,7 +25,7 @@ void fc_print_bin(const char *msg, void *data, int len)
     for (i = 0; i < len; ++i)
     {
         snprintf(pmsg + curlen, BUFSIZ,
-                 "%02X", *((u8*)data + i));
+                 "%02X", *((u8 *)data + i));
         curlen += 2;
         if ((i + 1) % 16 == 0)
         {
@@ -76,8 +78,8 @@ unsigned int fc_ht_prefix_hash_key(const void *data)
     ret = jhash_2words(msg->ipprefix.family,
                        msg->ipprefix.prefixlen,
                        0xdeadbeef);
-    for (i = 0; i < 4; ++i)
-        ret = jhash_2words(ret, msg->ipprefix.u.val32[i], 0xdeadbeef);
+    for (i = 0; i < 16; ++i)
+        ret = jhash_1word(ret, msg->ipprefix.u.val[i]);
     return ret;
 }
 
@@ -258,7 +260,7 @@ static int fc_set_hash_algo_id(const char *hash_algorithm,
 static int
 fc_json_read_config(struct bgp_master *bm)
 {
-    struct hash *ht = bm->fc_config.fc_ht_ski_ecpubkey;
+    struct hash *ht = fc_config.fc_ht_ski_ecpubkey;
     int i, as_num = 0, ret = 0;
     const char *fpath = NULL, *fname = NULL;
     char *fullpath = NULL;
@@ -277,11 +279,11 @@ fc_json_read_config(struct bgp_master *bm)
     jlisten_port = json_object_object_get(root, "listen_port");
     if (jlisten_port)
     {
-        bm->fc_config.fc_listen_port = json_object_get_int(jlisten_port);
+        fc_config.fc_listen_port = json_object_get_int(jlisten_port);
     }
     else
     {
-        bm->fc_config.fc_listen_port = FC_CFG_DEFAULT_LISTEN_PORT;
+        fc_config.fc_listen_port = FC_CFG_DEFAULT_LISTEN_PORT;
     }
 
     hash_algorithm = json_object_object_get(root, "hash_algorithm");
@@ -289,12 +291,12 @@ fc_json_read_config(struct bgp_master *bm)
     {
 
         const char *tmp_str = json_object_get_string(hash_algorithm);
-        fc_set_hash_algo_id(tmp_str, &bm->fc_config.hash_algorithm_id);
+        fc_set_hash_algo_id(tmp_str, &fc_config.hash_algorithm_id);
     }
     else
     {
         fc_set_hash_algo_id(FC_CFG_DEFAULT_HASH_ALGO,
-                            &bm->fc_config.hash_algorithm_id);
+                            &fc_config.hash_algorithm_id);
     }
 
     certs_location = json_object_object_get(root, "certs_location");
@@ -305,15 +307,15 @@ fc_json_read_config(struct bgp_master *bm)
     fullpath = fc_combine_path(fpath, fname);
     fc_read_eckey_from_filepath(fullpath,
                                 0,
-                                &bm->fc_config.prikey);
+                                &fc_config.prikey);
     free(fullpath);
 
     certificate_fname = json_object_object_get(root, "certificate_fname");
     fname = json_object_get_string(certificate_fname);
     fullpath = fc_combine_path(fpath, fname);
     ret = fc_get_ecpubkey_and_ski(0, fullpath,
-                                  &bm->fc_config.pubkey,
-                                  bm->fc_config.ski);
+                                  &fc_config.pubkey,
+                                  fc_config.ski);
     free(fullpath);
 
     as_info_list = json_object_object_get(root, "as_info_list");
@@ -520,7 +522,7 @@ fc_hash(const char *const msg, int msglen,
 {
     struct timespec sts = {0}, ets = {0};
     timespec_get(&sts, TIME_UTC);
-    switch (bm->fc_config.hash_algorithm_id)
+    switch (fc_config.hash_algorithm_id)
     {
     case FC_HASH_ALGO_SHA256:
         fc_sha256_encode(msg, msglen, digest, digestlen);
@@ -620,7 +622,7 @@ fc_send_packet_to_fcserver4(char *buff, int bufflen)
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
     sockaddr.sin_family = AF_INET;
-    sockaddr.sin_port = htons(bm->fc_config.fc_listen_port);
+    sockaddr.sin_port = htons(fc_config.fc_listen_port);
     inet_pton(AF_INET, "127.0.0.1", &sockaddr.sin_addr);
 
     ret = connect(sockfd, (struct sockaddr *)&sockaddr, sizeof(sockaddr));
@@ -653,7 +655,7 @@ fc_send_packet_to_fcserver6(char *buff, int bufflen)
     sockfd = socket(AF_INET6, SOCK_STREAM, 0);
 
     sockaddr.sin6_family = AF_INET6;
-    sockaddr.sin6_port = htons(bm->fc_config.fc_listen_port);
+    sockaddr.sin6_port = htons(fc_config.fc_listen_port);
     inet_pton(AF_INET6, "::1", &sockaddr.sin6_addr);
 
     ret = connect(sockfd, (struct sockaddr *)&sockaddr, sizeof(sockaddr));
@@ -694,10 +696,10 @@ int bgp_fc_init(struct bgp_master *bm)
 {
     int ret = 0;
 
-    bm->fc_config.fc_ht_asprefix = hash_create(fc_ht_asprefix_hash_key,
+    fc_config.fc_ht_asprefix = hash_create(fc_ht_asprefix_hash_key,
                                                fc_ht_asprefix_hash_cmp,
                                                "FC AS Prefix Hashtable");
-    bm->fc_config.fc_ht_ski_ecpubkey = hash_create(fc_ht_ski_eckey_hash_key,
+    fc_config.fc_ht_ski_ecpubkey = hash_create(fc_ht_ski_eckey_hash_key,
                                                    fc_ht_ski_eckey_hash_cmp,
                                                    "SKI --- EC public key");
     ret = fc_json_read_config(bm);

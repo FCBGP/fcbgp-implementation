@@ -1840,10 +1840,8 @@ static void bgp_refresh_stalepath_timer_expire(struct event *thread)
 static int bgp_update_receive(struct peer *peer, bgp_size_t size)
 {
 #ifdef USE_FC
-    char *fcbuff = malloc(FC_BUFF_SIZE);
-    memset(fcbuff, 0, FC_BUFF_SIZE);
-    FCList_t *fclist = malloc(sizeof(FCList_t));
-    memset(fclist, 0, sizeof(FCList_t));
+    char *fcbuff = calloc(1, FC_BUFF_SIZE);
+    FCList_t *fclist = calloc(1, sizeof(FCList_t));
 #endif
 	int ret, nlri_ret;
 	uint8_t *end;
@@ -2047,13 +2045,12 @@ static int bgp_update_receive(struct peer *peer, bgp_size_t size)
 			nlri_ret = bgp_nlri_parse(peer, NLRI_ATTR_ARG,
 						  &nlris[i], 0);
 #else
-            nlri_ret = bgp_nlri_parse(peer, NLRI_ATTR_ARG,
-						  &nlris[i], 0, &fclist->ipprefix);
-
             if (!fclist)
             {
-                zlog_err("insert fclist failed: %s:%d", __func__, __LINE__);
+                zlog_err("parse fclist failed: %s:%d", __func__, __LINE__);
             }
+            nlri_ret = bgp_nlri_parse(peer, NLRI_ATTR_ARG,
+						  &nlris[i], 0, &fclist->ipprefix);
 
             int j = 0, totallength = 0;
             u32 local_asn = 0;
@@ -2064,7 +2061,7 @@ static int bgp_update_receive(struct peer *peer, bgp_size_t size)
             // 1. insert to htable
             meta_asprefix.asn = peer->as;
             node_asprefix = (FC_ht_node_asprefix_t *)
-                hash_lookup(bm->fc_config.fc_ht_asprefix, 
+                hash_lookup(fc_config.fc_ht_asprefix, 
 				            &meta_asprefix);
             if (!node_asprefix) // if not exist, then create
             {
@@ -2073,7 +2070,7 @@ static int bgp_update_receive(struct peer *peer, bgp_size_t size)
                 node_asprefix->htbl = hash_create(fc_ht_prefix_hash_key,
                                                   fc_ht_prefix_hash_cmp,
                                                   "FC prefix Hashtable");
-                hash_get(bm->fc_config.fc_ht_asprefix,
+                hash_get(fc_config.fc_ht_asprefix,
 	 					 node_asprefix, hash_alloc_intern);
             }
             hash_get(node_asprefix->htbl, fclist, hash_alloc_intern);
@@ -2145,7 +2142,6 @@ static int bgp_update_receive(struct peer *peer, bgp_size_t size)
                 // find current bgp
                 struct listnode *currnode = NULL;
                 struct bgp *currbgp = NULL;
-
                 currnode = bm->bgp->head;
                 while (currnode != NULL)
                 {

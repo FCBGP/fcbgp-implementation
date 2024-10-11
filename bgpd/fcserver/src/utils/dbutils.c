@@ -166,9 +166,10 @@ fc_db_cb_get_one_bm(void *data, int argc, char **argv, char **azColName)
     }
 
     char *fclist_str = argv[13];
-    for (token = strtok(fclist_str, outer_delim), i = 0;
+    char *fclist_saveptr = NULL;
+    for (token = strtok_r(fclist_str, outer_delim, &fclist_saveptr), i = 0;
          token != NULL && i < fc_db_bm_ptr->fc_num;
-         token = strtok(NULL, outer_delim), i++)
+         token = strtok_r(NULL, outer_delim, &fclist_saveptr), i++)
     {
         char *fc_str = strdup(token);
         char *pasn = strtok(fc_str, asn_delim);

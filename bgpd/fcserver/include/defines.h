@@ -80,6 +80,13 @@ enum
 
 enum
 {
+    FC_FCS_ADDR_TYPE_DEFAULT = 0,
+    FC_FCS_ADDR_TYPE_V4 = 0,
+    FC_FCS_ADDR_TYPE_V6 = 1,
+};
+
+enum
+{
     FC_MSG_BASE = 0,
     FC_MSG_PUBKEY = 1, // pubkey information, not implement, from RPKI.
     FC_MSG_BGPD = 2,   // broadcast message from BGP router to FCS
@@ -367,7 +374,7 @@ typedef struct FC_server_s
     FC_router_info_t *routers;
     ht_acl_group_info_t *ht_acl_group_info;
 
-
+    int fcs_addr_type;
     char *fc_db_fname;
     char *config_fname;
     char *prikey_fname;

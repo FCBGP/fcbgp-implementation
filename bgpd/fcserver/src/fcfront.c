@@ -193,6 +193,17 @@ extern "C"
         printf("local asn: %u\n", g_fc_server.local_asn);
         printf("hash algorithm: %s\n", g_fc_server.hash_algorithm);
         printf("listen port: %d\n", g_fc_server.listen_port);
+
+        switch (g_fc_server.fcs_addr_type)
+        {
+        case FC_FCS_ADDR_TYPE_V4:
+            printf("fcs addr type: ipv4\n");
+            break;
+        case FC_FCS_ADDR_TYPE_V6:
+            printf("fcs addr type: ipv6\n");
+            break;
+        }
+
         printf("ASNs:\n");
         for (int i = 0; i < g_fc_server.asns_num; ++i)
         {

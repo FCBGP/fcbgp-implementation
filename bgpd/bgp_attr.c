@@ -4842,7 +4842,7 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
             current_asn  = htonl(current_asn);
             nexthop_asn  = htonl(nexthop_asn);
 
-            memcpy(fc.ski, bm->fc_config.ski, FC_SKI_LENGTH);
+            memcpy(fc.ski, fc_config.ski, FC_SKI_LENGTH);
 
             fc.algo_id = 0x01;
             fc.flags = 0x00;
@@ -4872,7 +4872,7 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
             fc_print_bin("------------msg-----------", msg, msglen);
 
             int ret = 0;
-            ret = fc_ecdsa_sign(bm->fc_config.prikey,
+            ret = fc_ecdsa_sign(fc_config.prikey,
                     msg, msglen, &sigbuff, &sigbufflen);
             if (ret != 0)
             {
@@ -4889,15 +4889,22 @@ bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer,
             fclist_sizep = stream_get_endp(s);
             stream_putw(s, 0);
 
-            meta_asprefix.asn = previous_asn;
+            meta_asprefix.asn = fc.previous_asn;
             node_asprefix = (FC_ht_node_asprefix_t *)
-								hash_lookup(bm->fc_config.fc_ht_asprefix,
+								hash_lookup(fc_config.fc_ht_asprefix,
                                             &meta_asprefix);
             if (node_asprefix)
             {
-                fclist = calloc(sizeof(FCList_t), 1);
-                memcpy(&fclist->ipprefix, prefix_for_fc, sizeof(struct prefix));
-                hash_get(node_asprefix->htbl, fclist, hash_alloc_intern);
+                FCList_t meta_fclist = {0};
+                memcpy(&meta_fclist.ipprefix, prefix_for_fc, sizeof(struct prefix));
+
+                fclist = (FCList_t *)hash_lookup(node_asprefix->htbl, &meta_fclist);
+				if (! fclist)
+				{
+	                fclist = calloc(sizeof(FCList_t), 1);
+	                memcpy(&fclist->ipprefix, prefix_for_fc, sizeof(struct prefix));
+	                hash_get(node_asprefix->htbl, fclist, hash_alloc_intern);
+                }
             }
             // current fc
             stream_putl(s, fc.previous_asn);

@@ -99,20 +99,6 @@ enum bgp_af_index {
 extern struct frr_pthread *bgp_pth_io;
 extern struct frr_pthread *bgp_pth_ka;
 
-#ifdef USE_FC
-	typedef struct FC_config_s
-	{
-	    int fc_listen_port;
-	    EC_KEY *prikey;
-	    EC_KEY *pubkey;
-	    uint8_t ski[20];
-	    int hash_algorithm_id;
-	    /* store the pubkey of each as */
-	    struct hash *fc_ht_ski_ecpubkey;
-	    /* store the update NLRI info of each as-path */
-	    struct hash *fc_ht_asprefix;
-	} FC_config_t;
-#endif
 
 /* BGP master for system wide configurations and variables.  */
 struct bgp_master {
@@ -188,10 +174,6 @@ struct bgp_master {
 	uint32_t outq_limit;
 
 	QOBJ_FIELDS;
-
-#ifdef USE_FC
-    FC_config_t fc_config;
-#endif // USE_FC
 };
 DECLARE_QOBJ_TYPE(bgp_master);
 

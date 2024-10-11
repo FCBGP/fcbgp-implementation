@@ -226,6 +226,21 @@ typedef struct FC_msg_bm_new_s
     u8 new_signature[80];
 } FC_msg_bm_new_t;
 
+typedef struct FC_config_s
+{
+    int fc_listen_port;
+    EC_KEY *prikey;
+    EC_KEY *pubkey;
+    uint8_t ski[20];
+    int hash_algorithm_id;
+    /* store the pubkey of each as */
+    struct hash *fc_ht_ski_ecpubkey;
+    /* store the update NLRI info of each as-path */
+    struct hash *fc_ht_asprefix;
+} FC_config_t;
+
+extern FC_config_t fc_config;
+
 /* SIG */
 extern int fc_read_eckey_from_file(int is_pub_key, EC_KEY **pkey);
 extern int fc_read_eckey_from_filepath(const char *file,

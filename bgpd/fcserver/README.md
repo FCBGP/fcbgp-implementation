@@ -40,6 +40,8 @@ $ git checkout v3.0.17
 $ mkdir build; cd build; cmake ..; make ; sudo make install
 
 # for python & ncclient
+# if your machine does't installed python3.10, but with other version
+# you may need to modify the Makefile
 $ sudo apt install python3.10 python3.10-dev python3-pip
 $ pip3 install ncclient
 ```
@@ -57,7 +59,8 @@ $ sudo chmod 777 /opt/log
 ## config.json
 
 - `local_asn`: The AS number of current bgp located.
-- `listen_port`: The listen port of FCServer. Default is `23160` if it is using wrong port or not set.
+- `listen_port`: Optional. The listen port of FCServer. Default is `23160` if it is using wrong port or not set.
+- `fc_fcs_addr_type`: Optional. The default addr type is `ipv4`. `ipv6` is also supported.
 - `hash_algorithm`: Specify HASH algorithm, including `SHA256`, `SHA1`, `MD5`, `CRC32`. Default is `SHA256`.
 - `log_mode`: For diaglib in fcserver. `debug`, `info`. Default is `info`.
 - `clear_fc_db`: `true` or `false`. Default is `true`. Clear the fc.db before running.
