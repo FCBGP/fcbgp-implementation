@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## 2024.10.11
+
+- [x] publish: v0.2.6
+- [x] refactor: remove all extra `libs` using `lib` instead and delete senderd in frr/bgpd
+- [x] fix: comparability and SKI obtaining for CentOS, and fclist withdrawn from ht
+- [x] add: `fcs_addr_type` for fcserver configuration
+
 ## 2024.09.14
 
 - [x] publish: v0.2.5
