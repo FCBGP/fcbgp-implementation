@@ -122,19 +122,19 @@ int fc_cfg_set_hash_algo_id(const char *const hash_algo_str)
     size = strlen(g_fc_server.hash_algorithm);
     fc_utils_str_toupper(g_fc_server.hash_algorithm, size);
 
-    if (strcmp(g_fc_server.hash_algorithm, "SHA256") == 0)
+    if (strcasecmp(g_fc_server.hash_algorithm, "SHA256") == 0)
     {
         g_fc_server.hash_algorithm_id = FC_HASH_ALGO_SHA256;
     }
-    else if (strcmp(g_fc_server.hash_algorithm, "SHA1") == 0)
+    else if (strcasecmp(g_fc_server.hash_algorithm, "SHA1") == 0)
     {
         g_fc_server.hash_algorithm_id = FC_HASH_ALGO_SHA1;
     }
-    else if (strcmp(g_fc_server.hash_algorithm, "CRC32") == 0)
+    else if (strcasecmp(g_fc_server.hash_algorithm, "CRC32") == 0)
     {
         g_fc_server.hash_algorithm_id = FC_HASH_ALGO_CRC32;
     }
-    else if (strcmp(g_fc_server.hash_algorithm, "MD5") == 0)
+    else if (strcasecmp(g_fc_server.hash_algorithm, "MD5") == 0)
     {
         g_fc_server.hash_algorithm_id = FC_HASH_ALGO_MD5;
     }
@@ -158,27 +158,27 @@ int fc_cfg_set_log_mode(const char *const log_mode_str)
     FC_ASSERT_RETP(modestr);
     fc_utils_str_toupper(modestr, size);
 
-    if (strcmp(modestr, "EMERGE") == 0)
+    if (strcasecmp(modestr, "EMERGE") == 0)
     {
         g_fc_server.log_level = FC_LOG_LEVEL_EMERG;
     }
-    else if (strcmp(modestr, "ERROR") == 0)
+    else if (strcasecmp(modestr, "ERROR") == 0)
     {
         g_fc_server.log_level = FC_LOG_LEVEL_ERROR;
     }
-    else if (strcmp(modestr, "WARNING") == 0)
+    else if (strcasecmp(modestr, "WARNING") == 0)
     {
         g_fc_server.log_level = FC_LOG_LEVEL_WARNING;
     }
-    else if (strcmp(modestr, "INFO") == 0)
+    else if (strcasecmp(modestr, "INFO") == 0)
     {
         g_fc_server.log_level = FC_LOG_LEVEL_INFO;
     }
-    else if (strcmp(modestr, "DEBUG"))
+    else if (strcasecmp(modestr, "DEBUG"))
     {
         g_fc_server.log_level = FC_LOG_LEVEL_DEBUG;
     }
-    else if (strcmp(modestr, "VERBOSE"))
+    else if (strcasecmp(modestr, "VERBOSE"))
     {
         g_fc_server.log_level = FC_LOG_LEVEL_VERBOSE;
     }
@@ -202,15 +202,15 @@ int fc_cfg_set_dp_mode(const char *const dp_mode_str)
     memcpy(modestr, dp_mode_str, size);
     fc_utils_str_toupper(modestr, size);
 
-    if (strcmp(modestr, "LINUX") == 0)
+    if (strcasecmp(modestr, "LINUX") == 0)
     {
         g_fc_server.use_data_plane = FC_DP_MODE_LINUX;
     }
-    else if (strcmp(modestr, "VPP") == 0)
+    else if (strcasecmp(modestr, "VPP") == 0)
     {
         g_fc_server.use_data_plane = FC_DP_MODE_VPP;
     }
-    else if (strcmp(modestr, "H3C") == 0)
+    else if (strcasecmp(modestr, "H3C") == 0)
     {
         g_fc_server.use_data_plane = FC_DP_MODE_H3C;
     }
@@ -253,7 +253,7 @@ fc_json_read_fcs_addr_type(const cJSON *const root)
     g_fc_server.fcs_addr_type = FC_FCS_ADDR_TYPE_DEFAULT;
     if (elem)
     {
-        if (strcasecmp(elem->valuestring, "ipv6"))
+        if (strcasecmp(elem->valuestring, "ipv6") == 0)
         {
             g_fc_server.fcs_addr_type = FC_FCS_ADDR_TYPE_V6;
         }
