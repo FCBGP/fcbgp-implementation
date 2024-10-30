@@ -26,7 +26,7 @@
 #define STR(x) #x
 #define FC_MAJOR_VERSION STR(0)
 #define FC_MINOR_VERSION STR(2)
-#define FC_PATCH_VERSION STR(6)
+#define FC_PATCH_VERSION STR(7)
 #define FC_PRJ_VERSION FC_MAJOR_VERSION "." FC_MINOR_VERSION "." FC_PATCH_VERSION
 #define FC_VERSION_STR "FC Server V" FC_PRJ_VERSION \
                        " compiled at " __DATE__ " " __TIME__ ""

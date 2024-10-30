@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## 2024.10.30
+
+- [x] publish: v0.2.7
+- [x] fix: fcs addr type ipv6
+
 ## 2024.10.11
 
 - [x] publish: v0.2.6
