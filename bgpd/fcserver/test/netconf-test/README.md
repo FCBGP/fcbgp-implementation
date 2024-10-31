@@ -4,7 +4,7 @@
 >
 > **Date**          Sep. 02, 2024
 >
-> **Description**   
+> **Description**
 
 [TOC]
 
@@ -13,6 +13,17 @@ netconf的测试，这个测试比较别扭。
 首先，将router的ip地址（config.json中写的就是）配置到本地。
 
 然后，启动libnetconf2的server。它的启动方式是在build/examples/server下直接启动即可。它使用的配置文件在源码examples下，需要修改其中的端口和host，一般改地址为::，端口为830即可。
+
+```sh
+sudo ./build/examples/server -u ./unix_socket
+```
+
+```json
+"tcp-server-parameters": {
+    "local-address": "::",
+        "local-port": 830
+}
+```
 
 然后，启动FCServer。
 
