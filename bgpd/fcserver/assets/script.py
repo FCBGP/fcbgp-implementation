@@ -59,7 +59,7 @@ def nc_exec(nconn, config_xml):
         logging.info(ret)
     except Exception as e:
         logging.error(e)
-    logging.info("*" * 25 + ' END ' + "*" * 25)
+    logging.info("*" * 25 + ' END ' + "*" * 25 + "\n\n")
 
 
 # acl [ipv6] advanecd 3999
@@ -183,7 +183,10 @@ def acl_v6_rule(nconn, group_index, rule_id, action,
 
 def acl_rule(nconn, group_type, group_index, rule_id,
              srcip, src_prefixlen, dstip, dst_prefixlen,
-             action=1, operation="merge"):  # action=1 for deny
+             action=1, operation="merge"):
+    """
+    action: 1 for deny, 2 for permit
+    """
     if group_type == 1:  # ipv4
         acl_v4_rule(nconn, group_index, rule_id, action,
                     srcip, src_prefixlen, dstip, dst_prefixlen, operation)
@@ -361,6 +364,42 @@ def acl_apply(nconn, group_type: int, group_index: int, iface_index: int,
     """
     nc_exec(nconn, config_xml)
 
+def h3c_acl(nconn, group_type, group_index, rule_id, 
+            srcip, src_prefixlen, dstip, dst_prefixlen,
+            action, operation,
+            iface_index, direction=1):
+    """
+    direction: 1 for in, 2 for out, 0 for both of offpath node
+    """
+    traffic_classifier_name = f'c{group_index}'
+    traffic_behavior_name = f'b{group_index}'
+    policy_name = f'p{group_index}'
+
+    acl_setup(nconn, group_type, group_index)
+
+    # offpath node is not need to permit traffic
+    if direction != 0: # onpath node
+        acl_rule(nconn, group_type, group_index, rule_id, 
+                 srcip, src_prefixlen, dstip, dst_prefixlen, 
+                 action, operation)
+
+    traffic_classifier(nconn, traffic_classifier_name)
+    acl_match(nconn, traffic_classifier_name, group_index, group_index, group_type)
+    traffic_behavior(nconn, traffic_behavior_name)
+    filter_deny(nconn, traffic_behavior_name, type=1)
+    qos_policy(nconn, policy_name, type=0)
+    classifier_behavior(nconn, policy_name,
+                        traffic_classifier_name,
+                        traffic_behavior_name, mode=0)
+    if direction == 0: # offpath node
+        for direction in [1, 2]:
+            qos_policy_apply(nconn, direction, policy_name, policy_type=0, preorder=1)
+            acl_apply(nconn, group_type, group_index, iface_index, direction)
+    else:
+        qos_policy_apply(nconn, direction, policy_name, policy_type=0, preorder=1)
+        acl_apply(nconn, group_type, group_index, iface_index, direction)
+    logging.info("#" * 30 + " H3C ACL DONE " + "#" * 30)
+
 
 def main():
     nconn = setup('2001:db8::1001')
@@ -369,16 +408,19 @@ def main():
         logging.info("*" * 50)
         mask = ipv4_prefix_to_mask("11.22.33.44", 23)
         logging.info(mask)
-        acl_setup(nconn, 1, 3900)
-        acl_rule(nconn, 1, 3900, 1, "11.22.33.44", 24, "44.33.22.11", 24)
-        traffic_classifier(nconn, 'c1')
-        acl_match(nconn, 'c1', 4294967295, 3900, ipversion=1)
-        traffic_behavior(nconn, 'b1')
-        filter_deny(nconn, 'b1', type=1)
-        qos_policy(nconn, 'p1', type=0)
-        classifier_behavior(nconn, 'p1', 'c1', 'b1', mode=0)
-        qos_policy_apply(nconn, 1, 'p1', policy_type=0, preorder=1)
-        acl_apply(nconn, 1, 3900, 12345678, 1)
+
+        h3c_acl(nconn, 1, 3900, 1, "11.22.33.44", 24, "44.33.22.11", 24, 
+                1, "merge", 12345678, 1)
+        # acl_setup(nconn, 1, 3900)
+        # acl_rule(nconn, 1, 3900, 1, "11.22.33.44", 24, "44.33.22.11", 24)
+        # traffic_classifier(nconn, 'c1')
+        # acl_match(nconn, 'c1', 4294967295, 3900, ipversion=1)
+        # traffic_behavior(nconn, 'b1')
+        # filter_deny(nconn, 'b1', type=1)
+        # qos_policy(nconn, 'p1', type=0)
+        # classifier_behavior(nconn, 'p1', 'c1', 'b1', mode=0)
+        # qos_policy_apply(nconn, 1, 'p1', policy_type=0, preorder=1)
+        # acl_apply(nconn, 1, 3900, 12345678, 1)
     finally:
         teardown(nconn)
 
