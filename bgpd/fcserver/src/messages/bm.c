@@ -31,33 +31,32 @@ extern "C"
         int ret = 0;
         int sockfd = 0;
         int len = 0;
-        struct sockaddr sockaddr;
-        struct sockaddr_in *in4 = NULL;
-        struct sockaddr_in6 *in6 = NULL;
+        struct sockaddr_in in4 = {0};
+        struct sockaddr_in6 in6 = {0};
 
         switch (g_fc_server.fcs_addr_type)
         {
         case FC_FCS_ADDR_TYPE_V4:
-            in4 = (struct sockaddr_in *)&sockaddr;
             if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
             {
                 DIAG_ERROR("socket(), %s\n", strerror(errno));
                 return -1;
             }
-            in4->sin_family = AF_INET;
-            in4->sin_port = htons(g_fc_server.listen_port);
-            inet_pton(AF_INET, sockaddrstr, &(in4->sin_addr));
+            in4.sin_family = AF_INET;
+            in4.sin_port = htons(g_fc_server.listen_port);
+            inet_pton(AF_INET, sockaddrstr, &(in4.sin_addr));
+            ret = connect(sockfd, (struct sockaddr*)&in4, sizeof(in4));
             break;
         case FC_FCS_ADDR_TYPE_V6:
-            in6 = (struct sockaddr_in6 *)&sockaddr;
             if ((sockfd = socket(AF_INET6, SOCK_STREAM, 0)) < 0)
             {
                 DIAG_ERROR("socket(), %s\n", strerror(errno));
                 return -1;
             }
-            in6->sin6_family = AF_INET6;
-            in6->sin6_port = htons(g_fc_server.listen_port);
-            inet_pton(AF_INET6, sockaddrstr, &(in6->sin6_addr));
+            in6.sin6_family = AF_INET6;
+            in6.sin6_port = htons(g_fc_server.listen_port);
+            inet_pton(AF_INET6, sockaddrstr, &(in6.sin6_addr));
+            ret = connect(sockfd, (struct sockaddr*)&in6, sizeof(in6));
             break;
         default:
             DIAG_ERROR("No such FCS Address Type: %d\n",
@@ -65,12 +64,11 @@ extern "C"
             break;
         }
 
-        if ((ret = connect(sockfd, &sockaddr, sizeof(sockaddr))) < 0)
+        if (ret < 0)
         {
             DIAG_ERROR("connect(), %s\n", strerror(errno));
             return -1;
         }
-
 
         while (len != bufferlen)
         {
