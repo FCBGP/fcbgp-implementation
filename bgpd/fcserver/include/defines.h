@@ -8,6 +8,7 @@
 #ifndef DEFINES_H
 #define DEFINES_H
 
+#include "config.h"
 #include "libdiag.h"
 #include "libhtable.h"
 #include "pyutils.h"
@@ -23,13 +24,10 @@
 #include <stdbool.h>
 #include <sys/epoll.h>
 
-#define STR(x) #x
-#define FC_MAJOR_VERSION STR(0)
-#define FC_MINOR_VERSION STR(2)
-#define FC_PATCH_VERSION STR(7)
-#define FC_PRJ_VERSION FC_MAJOR_VERSION "." FC_MINOR_VERSION "." FC_PATCH_VERSION
+#define FC_PRJ_VERSION FCS_VERSION_STRING
 #define FC_VERSION_STR "FC Server V" FC_PRJ_VERSION \
                        " compiled at " __DATE__ " " __TIME__ ""
+#define OPENSSL_VERSION_NEEDED "3.x"
 
 #define FC_BUFF_SIZE 1000007
 #define FC_BUFF_SIZE256 256

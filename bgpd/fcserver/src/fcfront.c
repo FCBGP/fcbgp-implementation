@@ -251,7 +251,8 @@ extern "C"
         fc_print_char_line(' ', "Home page: <https://gitee.com/basil1728/fcbgp-new>");
         fc_print_char_line(' ', "A private repository. Not avaliable without permission.");
         fc_print_char_line(' ', "Need help or report bugs please mailto: guoyangfei@zgclab.edu.cn");
-        fc_print_char_line(' ', "SSL_VERSION needed: " OPENSSL_VERSION_TEXT);
+        fc_print_char_line(' ', "OPENSSL_VERSION needed: " OPENSSL_VERSION_NEEDED);
+        fc_print_char_line(' ', "OPENSSL_VERSION current: " OPENSSL_VERSION_TEXT);
         fc_print_char_line('*', "");
     }
 

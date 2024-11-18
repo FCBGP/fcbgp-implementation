@@ -11,10 +11,12 @@ Release:        22.04
 Codename:       jammy
 ```
 
+It also can run on Ubuntu 20.04 and CentOS 8.
+
 ## 3rd-party libraries
 
 ```bash
-# for store Binding Messages
+# For storing Binding Messages
 $ sudo apt install sqlite3 libsqlite3-dev libjson-c-dev
 $ sqlite3 -version
 3.37.2 2022-01-06 13:25:41 872ba256cbf61d9290b571c0e6d82a20c224ca3ad82971edc46b29818d5dalt1
@@ -23,14 +25,14 @@ $ sqlite3 -version
 $ openssl version
 OpenSSL 3.0.2 15 Mar 2022 (Library: OpenSSL 3.0.2 15 Mar 2022)
 
-# for linux ACL rules
+# For linux ACL rules
 $ sudo apt install iptables nftables
 $ iptables --version
 iptables v1.8.7 (nf_tables)
 
-# for netconf
+# For netconf
 # [CESNET/libnetconf2](https://github.com/CESNET/libnetconf2)
-# this version v3.0.17 depends libyang v2.2.8, libssh-dev, openssl3.x
+# This version v3.0.17 depends libyang v2.2.8, libssh-dev, openssl3.x
 $ sudo apt install -y libssh-dev libpcre2-dev  libcurl4-gnutls-dev
 $ git clone https://github.com/CESNET/libyang.git
 $ git checkout v2.2.8
@@ -39,9 +41,10 @@ $ git clone https://github.com/CESNET/libnetconf2.git
 $ git checkout v3.0.17
 $ mkdir build; cd build; cmake ..; make ; sudo make install
 
-# for python & ncclient
-# if your machine does't installed python3.10, but with other version
-# you may need to modify the Makefile
+# For python & ncclient
+# This will be used in generating netconf configurations and sending them to routers.
+# If your machine does't installed python3.10 but with another python version,
+# don't worry! Only if you have python3.6+, you can use this python.
 $ sudo apt install python3.10 python3.10-dev python3-pip
 $ pip3 install ncclient
 ```
@@ -87,12 +90,12 @@ $ sudo chmod 777 /opt/log
 
 BGPd:
 
-- In `frr.conf`, every neighbor should be in separate groups.
+- In `frr.conf`, every neighbor should be in separate peer-groups for sending different BGP Updates.
 
 FCServer:
 
-- You need to modify the `local_asn` in `assets/config.json`.
-- `make setup` is needed after modification.
+- You need to modify the `local_asn` and other configurations in `assets/config.json`.
+- `make setup` is needed after modification or just modified the file `/etc/frr/asssets/config.json` directly.
 
 # compile
 
@@ -111,18 +114,28 @@ $ make
 $ sudo systemctl start/stop/restart/ frr
 ```
 
+We have switched the build system to `CMake`, but you can still use `make` to simplify the commands for building and running `fcserver`.
+
+If your OpenSSL library or other dependencies are installed in a non-standard location (i.e., a user-defined path), you may need to specify the path for CMake using the following command:
+
+```sh
+cmake -DCMAKE_PREFIX_PATH=/path/to/your/library ..
+```
+
+In this case, you cannot use `make` directly, but you can still run `make setup` to set the assets.
+
 # Data Plane
 
 ## Intro
 
-> We will try to distinguish different data planes with different values.
->
-> - `none`: Default. Don't generate data plane rules.
-> - `linux`: nftable/iptables
-> - `vpp`: FD.io VPP
-> - `h3c`: For H3C, netconf
+We will try to distinguish different data planes with different values.
 
-After asked teams, we have archived that:
+- `none`: Default. Don't generate data plane rules. In this case, only the control plane of FC-BGP in effect.
+- `linux`: nftable/iptables
+- `vpp`: FD.io VPP
+- `h3c`: For H3C, netconf
+
+After discussing with design teams, we have achieved that:
 
 1. if one node deploys fcbgp,
    1. for onpath node, traffic should be permitted only on the FC path;

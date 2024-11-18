@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## 2024.11.18
+
+- [x] publish: v0.2.8
+- [x] fix: fcs addr type ipv6 and connect() invalid arguments.
+- [x] feat: distribute ACL to h3c router with netconf in permit mode.
+- [x] update: Makefile -> CMakeLists.txt. We switched the build system from make to cmake.
+
 ## 2024.10.30
 
 - [x] publish: v0.2.7
