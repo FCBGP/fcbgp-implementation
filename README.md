@@ -12,6 +12,7 @@ Codename:       jammy
 ```
 
 It also can run on Ubuntu 20.04 and CentOS 8.
+Other OSes need to be tested.
 
 ## 3rd-party libraries
 
@@ -102,10 +103,14 @@ FCServer:
 
 # compile
 
+## FRR
+
+We use FRR 9.0.1. Refer to the official documents to build it first.
+
 ## FCServer
 
 ```bash
-$ cd {/path/to/frr}/bgpd/fcserver
+$ cd {/path/to/fcbgp-projects}/fcserver
 
 # Sets the assets (only need execute once if you don't change files in assets)
 $ make setup
