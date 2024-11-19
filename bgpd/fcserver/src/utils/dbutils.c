@@ -118,13 +118,15 @@ fc_db_cb_get_one_bm(void *data, int argc, char **argv, char **azColName)
     fc_db_bm_ptr->subversion = atoi(argv[10]);
 
     char *src_ip_prefix_str = argv[11];
+    char *src_ip_prefix_saveptr = NULL;
     struct sockaddr_in *sockaddr = NULL;
     struct sockaddr_in6 *sockaddr6 = NULL;
-    for (token = strtok(src_ip_prefix_str, outer_delim), i = 0;
+    for (token = strtok_r(src_ip_prefix_str, outer_delim, &src_ip_prefix_saveptr), i = 0;
          token != NULL && i < fc_db_bm_ptr->src_ip_num;
-         token = strtok(NULL, outer_delim), i++)
+         token = strtok_r(NULL, outer_delim, &src_ip_prefix_saveptr), i++)
     {
-        char *src_ip = strtok(token, inner_delim);
+        char *src_ip_str = strdup(token);
+        char *src_ip = strtok(src_ip_str, inner_delim);
         char *prefixlen = strtok(NULL, inner_delim);
         switch (fc_db_bm_ptr->ipversion)
         {
@@ -140,14 +142,17 @@ fc_db_cb_get_one_bm(void *data, int argc, char **argv, char **azColName)
             break;
         }
         fc_db_bm_ptr->src_ip[i].prefix_length = atoi(prefixlen);
+        free(src_ip_str);
     }
 
     char *dst_ip_prefix_str = argv[12];
-    for (token = strtok(dst_ip_prefix_str, outer_delim), i = 0;
+    char *dst_ip_prefix_saveptr = NULL;
+    for (token = strtok_r(dst_ip_prefix_str, outer_delim, &dst_ip_prefix_saveptr), i = 0;
          token != NULL && i < fc_db_bm_ptr->dst_ip_num;
-         token = strtok(NULL, outer_delim), i++)
+         token = strtok_r(NULL, outer_delim, &dst_ip_prefix_saveptr), i++)
     {
-        char *dst_ip = strtok(token, inner_delim);
+        char *dst_ip_str = strdup(token);
+        char *dst_ip = strtok(dst_ip_str, inner_delim);
         char *prefixlen = strtok(NULL, inner_delim);
         switch (fc_db_bm_ptr->ipversion)
         {
@@ -163,6 +168,7 @@ fc_db_cb_get_one_bm(void *data, int argc, char **argv, char **azColName)
             break;
         }
         fc_db_bm_ptr->dst_ip[i].prefix_length = atoi(prefixlen);
+        free(dst_ip_str);
     }
 
     char *fclist_str = argv[13];

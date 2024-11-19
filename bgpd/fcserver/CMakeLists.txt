@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.10)
 
-project(FCServer VERSION 0.2.8)
+project(FCServer VERSION 0.2.9)
 
 add_compile_options(-Wall)
 add_compile_options(-Wno-deprecated-declaration)

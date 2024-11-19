@@ -16,6 +16,9 @@ It also can run on Ubuntu 20.04 and CentOS 8.
 ## 3rd-party libraries
 
 ```bash
+# Basic dependencies
+$ sudo apt install -y make cmake build-essential
+
 # For storing Binding Messages
 $ sudo apt install sqlite3 libsqlite3-dev libjson-c-dev
 $ sqlite3 -version
