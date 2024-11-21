@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## 2024.11.21
+
+- [x] publish: v0.3.0
+- [x] refactor: fcserver is separated from bgpd
+
 ## 2024.11.18
 
 - [x] publish: v0.2.8

@@ -14,6 +14,6 @@ setup:
 	sudo chmod +r /etc/frr/assets/*.key
 
 clean:
-	@rm -f bin/*
+	@rm -rf build
 
 .PHONY: clean all build run setup

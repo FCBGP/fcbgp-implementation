@@ -1,12 +1,23 @@
 cmake_minimum_required(VERSION 3.10)
 
-project(FCServer VERSION 0.2.9)
-
-add_compile_options(-Wall)
-add_compile_options(-Wno-deprecated-declaration)
+project(FCServer VERSION 0.3.0 LANGUAGES C)
 
 configure_file("${PROJECT_SOURCE_DIR}/config/config.h.in"
     "${PROJECT_BINARY_DIR}/config/config.h")
+
+# configurations
+add_library(main_compiler_options INTERFACE)
+set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "Debug or Release")
+message(STATUS "CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
+if(CMAKE_BUILD_TYPE STREQUAL Debug)
+    target_compile_options(main_compiler_options INTERFACE -O0 -g -ggdb
+        -Wall -Wno-deprecated-declarations
+        )
+elseif(CMAKE_BUILD_TYPE STREQUAL Release)
+    target_compile_options(main_compiler_options INTERFACE -O3
+        -Wall -Wno-deprecated-declarations
+        )
+endif()
 
 # pkg-config
 find_package(PkgConfig REQUIRED)
@@ -85,9 +96,9 @@ target_include_directories(fcserver PRIVATE
     ${OPENSSL_INCLUDE_DIRS}
     )
 
-target_link_directories(fcserver PRIVATE)
 target_link_libraries(fcserver PRIVATE
     crypto sqlite3 m pthread
     ${Python3_LIBRARIES}
     ${OPENSSL_LIBRARIES}
+    main_compiler_options
     )
