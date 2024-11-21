@@ -103,7 +103,6 @@ FCServer:
 
 # compile
 
-I have written some helpful Makefile rules.
 Read `/path/to/fcbgp-project/Makefile` first, please.
 - The rules of compilation of FRR are started with `frr-`.
 - The rules of compilation of FCServer are started with `fcs`.
