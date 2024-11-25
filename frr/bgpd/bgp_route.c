@@ -89,6 +89,15 @@ DEFINE_HOOK(bgp_rpki_prefix_status,
 extern const char *bgp_origin_str[];
 extern const char *bgp_origin_long_str[];
 
+#ifdef USE_FC
+enum rpki_states fc_hook_call_bgp_rpki_prefix_status(struct peer *peer,
+                                                     struct attr *attr,
+                                                     const struct prefix *prefix)
+{
+    return hook_call(bgp_rpki_prefix_status, peer, attr, prefix);
+}
+#endif
+
 /* PMSI strings. */
 #define PMSI_TNLTYPE_STR_NO_INFO "No info"
 #define PMSI_TNLTYPE_STR_DEFAULT PMSI_TNLTYPE_STR_NO_INFO

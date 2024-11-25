@@ -714,6 +714,10 @@ extern void bgp_path_info_path_with_addpath_rx_str(struct bgp_path_info *pi,
 #ifndef USE_FC
 extern int bgp_nlri_parse_ip(struct peer *, struct attr *, struct bgp_nlri *);
 #else
+extern enum rpki_states
+fc_hook_call_bgp_rpki_prefix_status(struct peer *peer,
+                                    struct attr *attr,
+                                    const struct prefix *prefix);
 extern int bgp_nlri_parse_ip(struct peer *, struct attr *, struct bgp_nlri *,
         struct prefix *ipprefix);
 #endif

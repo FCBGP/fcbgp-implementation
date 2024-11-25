@@ -2052,6 +2052,27 @@ static int bgp_update_receive(struct peer *peer, bgp_size_t size)
             nlri_ret = bgp_nlri_parse(peer, NLRI_ATTR_ARG,
 						  &nlris[i], 0, &fclist->ipprefix);
 
+            // rpki rov
+            enum rpki_states rpki_state = RPKI_NOT_BEING_USED;
+            rpki_state =
+                fc_hook_call_bgp_rpki_prefix_status(peer, &attr, &fclist->ipprefix);
+            if (rpki_state == RPKI_INVALID)
+            {
+                char ipprefixstr[INET6_ADDRSTRLEN] = {0};
+                if (fclist->ipprefix.family == AF_INET)
+                {
+                    inet_ntop(AF_INET, &fclist->ipprefix.u.prefix4,
+                              ipprefixstr, sizeof(ipprefixstr));
+                }
+                else if (fclist->ipprefix.family == AF_INET6)
+                {
+                    inet_ntop(AF_INET6, &fclist->ipprefix.u.prefix6,
+                              ipprefixstr, sizeof(ipprefixstr));
+                }
+                zlog_debug("prefix: %s is RPKI_INVALID", ipprefixstr);
+                break;
+            }
+
             int j = 0, totallength = 0;
             u32 local_asn = 0;
             char *bmbuff = calloc(FC_BUFF_SIZE, sizeof(char));
@@ -2061,7 +2082,7 @@ static int bgp_update_receive(struct peer *peer, bgp_size_t size)
             // 1. insert to htable
             meta_asprefix.asn = peer->as;
             node_asprefix = (FC_ht_node_asprefix_t *)
-                hash_lookup(fc_config.fc_ht_asprefix, 
+                hash_lookup(fc_config.fc_ht_asprefix,
 				            &meta_asprefix);
             if (!node_asprefix) // if not exist, then create
             {
