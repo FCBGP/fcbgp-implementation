@@ -5,6 +5,14 @@ FRRDIR ?= $(shell pwd)/frr
 # It generated the debug version of FCServer and FRR.
 all: fcs-build frr-build
 
+# create group and user
+frr-setup:
+	groupadd -r -g 92 frr
+	groupadd -r -g 85 frrvty
+	adduser --system --ingroup frr --home /var/run/frr/ \
+		   --gecos "FRR suite" --shell /sbin/nologin frr
+	usermod -a -G frrvty frr
+
 # bootstrap, common procedure of autotools
 frr-bootstrap:
 	cd ${FRRDIR}; ./bootstrap.sh
@@ -32,7 +40,6 @@ frr-config:
 		--enable-rpki \
 		--disable-babeld \
 		--disable-doc \
-		--disable-mpls \
 		--disable-eigrpd \
 		--disable-fabricd \
 		--disable-isisd \
