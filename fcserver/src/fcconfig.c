@@ -487,38 +487,47 @@ static int fc_json_read_as_info_list(const cJSON *const root)
         }
         FC_MEM_FREE(fpath);
 
-        g_fc_server.nics_num = cJSON_GetArraySize(nics);
-        for (j = 0; j < g_fc_server.nics_num; ++j)
+        if (nics)
         {
-            elem = cJSON_GetArrayItem(nics, j);
-            memcpy(g_fc_server.nics[j], elem->valuestring,
-                   strlen(elem->valuestring));
+            g_fc_server.nics_num = cJSON_GetArraySize(nics);
+            for (j = 0; j < g_fc_server.nics_num; ++j)
+            {
+                elem = cJSON_GetArrayItem(nics, j);
+                memcpy(g_fc_server.nics[j], elem->valuestring,
+                       strlen(elem->valuestring));
+            }
         }
 
         ipv4 = cJSON_GetObjectItem(acs, "ipv4");
-        meta.acs.ipv4_num = cJSON_GetArraySize(ipv4);
-        for (j = 0; j < meta.acs.ipv4_num; ++j)
+        if (ipv4)
         {
-            elem = cJSON_GetArrayItem(ipv4, j);
-            ifaddr = cJSON_GetObjectItem(elem, "ifaddr");
-            ifname = cJSON_GetObjectItem(elem, "ifname");
-            memcpy(meta.acs.ipv4[j].ifaddr, ifaddr->valuestring,
-                   strlen(ifaddr->valuestring));
-            memcpy(meta.acs.ipv4[j].ifname, ifname->valuestring,
-                   strlen(ifname->valuestring));
+            meta.acs.ipv4_num = cJSON_GetArraySize(ipv4);
+            for (j = 0; j < meta.acs.ipv4_num; ++j)
+            {
+                elem = cJSON_GetArrayItem(ipv4, j);
+                ifaddr = cJSON_GetObjectItem(elem, "ifaddr");
+                ifname = cJSON_GetObjectItem(elem, "ifname");
+                memcpy(meta.acs.ipv4[j].ifaddr, ifaddr->valuestring,
+                       strlen(ifaddr->valuestring));
+                memcpy(meta.acs.ipv4[j].ifname, ifname->valuestring,
+                       strlen(ifname->valuestring));
+            }
         }
 
         ipv6 = cJSON_GetObjectItem(acs, "ipv6");
-        meta.acs.ipv6_num = cJSON_GetArraySize(ipv6);
-        for (j = 0; j < meta.acs.ipv6_num; ++j)
+        if (ipv6)
         {
-            elem = cJSON_GetArrayItem(ipv6, j);
-            ifaddr = cJSON_GetObjectItem(elem, "ifaddr");
-            ifname = cJSON_GetObjectItem(elem, "ifname");
-            memcpy(meta.acs.ipv6[j].ifaddr, ifaddr->valuestring,
-                   strlen(ifaddr->valuestring));
-            memcpy(meta.acs.ipv6[j].ifname, ifname->valuestring,
-                   strlen(ifname->valuestring));
+            meta.acs.ipv6_num = cJSON_GetArraySize(ipv6);
+            for (j = 0; j < meta.acs.ipv6_num; ++j)
+            {
+                elem = cJSON_GetArrayItem(ipv6, j);
+                ifaddr = cJSON_GetObjectItem(elem, "ifaddr");
+                ifname = cJSON_GetObjectItem(elem, "ifname");
+                memcpy(meta.acs.ipv6[j].ifaddr, ifaddr->valuestring,
+                       strlen(ifaddr->valuestring));
+                memcpy(meta.acs.ipv6[j].ifname, ifname->valuestring,
+                       strlen(ifname->valuestring));
+            }
         }
 
         g_fc_server.asns[i] = meta.asn;

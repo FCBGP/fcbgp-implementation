@@ -5,6 +5,8 @@
 - [x] publish: v0.3.0
 - [x] refactor: fcserver is separated from bgpd
 - [x] fix: wrong ip prefix display when analyzing BMs
+- [x] rm: frr/bgpd/FCMakefile, frr/bgpd/run.sh
+- [x] feat: work with rpki-rov. Sent BMs after RPKI ROV validated.
 
 ## 2024.11.18
 

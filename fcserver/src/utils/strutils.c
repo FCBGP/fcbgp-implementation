@@ -22,6 +22,7 @@ extern "C"
 #include <string.h>
     /**
      * If the user forgets to remove the tail '/', we need to properly accept that.
+     * Well it does not need to distinguish the path whether ends with '/'
      * @param path      path
      * @param filename  filename
      * @return          Return the combined fullpath
@@ -41,11 +42,7 @@ extern "C"
         memset(combined_path, 0, combined_len);
 
         memcpy(combined_path, path, strlen(path));
-        if (path_len > 0 && path[path_len - 1] != '/')
-        {
-            strcat(combined_path, "/");
-        }
-
+        strcat(combined_path, "/");
         strcat(combined_path, filename);
 
         return combined_path;
