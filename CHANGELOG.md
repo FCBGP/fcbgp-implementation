@@ -1,12 +1,16 @@
 # CHANGELOG
 
-## 2024.11.21
+## 2024.11.29
 
 - [x] publish: v0.3.0
 - [x] refactor: fcserver is separated from bgpd
 - [x] fix: wrong ip prefix display when analyzing BMs
+- [x] fix: stack smashing when lots of bm sent from bgpd.
 - [x] rm: frr/bgpd/FCMakefile, frr/bgpd/run.sh
 - [x] feat: work with rpki-rov. Sent BMs after RPKI ROV validated.
+- [x] update: sent BM from bgpd to fcserver using pthread.
+- [x] update: It can quit when query bm from fcserver's frontend.
+- [ ] bug: this cannot interoperable with H3C's router, we will replace frr with a newer version. So this will be the last version with frr9.0.1g
 
 ## 2024.11.18
 
