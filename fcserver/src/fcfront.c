@@ -94,9 +94,10 @@ extern "C"
                    acl_rule_info->dprefixlen);
         }
 
-        printf("Press Enter to continue...\n");
-        getchar();
-        return 0;
+        printf("Press Enter to continue or q to quit...\n");
+
+        // 0 for enter, 1 for quit
+        return getchar();
     }
 
     void fc_cmd_acl(void)
@@ -104,9 +105,13 @@ extern "C"
         ht_acl_group_info_t *acl_group_info = NULL, *tmp = NULL;
         HASH_ITER(hh, g_fc_server.ht_acl_group_info, acl_group_info, tmp)
         {
-            fc_acl_rule_iterator_handler(&acl_group_info->iface_index,
-                                         acl_group_info,
-                                         NULL);
+            int ret = fc_acl_rule_iterator_handler(&acl_group_info->iface_index,
+                                                   acl_group_info,
+                                                   NULL);
+            if (ret == 'q')
+            {
+                break;
+            }
         }
     }
 
@@ -117,6 +122,11 @@ extern "C"
         struct sockaddr_in6 *sockaddr6 = NULL;
         FC_msg_bm_t *bm = NULL;
         FC_msg_bm_t *bms = fc_db_read_bms(&bm_nums);
+
+        if (bm_nums == 0)
+        {
+            printf("There is no Binding Messages\n");
+        }
 
         for (i = 0, bm = &bms[i];
              i < bm_nums;
@@ -174,8 +184,12 @@ extern "C"
 
             if ((i + 1) % 2 == 0 && (i + 1) != bm_nums)
             {
-                printf("Press Enter to continue...\n");
-                getchar();
+                printf("Press Enter to continue or q to quit...\n");
+                char ch = getchar();
+                if (ch == 'q')
+                {
+                    break;
+                }
             }
         }
 
