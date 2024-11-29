@@ -12,6 +12,7 @@
 #include <json-c/json.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
+#include <pthread.h>
 
 FC_config_t fc_config = {0};
 
@@ -677,19 +678,44 @@ fc_send_packet_to_fcserver6(char *buff, int bufflen)
     return 0;
 }
 
-int fc_send_packet_to_fcserver(u8 ipversion, char *buff, int bufflen)
+typedef struct fc_sock_args_st
+{
+    u8 ipversion;
+    char *buff;
+    int bufflen;
+} fc_sock_args_t;
+
+static void *
+fc_send_packet_to_fcserver_worker(void *args)
 {
     int ret = 0;
-    if (ipversion == IPV4)
-    {
-        ret = fc_send_packet_to_fcserver4(buff, bufflen);
-    }
-    else if (ipversion == IPV6)
-    {
-        ret = fc_send_packet_to_fcserver6(buff, bufflen);
-    }
+    fc_sock_args_t *sock_args = (fc_sock_args_t *)args;
 
-    return ret;
+    if (sock_args->ipversion == IPV4)
+    {
+        ret = fc_send_packet_to_fcserver4(sock_args->buff,
+                                          sock_args->bufflen);
+    }
+    else if (sock_args->ipversion == IPV6)
+    {
+        ret = fc_send_packet_to_fcserver6(
+                                          sock_args->buff,
+                                          sock_args->bufflen);
+    }
+    return NULL;
+}
+
+int fc_send_packet_to_fcserver(u8 ipversion, char *buff, int bufflen)
+{
+    pthread_t thread = 0;
+    fc_sock_args_t sock_args = {
+        .ipversion = ipversion,
+        .buff = buff,
+        .bufflen = bufflen
+    };
+    pthread_create(&thread, NULL, fc_send_packet_to_fcserver_worker, &sock_args);
+
+    return 0;
 }
 
 int bgp_fc_init(struct bgp_master *bm)
