@@ -28,6 +28,7 @@
 #include "hashutils.h"
 
 #define fc_error_foreach_server       \
+    _(SYS_MEM, "memory alloc")        \
     _(SOCK_SOCKET, "socket()")        \
     _(SOCK_OPT, "setsockopt()")       \
     _(SOCK_BIND, "bind()")            \
@@ -208,14 +209,24 @@ fc_mlp_server_epoll_conn()
 }
 
 static int
-fc_mlp_server_epoll_recv(int fd, char *buff,
-                         int buffsize, int *recvlen, int *done)
+fc_mlp_server_epoll_recv(int fd, char **buff,
+                         int *buffsize, int *recvlen, int *done)
 {
     int total = 0, count = 0, flags = 0;
+    u16 fc_msg_len = 0;
 
-    while (1)
+    *buff = malloc(FC_BUFF_SIZE); // the initial buffer size
+    if (*buff == NULL)
     {
-        count = recv(fd, buff + total, buffsize, flags);
+        perror("Failed to allocate memory");
+        return FC_ERR_SERVER_SYS_MEM;
+    }
+    *buffsize = FC_BUFF_SIZE;
+
+    while (*done == 0)
+    {
+        // 4B header
+        count = recv(fd, *buff + total, FC_HDR_GENERAL_LENGTH, flags);
         if (count < 0)
         {
             /* if errno == EAGAIN, that means we have read all data.
@@ -233,8 +244,54 @@ fc_mlp_server_epoll_recv(int fd, char *buff,
             *done = 1;
             break;
         }
-
         total += count;
+
+        // fc msg length
+        memcpy(&fc_msg_len, *buff+total+2, 2);
+        fc_msg_len = ntohs(fc_msg_len);
+
+        // memory realloc
+        if (fc_msg_len >= *buffsize - total)
+        {
+            int new_buffsize = total + fc_msg_len + FC_HDR_GENERAL_LENGTH + 1;
+            char *new_buff = realloc(*buff, new_buffsize);
+            if (new_buff == NULL)
+            {
+                perror("Failed to allocate memory");
+                free(*buff);
+                *buff = NULL;
+                return FC_ERR_SERVER_SYS_MEM;
+            }
+            *buff = new_buff;
+            *buffsize = new_buffsize;
+        }
+
+        // fc message
+        count = 0;
+        while (fc_msg_len != 0)
+        {
+            count = recv(fd, *buff + total, fc_msg_len, flags);
+            if (count < 0)
+            {
+                /* if errno == EAGAIN, that means we have read all data.
+                 * so go back to the main loop. */
+                if (errno != EAGAIN)
+                {
+                    DIAG_ERROR("read(), %s\n", strerror(errno));
+                    *done = 1;
+                }
+                break;
+            }
+            else if (count == 0)
+            {
+                /* EOF. The remote has closed the connection. */
+                *done = 1;
+                break;
+            }
+
+            total += count;
+            fc_msg_len -= count;
+        }
     }
 
     struct sockaddr_in6 peer_sockaddr = {0};
@@ -312,10 +369,11 @@ fc_mlp_server_epoll()
                  * we must read whatever data is available completely,
                  * as we are running in edge-triggered mode
                  * and won't get a notification again for the same data */
-                char buff[FC_BUFF_SIZE] = {0};
+                char *buff = NULL;
+                int bufflen = 0;
                 int recvlen = 0, done = 0;
-                ret = fc_mlp_server_epoll_recv(events[i].data.fd, buff,
-                                               FC_BUFF_SIZE, &recvlen, &done);
+                ret = fc_mlp_server_epoll_recv(events[i].data.fd, &buff,
+                                               &bufflen, &recvlen, &done);
                 if (ret != FC_ERR_SERVER_NOERR)
                 {
                     return ret;
@@ -324,7 +382,10 @@ fc_mlp_server_epoll()
                 // process the data
                 DIAG_INFO("fd: %d, recvlen: %d\n",
                           events[i].data.fd, recvlen);
-                fc_server_handler(events[i].data.fd, buff, FC_BUFF_SIZE, recvlen);
+                fc_server_handler(events[i].data.fd, buff, bufflen, recvlen);
+
+                // release the buffer
+                free(buff);
 
                 if (done)
                 {

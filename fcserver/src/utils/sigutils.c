@@ -366,7 +366,7 @@ int fc_ecdsa_verify(EC_KEY *pubkey, const unsigned char *const msg, int msglen,
     DIAG_INFO("\n------------msg-----------------------------msglen: %d\n",
               msglen);
 
-    char tmp[1024];
+    char tmp[BUFSIZ];
     int tmplen = sizeof(tmp), tmpcurlen = 0;
     memset(tmp, 0, tmplen);
     for (i = 0; i < msglen; i++)

@@ -215,7 +215,7 @@ FC_msg_bm_t *fc_db_read_bms(int *bmnum)
         while (fc_db_total_bm_num-- > 0)
         {
             fc_db_bm_ptr = &pbm[fc_db_total_bm_num];
-            char sql[1024] = {0};
+            char sql[BUFSIZ] = {0};
             sprintf(sql, sql_template, fc_db_total_bm_num);
             rc = sqlite3_exec(g_fc_server.db, sql, fc_db_cb_get_one_bm, 0, &errMsg);
             if (rc != SQLITE_OK)
@@ -455,7 +455,7 @@ void fc_db_init(sqlite3 **db)
                  "signature VARCHAR NOT NULL)");
     DIAG_INFO("sql: %s\n", sql);
     fc_db_exec(*db, sql, NULL, NULL);
-    // bzero(sql, 1024);
+    // bzero(sql, sizeof(sql));
     // sprintf(sql, "DELETE FROM relation WHERE asn = %u", asn);
     // fc_db_exec(*db, sql, NULL, NULL);
 }
