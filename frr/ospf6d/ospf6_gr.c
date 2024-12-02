@@ -16,6 +16,7 @@
 #include "printfrr.h"
 #include "lib_errors.h"
 
+#include "ospf6_proto.h"
 #include "ospf6d/ospf6_lsa.h"
 #include "ospf6d/ospf6_lsdb.h"
 #include "ospf6d/ospf6_route.h"
@@ -30,6 +31,7 @@
 #include "ospf6d/ospf6_flood.h"
 #include "ospf6d/ospf6_intra.h"
 #include "ospf6d/ospf6_spf.h"
+#include "ospf6d/ospf6_tlv.h"
 #include "ospf6d/ospf6_gr.h"
 #include "ospf6d/ospf6_gr_clippy.c"
 
@@ -54,18 +56,17 @@ static int ospf6_gr_lsa_originate(struct ospf6_interface *oi,
 	/* prepare buffer */
 	memset(buffer, 0, sizeof(buffer));
 	lsa_header = (struct ospf6_lsa_header *)buffer;
-	grace_lsa =
-		(struct ospf6_grace_lsa *)((caddr_t)lsa_header
-					   + sizeof(struct ospf6_lsa_header));
+	grace_lsa = lsa_after_header(lsa_header);
 
 	/* Put grace period. */
-	grace_lsa->tlv_period.header.type = htons(GRACE_PERIOD_TYPE);
-	grace_lsa->tlv_period.header.length = htons(GRACE_PERIOD_LENGTH);
+	grace_lsa->tlv_period.header.type = htons(TLV_GRACE_PERIOD_TYPE);
+	grace_lsa->tlv_period.header.length = htons(TLV_GRACE_PERIOD_LENGTH);
 	grace_lsa->tlv_period.interval = htonl(gr_info->grace_period);
 
 	/* Put restart reason. */
-	grace_lsa->tlv_reason.header.type = htons(RESTART_REASON_TYPE);
-	grace_lsa->tlv_reason.header.length = htons(RESTART_REASON_LENGTH);
+	grace_lsa->tlv_reason.header.type = htons(TLV_GRACE_RESTART_REASON_TYPE);
+	grace_lsa->tlv_reason.header.length =
+		htons(TLV_GRACE_RESTART_REASON_LENGTH);
 	grace_lsa->tlv_reason.reason = reason;
 
 	/* Fill LSA Header */
@@ -294,7 +295,7 @@ static int ospf6_router_lsa_contains_adj(struct ospf6_area *area,
 				continue;
 
 			if (lsdesc->neighbor_router_id == neighbor_router_id) {
-				ospf6_lsa_unlock(lsa);
+				ospf6_lsa_unlock(&lsa);
 				return RTR_LSA_ADJ_FOUND;
 			}
 		}
@@ -514,7 +515,7 @@ static bool ospf6_gr_check_adjs(struct ospf6 *ospf6)
 					   lsa_self)) {
 			found = true;
 			if (!ospf6_gr_check_adjs_lsa(area, lsa_self)) {
-				ospf6_lsa_unlock(lsa_self);
+				ospf6_lsa_unlock(&lsa_self);
 				return false;
 			}
 		}
@@ -561,9 +562,7 @@ static void ospf6_gr_nvm_update(struct ospf6 *ospf6, bool prepare)
 
 	inst_name = ospf6->name ? ospf6->name : VRF_DEFAULT_NAME;
 
-	json = json_object_from_file((char *)OSPF6D_GR_STATE);
-	if (json == NULL)
-		json = json_object_new_object();
+	json = frr_daemon_state_load();
 
 	json_object_object_get_ex(json, "instances", &json_instances);
 	if (!json_instances) {
@@ -591,9 +590,7 @@ static void ospf6_gr_nvm_update(struct ospf6 *ospf6, bool prepare)
 		json_object_int_add(json_instance, "timestamp",
 				    time(NULL) + ospf6->gr_info.grace_period);
 
-	json_object_to_file_ext((char *)OSPF6D_GR_STATE, json,
-				JSON_C_TO_STRING_PRETTY);
-	json_object_free(json);
+	frr_daemon_state_save(&json);
 }
 
 /*
@@ -608,9 +605,7 @@ void ospf6_gr_nvm_delete(struct ospf6 *ospf6)
 
 	inst_name = ospf6->name ? ospf6->name : VRF_DEFAULT_NAME;
 
-	json = json_object_from_file((char *)OSPF6D_GR_STATE);
-	if (json == NULL)
-		json = json_object_new_object();
+	json = frr_daemon_state_load();
 
 	json_object_object_get_ex(json, "instances", &json_instances);
 	if (!json_instances) {
@@ -620,9 +615,7 @@ void ospf6_gr_nvm_delete(struct ospf6 *ospf6)
 
 	json_object_object_del(json_instances, inst_name);
 
-	json_object_to_file_ext((char *)OSPF6D_GR_STATE, json,
-				JSON_C_TO_STRING_PRETTY);
-	json_object_free(json);
+	frr_daemon_state_save(&json);
 }
 
 /*
@@ -641,9 +634,7 @@ void ospf6_gr_nvm_read(struct ospf6 *ospf6)
 
 	inst_name = ospf6->name ? ospf6->name : VRF_DEFAULT_NAME;
 
-	json = json_object_from_file((char *)OSPF6D_GR_STATE);
-	if (json == NULL)
-		json = json_object_new_object();
+	json = frr_daemon_state_load();
 
 	json_object_object_get_ex(json, "instances", &json_instances);
 	if (!json_instances) {
@@ -687,11 +678,10 @@ void ospf6_gr_nvm_read(struct ospf6 *ospf6)
 					       ospf6->gr_info.grace_period);
 	}
 
-	json_object_object_del(json_instances, inst_name);
+	json_object_object_del(json_instance, "gracePeriod");
+	json_object_object_del(json_instance, "timestamp");
 
-	json_object_to_file_ext((char *)OSPF6D_GR_STATE, json,
-				JSON_C_TO_STRING_PRETTY);
-	json_object_free(json);
+	frr_daemon_state_save(&json);
 }
 
 void ospf6_gr_unplanned_start_interface(struct ospf6_interface *oi)

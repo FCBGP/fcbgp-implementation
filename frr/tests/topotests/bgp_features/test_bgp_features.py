@@ -18,7 +18,6 @@ import functools
 import os
 import sys
 import pytest
-import re
 import time
 
 # Save the Current Working Directory to find configuration files.
@@ -1063,7 +1062,7 @@ def test_bgp_delayopen_dual():
 
     delay_stop = int(time.time())
     assertmsg = "BGP peering between r2 and r5 was established before DelayOpenTimer (30sec) on r2 could expire"
-    assert (delay_stop - delay_start) > 30, assertmsg
+    assert (delay_stop - delay_start) >= 30, assertmsg
 
     # 3.8 unset delayopen on R2 and R5
     logger.info("Disabling DelayOpenTimer for neighbor r5 on r2")

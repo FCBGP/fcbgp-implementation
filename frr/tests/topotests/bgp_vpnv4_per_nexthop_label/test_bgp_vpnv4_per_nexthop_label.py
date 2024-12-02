@@ -151,7 +151,28 @@ def teardown_module(_mod):
     tgen.stop_topology()
 
 
-def bgp_vpnv4_table_check(router, group, label_list=None, label_value_expected=None):
+def check_bgp_vpnv4_prefix_presence(router, prefix, table_version):
+    "Check the presence of a prefix"
+    tgen = get_topogen()
+
+    dump = router.vtysh_cmd("show bgp ipv4 vpn {} json".format(prefix), isjson=True)
+    if not dump:
+        return "{}, prefix ipv4 vpn {} is not installed yet".format(router.name, prefix)
+
+    for _, paths in dump.items():
+        for path in paths["paths"]:
+            new_version = path["version"]
+        if new_version <= table_version:
+            return "{}, prefix ipv4 vpn {} has not been updated yet".format(
+                router.name, prefix
+            )
+
+    return None
+
+
+def bgp_vpnv4_table_check(
+    router, group, label_list=None, label_value_expected=None, table_version=0
+):
     """
     Dump and check that vpnv4 entries have the same MPLS label value
     * 'router': the router to check
@@ -163,11 +184,19 @@ def bgp_vpnv4_table_check(router, group, label_list=None, label_value_expected=N
 
     stored_label_inited = False
     for prefix in group:
+        test_func = functools.partial(
+            check_bgp_vpnv4_prefix_presence, router, prefix, table_version
+        )
+        success, _ = topotest.run_and_expect(test_func, None, count=10, wait=0.5)
+        assert success, "{}, prefix ipv4 vpn {} is not installed yet".format(
+            router.name, prefix
+        )
+
         dump = router.vtysh_cmd("show bgp ipv4 vpn {} json".format(prefix), isjson=True)
         assert dump, "{0}, {1}, route distinguisher not present".format(
             router.name, prefix
         )
-        for rd, pathes in dump.items():
+        for _, pathes in dump.items():
             for path in pathes["paths"]:
                 assert (
                     "remoteLabel" in path.keys()
@@ -202,7 +231,7 @@ def bgp_vpnv4_table_check(router, group, label_list=None, label_value_expected=N
                     )
 
 
-def bgp_vpnv4_table_check_all(router, label_list=None, same=False):
+def bgp_vpnv4_table_check_all(router, label_list=None, same=False, table_version=0):
     """
     Dump and check that vpnv4 entries are correctly configured with specific label values
     * 'router': the router to check
@@ -220,6 +249,7 @@ def bgp_vpnv4_table_check_all(router, label_list=None, same=False):
             + PREFIXES_REDIST
             + PREFIXES_CONNECTED,
             label_list=label_list,
+            table_version=table_version,
         )
     else:
         for group in (
@@ -229,7 +259,53 @@ def bgp_vpnv4_table_check_all(router, label_list=None, same=False):
             PREFIXES_REDIST,
             PREFIXES_CONNECTED,
         ):
-            bgp_vpnv4_table_check(router, group=group, label_list=label_list)
+            bgp_vpnv4_table_check(
+                router, group=group, label_list=label_list, table_version=table_version
+            )
+
+
+def check_show_mpls_table(router, blacklist=None, label_list=None, whitelist=None):
+    nexthop_list = []
+    if blacklist:
+        nexthop_list.append(blacklist)
+
+    dump = router.vtysh_cmd("show mpls table json", isjson=True)
+    for in_label, label_info in dump.items():
+        if label_list is not None:
+            label_list.add(in_label)
+        for nh in label_info["nexthops"]:
+            if "installed" not in nh.keys():
+                return "{} {} is not installed yet on {}".format(
+                    in_label, label_info, router.name
+                )
+            if nh["installed"] != True or nh["type"] != "BGP":
+                return "{}, show mpls table, nexthop is not installed".format(
+                    router.name
+                )
+            if "nexthop" in nh.keys():
+                if nh["nexthop"] in nexthop_list:
+                    return "{}, show mpls table, duplicated or blacklisted nexthop address".format(
+                        router.name
+                    )
+                nexthop_list.append(nh["nexthop"])
+            elif "interface" in nh.keys():
+                if nh["interface"] in nexthop_list:
+                    return "{}, show mpls table, duplicated or blacklisted nexthop interface".format(
+                        router.name
+                    )
+                nexthop_list.append(nh["interface"])
+            else:
+                return "{}, show mpls table, entry with neither nexthop nor interface".format(
+                    router.name
+                )
+
+    if whitelist:
+        for entry in whitelist:
+            if entry not in nexthop_list:
+                return "{}, show mpls table, entry with nexthop {} not present in nexthop list".format(
+                    router.name, entry
+                )
+    return None
 
 
 def mpls_table_check(router, blacklist=None, label_list=None, whitelist=None):
@@ -240,46 +316,13 @@ def mpls_table_check(router, blacklist=None, label_list=None, whitelist=None):
     * 'label_list': the list of labels that should be in inLabel value
     * 'whitelist': the list of nexthops (IP or interface) that should be on output
     """
-    nexthop_list = []
-    if blacklist:
-        nexthop_list.append(blacklist)
     logger.info("Checking MPLS labels on {}".format(router.name))
-    dump = router.vtysh_cmd("show mpls table json", isjson=True)
-    for in_label, label_info in dump.items():
-        if label_list is not None:
-            label_list.add(in_label)
-        for nh in label_info["nexthops"]:
-            assert (
-                nh["installed"] == True and nh["type"] == "BGP"
-            ), "{}, show mpls table, nexthop is not installed".format(router.name)
-            if "nexthop" in nh.keys():
-                assert (
-                    nh["nexthop"] not in nexthop_list
-                ), "{}, show mpls table, duplicated or blacklisted nexthop address".format(
-                    router.name
-                )
-                nexthop_list.append(nh["nexthop"])
-            elif "interface" in nh.keys():
-                assert (
-                    nh["interface"] not in nexthop_list
-                ), "{}, show mpls table, duplicated or blacklisted nexthop interface".format(
-                    router.name
-                )
-                nexthop_list.append(nh["interface"])
-            else:
-                assert (
-                    0
-                ), "{}, show mpls table, entry with neither nexthop nor interface".format(
-                    router.name
-                )
-
-    if whitelist:
-        for entry in whitelist:
-            assert (
-                entry in nexthop_list
-            ), "{}, show mpls table, entry with nexthop {} not present in nexthop list".format(
-                router.name, entry
-            )
+    # Check r2 removed 172.31.0.30 vpnv4 update
+    test_func = functools.partial(
+        check_show_mpls_table, router, blacklist, label_list, whitelist
+    )
+    success, result = topotest.run_and_expect(test_func, None, count=10, wait=0.5)
+    assert success, "{}, MPLS labels check fail: {}".format(router.name, result)
 
 
 def check_show_bgp_vpn_prefix_not_found(router, ipversion, prefix, rd, label=None):
@@ -321,6 +364,11 @@ def check_show_mpls_table_entry_label_not_found(router, inlabel):
     if ret is None:
         return "not good"
     return None
+
+
+def get_table_version(router):
+    table = router.vtysh_cmd("show bgp ipv4 vpn json", isjson=True)
+    return table["tableVersion"]
 
 
 def mpls_entry_get_interface(router, label):
@@ -423,7 +471,7 @@ def test_flapping_bgp_vrf_down():
     test_func = functools.partial(
         _bgp_prefix_not_found, tgen.gears["r1"], "vrf1", "ipv4", "172.31.0.11/32"
     )
-    success, result = topotest.run_and_expect(test_func, None, count=10, wait=0.5)
+    success, _ = topotest.run_and_expect(test_func, None, count=10, wait=0.5)
     assert (
         success
     ), "r1, prefix 172.31.0.11/32 from r11 did not disappear. r11 still connected to rr ?"
@@ -461,7 +509,7 @@ def test_flapping_bgp_vrf_up():
         "172.31.0.11/32",
         "444:1",
     )
-    success, result = topotest.run_and_expect(test_func, None, count=10, wait=0.5)
+    success, _ = topotest.run_and_expect(test_func, None, count=10, wait=0.5)
     assert (
         success
     ), "r2, prefix 172.31.0.11/32 from r11 not present. r11 still disconnected from rr ?"
@@ -491,7 +539,7 @@ def test_recursive_route():
         "172.31.0.30/32",
         "444:1",
     )
-    success, result = topotest.run_and_expect(test_func, None, count=10, wait=0.5)
+    success, _ = topotest.run_and_expect(test_func, None, count=10, wait=0.5)
     assert success, "r2, vpnv4 update 172.31.0.30 not found"
 
     bgp_vpnv4_table_check(tgen.gears["r2"], group=PREFIXES_R11 + ["172.31.0.30/32"])
@@ -517,7 +565,7 @@ def test_recursive_route():
         "172.31.0.30/32",
         "444:1",
     )
-    success, result = topotest.run_and_expect(test_func, None, count=10, wait=0.5)
+    success, _ = topotest.run_and_expect(test_func, None, count=10, wait=0.5)
     assert success, "r2, vpnv4 update 172.31.0.30 still present"
 
 
@@ -543,7 +591,7 @@ def test_prefix_changes_interface():
         "172.31.0.50/32",
         "444:1",
     )
-    success, result = topotest.run_and_expect(test_func, None, count=10, wait=0.5)
+    success, _ = topotest.run_and_expect(test_func, None, count=10, wait=0.5)
     assert success, "r2, vpnv4 update 172.31.0.50 not found"
 
     # diagnostic
@@ -589,7 +637,7 @@ def test_prefix_changes_interface():
         "444:1",
         label=oldlabel,
     )
-    success, result = topotest.run_and_expect(test_func, None, count=10, wait=0.5)
+    success, _ = topotest.run_and_expect(test_func, None, count=10, wait=0.5)
     assert (
         success
     ), "r2, vpnv4 update 172.31.0.50 with old label {0} still present".format(oldlabel)
@@ -606,7 +654,7 @@ def test_prefix_changes_interface():
         "172.31.0.50/32",
         "444:1",
     )
-    success, result = topotest.run_and_expect(test_func, None, count=10, wait=0.5)
+    success, _ = topotest.run_and_expect(test_func, None, count=10, wait=0.5)
     assert success, "r2, vpnv4 update 172.31.0.50 not found"
 
     label_list = set()
@@ -659,6 +707,7 @@ def test_changing_default_label_value():
         old_len != 1
     ), "r1, number of labels used should be greater than 1, oberved {} ".format(old_len)
 
+    table_version = get_table_version(router)
     logger.info("r1, vrf1, changing the default MPLS label value to export to 222")
     router.vtysh_cmd(
         "configure terminal\nrouter bgp 65500 vrf vrf1\naddress-family ipv4 unicast\nlabel vpn export 222\n",
@@ -672,13 +721,13 @@ def test_changing_default_label_value():
     test_func = functools.partial(
         check_show_mpls_table_entry_label_found, router, 222, "vrf1"
     )
-    success, result = topotest.run_and_expect(test_func, None, count=10, wait=0.5)
+    success, _ = topotest.run_and_expect(test_func, None, count=10, wait=0.5)
     assert success, "r1, mpls entry with label 222 not found"
 
     # check label repartition is ok
     logger.info("r1, vpnv4 table, check the number of labels used after modification")
     label_list = set()
-    bgp_vpnv4_table_check_all(router, label_list)
+    bgp_vpnv4_table_check_all(router, label_list, table_version=table_version)
     new_len = len(label_list)
     assert (
         old_len == new_len
@@ -707,6 +756,7 @@ def test_unconfigure_allocation_mode_nexthop():
 
     logger.info("Unconfiguring allocation mode per nexthop")
     router = tgen.gears["r1"]
+    table_version = get_table_version(router)
     router.vtysh_cmd(
         "configure terminal\nrouter bgp 65500 vrf vrf1\naddress-family ipv4 unicast\nno label vpn export allocation-mode per-nexthop\n",
         isjson=False,
@@ -719,13 +769,15 @@ def test_unconfigure_allocation_mode_nexthop():
     test_func = functools.partial(
         check_show_mpls_table_entry_label_not_found, router, 17
     )
-    success, result = topotest.run_and_expect(test_func, None, count=10, wait=0.5)
+    success, _ = topotest.run_and_expect(test_func, None, count=10, wait=0.5)
     assert success, "r1, mpls entry with label 17 still present"
 
     # Check vpnv4 routes from r1
     logger.info("Checking vpnv4 routes on r1")
     label_list = set()
-    bgp_vpnv4_table_check_all(router, label_list=label_list, same=True)
+    bgp_vpnv4_table_check_all(
+        router, label_list=label_list, same=True, table_version=table_version
+    )
     assert len(label_list) == 1, "r1, multiple Label values found for vpnv4 updates"
 
     new_label = label_list.pop()
@@ -755,6 +807,8 @@ def test_reconfigure_allocation_mode_nexthop():
 
     logger.info("Reconfiguring allocation mode per nexthop")
     router = tgen.gears["r1"]
+
+    table_version = get_table_version(router)
     router.vtysh_cmd(
         "configure terminal\nrouter bgp 65500 vrf vrf1\naddress-family ipv4 unicast\nlabel vpn export allocation-mode per-nexthop\n",
         isjson=False,
@@ -767,13 +821,15 @@ def test_reconfigure_allocation_mode_nexthop():
     test_func = functools.partial(
         check_show_mpls_table_entry_label_not_found, router, 17
     )
-    success, result = topotest.run_and_expect(test_func, None, count=10, wait=0.5)
+    success, _ = topotest.run_and_expect(test_func, None, count=10, wait=0.5)
     assert success, "r1, mpls entry with label 17 still present"
 
     # Check vpnv4 routes from r1
     logger.info("Checking vpnv4 routes on r1")
     label_list = set()
-    bgp_vpnv4_table_check_all(router, label_list=label_list)
+    bgp_vpnv4_table_check_all(
+        router, label_list=label_list, table_version=table_version
+    )
     assert len(label_list) != 1, "r1, only 1 label values found for vpnv4 updates"
 
     # Check mpls table with all values

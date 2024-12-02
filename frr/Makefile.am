@@ -56,7 +56,7 @@ MODULE_LDFLAGS = \
 	$(SAN_FLAGS) \
 	# end
 
-DEFS = @DEFS@ -DSYSCONFDIR=\"$(sysconfdir)/\" -DCONFDATE=$(CONFDATE)
+DEFS = @DEFS@ -DCONFDATE=$(CONFDATE)
 
 AR_FLAGS = @AR_FLAGS@
 ARFLAGS = @ARFLAGS@
@@ -297,12 +297,12 @@ EXTRA_DIST += \
 AM_V_LLVM_BC = $(am__v_LLVM_BC_$(V))
 am__v_LLVM_BC_ = $(am__v_LLVM_BC_$(AM_DEFAULT_VERBOSITY))
 am__v_LLVM_BC_0 = @echo "  LLVM.BC " $@;
-am__v_LLVM_BC_1 =
+am__v_LLVM_BC_1 = 
 
 AM_V_LLVM_LD = $(am__v_LLVM_LD_$(V))
 am__v_LLVM_LD_ = $(am__v_LLVM_LD_$(AM_DEFAULT_VERBOSITY))
 am__v_LLVM_LD_0 = @echo "  LLVM.LD " $@;
-am__v_LLVM_LD_1 =
+am__v_LLVM_LD_1 = 
 
 SUFFIXES += .lo.bc .o.bc
 

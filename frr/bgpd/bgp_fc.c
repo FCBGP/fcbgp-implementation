@@ -713,7 +713,8 @@ int fc_send_packet_to_fcserver(u8 ipversion, char *buff, int bufflen)
         .buff = buff,
         .bufflen = bufflen
     };
-    pthread_create(&thread, NULL, fc_send_packet_to_fcserver_worker, &sock_args);
+    // pthread_create(&thread, NULL, fc_send_packet_to_fcserver_worker, &sock_args);
+    fc_send_packet_to_fcserver_worker(&sock_args);
 
     return 0;
 }
