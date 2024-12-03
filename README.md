@@ -200,3 +200,11 @@ In H3C router, ACLs are managed by ACL group, one ACL group has at most 65534(1-
 1. [Simple rule management - nftables wiki](https://wiki.nftables.org/wiki-nftables/index.php/Simple_rule_management)
 2. [linux - nftables rule: No such file or directory error - Unix & Linux Stack Exchange](https://unix.stackexchange.com/questions/537912/nftables-rule-no-such-file-or-directory-error)
 3. [nftables 配置与使用记录 - StarryVoid - Blog](https://blog.starryvoid.com/archives/1045.html)
+
+## Code Style
+
+format code with `.clang-format` and run with following command:
+
+```sh
+find . -regex '.*\.\(cpp\|hpp\|c\|h\)' -exec clang-format -style=file -i {} \;
+```

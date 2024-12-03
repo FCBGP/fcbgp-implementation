@@ -13,17 +13,17 @@ extern "C"
 {
 #endif /* __cplusplus */
 
-#include "defines.h"
-#include "libdiag.h"
-#include "hashutils.h"
-#include "fcserver.h"
 #include "dbutils.h"
+#include "defines.h"
+#include "fcserver.h"
+#include "hashutils.h"
+#include "libdiag.h"
 #include <stdio.h>
 #include <stdlib.h>
 
     int fc_server_topo_init_msg(int clisockfd)
     {
-        FC_msg_bm_t *pbm = NULL;
+        FC_msg_bm_t* pbm = NULL;
         int i = 0, bmnum = 0;
 
         pbm = fc_db_read_bms(&bmnum);
@@ -39,10 +39,9 @@ extern "C"
     }
 
     static int
-    fc_server_topo_find_iface(FC_router_link_info_t *link_info,
-                              u32 iface_index,
-                              FC_router_iface_info_t **iface_info,
-                              FC_router_iface_info_t **prev_iface_info)
+    fc_server_topo_find_iface(FC_router_link_info_t* link_info, u32 iface_index,
+                              FC_router_iface_info_t** iface_info,
+                              FC_router_iface_info_t** prev_iface_info)
     {
         *iface_info = *prev_iface_info = link_info->iface_list;
         while (*iface_info)
@@ -59,10 +58,10 @@ extern "C"
     }
 
     static int
-    fc_server_topo_find_router(FC_router_info_t *target_router,
+    fc_server_topo_find_router(FC_router_info_t* target_router,
                                u32 neighbor_asn,
-                               FC_router_link_info_t **link_info,
-                               FC_router_link_info_t **prev_link_info)
+                               FC_router_link_info_t** link_info,
+                               FC_router_link_info_t** prev_link_info)
     {
         *prev_link_info = *link_info = target_router->links;
         while (*link_info)
@@ -78,14 +77,13 @@ extern "C"
         return 0;
     }
 
-    static int
-    fc_server_topo_del_one_link(FC_router_link_info_t *link_info,
-                                u32 iface_index)
+    static int fc_server_topo_del_one_link(FC_router_link_info_t* link_info,
+                                           u32 iface_index)
     {
         FC_router_iface_info_t *prev_iface_info = NULL, *iface_info = NULL;
 
-        fc_server_topo_find_iface(link_info,
-                                  iface_index, &iface_info, &prev_iface_info);
+        fc_server_topo_find_iface(link_info, iface_index, &iface_info,
+                                  &prev_iface_info);
 
         if (iface_info)
         {
@@ -103,8 +101,7 @@ extern "C"
         return 0;
     }
 
-    static int
-    fc_server_topo_del_one_neighbor(FC_router_link_info_t *link_info)
+    static int fc_server_topo_del_one_neighbor(FC_router_link_info_t* link_info)
     {
         FC_router_iface_info_t *iface_info = NULL, *next_iface_info = NULL;
 
@@ -120,8 +117,7 @@ extern "C"
         return 0;
     }
 
-    static int
-    fc_server_topo_del_all_neighbors(FC_router_info_t *target_router)
+    static int fc_server_topo_del_all_neighbors(FC_router_info_t* target_router)
     {
         FC_router_link_info_t *link_info = NULL, *next_link_info = NULL;
 
@@ -156,13 +152,13 @@ extern "C"
         return 0;
     }
 
-    static int
-    fc_server_topo_del(FC_router_info_t *target_router, u32 neighbor_num,
-                       const unsigned char *buff, int currlen)
+    static int fc_server_topo_del(FC_router_info_t* target_router,
+                                  u32 neighbor_num, const unsigned char* buff,
+                                  int currlen)
     {
         int i = 0, k = 0;
         u32 neighbor_asn = 0, il_num = 0, iface_index = 0;
-        u32 *iface_list = NULL;
+        u32* iface_list = NULL;
         FC_router_link_info_t *link_info = NULL, *prev_link_info = NULL;
 
         // delete all neighbors of this bgp router
@@ -172,7 +168,7 @@ extern "C"
             return currlen;
         }
 
-        iface_list = (u32 *)malloc(sizeof(u32) * il_num);
+        iface_list = (u32*)malloc(sizeof(u32) * il_num);
         FC_ASSERT_RETP(iface_list);
 
         // delete part neighbors of this bgp router
@@ -195,8 +191,8 @@ extern "C"
 
             // find the neighbor
             prev_link_info = link_info = target_router->links;
-            fc_server_topo_find_router(target_router,
-                                       neighbor_asn, &link_info, &prev_link_info);
+            fc_server_topo_find_router(target_router, neighbor_asn, &link_info,
+                                       &prev_link_info);
             if (link_info == NULL)
             {
                 // no such neighbor
@@ -231,9 +227,9 @@ extern "C"
         return currlen;
     }
 
-    static int
-    fc_server_topo_add(FC_router_info_t *target_router, u32 neighbor_num,
-                       const unsigned char *buff, int currlen)
+    static int fc_server_topo_add(FC_router_info_t* target_router,
+                                  u32 neighbor_num, const unsigned char* buff,
+                                  int currlen)
     {
         int j = 0, k = 0, ret = 0;
         u32 neighbor_asn = 0, il_num = 0, iface_index = 0;
@@ -260,8 +256,8 @@ extern "C"
 
             // find the neighbor
             prev_link_info = link_info = target_router->links;
-            fc_server_topo_find_router(target_router,
-                                       neighbor_asn, &link_info, &prev_link_info);
+            fc_server_topo_find_router(target_router, neighbor_asn, &link_info,
+                                       &prev_link_info);
 
             if (link_info == NULL)
             {
@@ -285,13 +281,13 @@ extern "C"
                 memcpy(&iface_index, buff + currlen, sizeof(u32));
                 iface_index = ntohl(iface_index);
                 currlen += sizeof(u32);
-                fc_server_topo_find_iface(link_info,
-                                          iface_index, &iface_info, &prev_iface_info);
+                fc_server_topo_find_iface(link_info, iface_index, &iface_info,
+                                          &prev_iface_info);
                 if (iface_info == NULL)
                 {
                     // no such iface
-                    iface_info = (FC_router_iface_info_t *)
-                        calloc(1, sizeof(FC_router_iface_info_t));
+                    iface_info = (FC_router_iface_info_t*)calloc(
+                        1, sizeof(FC_router_iface_info_t));
                     FC_ASSERT_RETP(iface_info);
                     if (prev_iface_info)
                     {
@@ -305,8 +301,7 @@ extern "C"
                 iface_info->iface_index = iface_index;
                 // insert into ht
                 ret = ht_aclinfo_insert(g_fc_server.ht_acl_group_info,
-                                        iface_index,
-                                        target_router);
+                                        iface_index, target_router);
                 FC_ASSERT_RET(ret);
             }
         }
@@ -314,18 +309,17 @@ extern "C"
         return currlen;
     }
 
-    static int
-    fc_server_topo_print(FC_router_info_t *target_router)
+    static int fc_server_topo_print(FC_router_info_t* target_router)
     {
         DIAG_INFO("bgpid: %d.%d.%d.%d\n", (target_router->bgpid >> 24) % 256,
                   (target_router->bgpid >> 16) % 256,
                   (target_router->bgpid >> 8) % 256,
                   target_router->bgpid % 256);
-        for (FC_router_link_info_t *link_info = target_router->links;
+        for (FC_router_link_info_t* link_info = target_router->links;
              link_info != NULL; link_info = link_info->next)
         {
             DIAG_INFO("  neighbor asn: %d\n", link_info->neighbor_asn);
-            FC_router_iface_info_t *iface_info = link_info->iface_list;
+            FC_router_iface_info_t* iface_info = link_info->iface_list;
             while (iface_info)
             {
                 DIAG_INFO("    iface: %d\n", iface_info->iface_index);
@@ -336,14 +330,15 @@ extern "C"
         return 0;
     }
 
-    int fc_server_topo_handler(int clisockfd, const unsigned char *buff, int len)
+    int fc_server_topo_handler(int clisockfd, const unsigned char* buff,
+                               int len)
     {
         DIAG_INFO("### TOPO LINK INFO START ###\n");
 
         int i = 0, currlen = 0, ret = 0;
         u8 action = 0, reserved = 0;
         u32 bgpid = 0, local_asn = 0, neighbor_num = 0;
-        FC_router_info_t *target_router = NULL;
+        FC_router_info_t* target_router = NULL;
 
         currlen = FC_HDR_GENERAL_LENGTH;
 
@@ -377,8 +372,7 @@ extern "C"
             return -1;
         }
         // g_fc_server.routers should be prepared in reading config
-        for (target_router = g_fc_server.routers;
-             target_router != NULL;
+        for (target_router = g_fc_server.routers; target_router != NULL;
              target_router = target_router->next)
         {
             if (target_router->bgpid == bgpid)
@@ -389,7 +383,8 @@ extern "C"
 
         if (target_router == NULL)
         {
-            DIAG_ERROR("ERROR: Cannot find the bgp router, bgpid: %08X\n", bgpid);
+            DIAG_ERROR("ERROR: Cannot find the bgp router, bgpid: %08X\n",
+                       bgpid);
             // fc_server_destroy(SIGUSR1);
             return -1;
         }
@@ -404,18 +399,19 @@ extern "C"
 
         switch (action)
         {
-        case FC_ACT_ADD:
-            currlen = fc_server_topo_add(target_router,
-                                         neighbor_num, buff, currlen);
-            break;
-        case FC_ACT_DEL:
-            // TODO
-            currlen = fc_server_topo_del(target_router,
-                                         neighbor_num, buff, currlen);
-            break;
-        default:
-            DIAG_ERROR("ERROR: Unkown action: %d for neighbor links\n", action);
-            break;
+            case FC_ACT_ADD:
+                currlen = fc_server_topo_add(target_router, neighbor_num, buff,
+                                             currlen);
+                break;
+            case FC_ACT_DEL:
+                // TODO
+                currlen = fc_server_topo_del(target_router, neighbor_num, buff,
+                                             currlen);
+                break;
+            default:
+                DIAG_ERROR("ERROR: Unkown action: %d for neighbor links\n",
+                           action);
+                break;
         }
 
         fc_server_topo_print(target_router);

@@ -1,9 +1,10 @@
-#include "liblist.h"
-#include "libdiag.h"
 #include "libcache.h"
+#include "libdiag.h"
+#include "liblist.h"
 #include "libspinlock.h"
 
-struct cache_st {
+struct cache_st
+{
     struct list_head entry;
     struct list_head free_list;
     char name[32];
@@ -11,9 +12,9 @@ struct cache_st {
     uint32_t node_size;
     uint32_t node_cnt;
     uint32_t free_cnt;
-    void *(*malloc)(size_t size);
-    void (*free)(void *ptr);
-    uint8_t *buffer;
+    void* (*malloc)(size_t size);
+    void (*free)(void* ptr);
+    uint8_t* buffer;
     spinlock_t spinlock;
 };
 
@@ -29,16 +30,18 @@ int cache_init(void)
     return 0;
 }
 
-cache_t *cache_find(char *name)
+cache_t* cache_find(char* name)
 {
-    struct cache_st *pcache;
+    struct cache_st* pcache;
 
     if ((name == NULL) || (name[0] == '\0'))
         return NULL;
 
     spinlock_lock(&g_cache_spinlock);
-    list_for_each_entry(pcache, &g_cache_list, entry) {
-        if (!strcmp(pcache->name, name)) {
+    list_for_each_entry(pcache, &g_cache_list, entry)
+    {
+        if (!strcmp(pcache->name, name))
+        {
             spinlock_unlock(&g_cache_spinlock);
             return pcache;
         }
@@ -48,30 +51,35 @@ cache_t *cache_find(char *name)
     return NULL;
 }
 
-cache_t *cache_create(char *name, uint32_t flags, int item, int count,
-        void *(*malloc_func)(size_t size), void (*free_func)(void *ptr))
+cache_t* cache_create(char* name, uint32_t flags, int item, int count,
+                      void* (*malloc_func)(size_t size),
+                      void (*free_func)(void* ptr))
 {
     int i;
-    void *addr;
-    struct list_head *list;
-    struct cache_st *pcache;
+    void* addr;
+    struct list_head* list;
+    struct cache_st* pcache;
 
-    if (unlikely(g_cache_inited == 0)) {
+    if (unlikely(g_cache_inited == 0))
+    {
         cache_init();
     }
 
-    if (name == NULL || name[0] == '\0'
-            || malloc_func == NULL || free_func == NULL) {
+    if (name == NULL || name[0] == '\0' || malloc_func == NULL ||
+        free_func == NULL)
+    {
         return NULL;
     }
 
     // item must greater then 2 pointer size!
-    if (item <= sizeof(struct list_head) || count == 0) {
+    if (item <= sizeof(struct list_head) || count == 0)
+    {
         return NULL;
     }
 
     pcache = cache_find(name);
-    if (pcache) {
+    if (pcache)
+    {
         return NULL;
     }
 
@@ -89,15 +97,17 @@ cache_t *cache_create(char *name, uint32_t flags, int item, int count,
     pcache->free = free_func;
 
     pcache->buffer = pcache->malloc(item * count);
-    if (pcache->buffer == NULL) {
+    if (pcache->buffer == NULL)
+    {
         return NULL;
     }
 
     spinlock_init(&pcache->spinlock);
     INIT_LIST_HEAD(&pcache->free_list);
-    for (i = 0; i < count; i++) {
+    for (i = 0; i < count; i++)
+    {
         addr = pcache->buffer + i * item;
-        list = (struct list_head *) addr;
+        list = (struct list_head*)addr;
         list_add_tail(list, &pcache->free_list);
         pcache->free_cnt++;
     }
@@ -109,20 +119,23 @@ cache_t *cache_create(char *name, uint32_t flags, int item, int count,
     return pcache;
 }
 
-void cache_destroy(cache_t **pcache)
+void cache_destroy(cache_t** pcache)
 {
-    struct cache_st *cache;
+    struct cache_st* cache;
 
-    if (pcache == NULL) {
+    if (pcache == NULL)
+    {
         return;
     }
 
-    cache = (struct cache_st *)*pcache;
+    cache = (struct cache_st*)*pcache;
     if (cache_find(cache->name) == NULL)
         return;
 
-    if (cache->free_cnt != cache->node_cnt) {
-        DIAG_ERROR("some nodes of cache '%s' are in using! FREES:%u, TOTAL:%u\n",
+    if (cache->free_cnt != cache->node_cnt)
+    {
+        DIAG_ERROR(
+            "some nodes of cache '%s' are in using! FREES:%u, TOTAL:%u\n",
             cache->name, cache->free_cnt, cache->node_cnt);
     }
 
@@ -137,17 +150,19 @@ void cache_destroy(cache_t **pcache)
     return;
 }
 
-void *cache_alloc(cache_t *cache)
+void* cache_alloc(cache_t* cache)
 {
-    struct list_head *list;
-    struct cache_st *pcache = cache;
+    struct list_head* list;
+    struct cache_st* pcache = cache;
 
-    if (cache == NULL) {
+    if (cache == NULL)
+    {
         return NULL;
     }
 
     spinlock_lock(&pcache->spinlock);
-    if (pcache->free_cnt == 0) {
+    if (pcache->free_cnt == 0)
+    {
         spinlock_unlock(&pcache->spinlock);
         return NULL;
     }
@@ -156,25 +171,27 @@ void *cache_alloc(cache_t *cache)
     list_del(list);
     pcache->free_cnt--;
 
-    if (pcache->flags & CACHE_FLAG_ZERO) {
-        memset((void *) list, 0, pcache->node_size);
+    if (pcache->flags & CACHE_FLAG_ZERO)
+    {
+        memset((void*)list, 0, pcache->node_size);
     }
 
     spinlock_unlock(&pcache->spinlock);
-    return (void *) list;
+    return (void*)list;
 }
 
-void cache_free(cache_t *cache, void *node)
+void cache_free(cache_t* cache, void* node)
 {
-    struct list_head *list;
-    struct cache_st *pcache = cache;
+    struct list_head* list;
+    struct cache_st* pcache = cache;
 
-    if (cache == NULL) {
+    if (cache == NULL)
+    {
         return;
     }
 
     spinlock_lock(&pcache->spinlock);
-    list = (struct list_head *) node;
+    list = (struct list_head*)node;
     list_add_tail(list, &pcache->free_list);
     pcache->free_cnt++;
     spinlock_unlock(&pcache->spinlock);
@@ -184,13 +201,18 @@ void cache_free(cache_t *cache, void *node)
 
 void cache_dump(void)
 {
-    struct cache_st *pcache;
+    struct cache_st* pcache;
 
     spinlock_lock(&g_cache_spinlock);
-    list_for_each_entry(pcache, &g_cache_list, entry) {
-        if (pcache->node_cnt != pcache->free_cnt) {
-            DIAG_DEBUG("cache %s node size %d count %d free %d buffer %p used %d\n", pcache->name,
-                    pcache->node_size, pcache->node_cnt, pcache->free_cnt, pcache->buffer, pcache->node_cnt - pcache->free_cnt);
+    list_for_each_entry(pcache, &g_cache_list, entry)
+    {
+        if (pcache->node_cnt != pcache->free_cnt)
+        {
+            DIAG_DEBUG(
+                "cache %s node size %d count %d free %d buffer %p used %d\n",
+                pcache->name, pcache->node_size, pcache->node_cnt,
+                pcache->free_cnt, pcache->buffer,
+                pcache->node_cnt - pcache->free_cnt);
         }
     }
     spinlock_unlock(&g_cache_spinlock);
@@ -200,14 +222,17 @@ void cache_dump(void)
 
 void cache_fini(void)
 {
-    struct cache_st *pcache;
-    struct cache_st *pcache_next;
+    struct cache_st* pcache;
+    struct cache_st* pcache_next;
 
     spinlock_lock(&g_cache_spinlock);
-    list_for_each_entry_safe(pcache, pcache_next, &g_cache_list, entry) {
-        if (pcache->free_cnt != pcache->node_cnt) {
-            DIAG_ERROR("some nodes of cache '%s' are not freed! FREES:%u, TOTAL:%u\n",
-                    pcache->name, pcache->free_cnt, pcache->node_cnt);
+    list_for_each_entry_safe(pcache, pcache_next, &g_cache_list, entry)
+    {
+        if (pcache->free_cnt != pcache->node_cnt)
+        {
+            DIAG_ERROR(
+                "some nodes of cache '%s' are not freed! FREES:%u, TOTAL:%u\n",
+                pcache->name, pcache->free_cnt, pcache->node_cnt);
         }
 
         pcache->free(pcache->buffer);
@@ -221,4 +246,3 @@ void cache_fini(void)
     g_cache_inited = 0;
     return;
 }
-

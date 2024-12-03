@@ -34,7 +34,7 @@ void help()
     exit(EXIT_FAILURE);
 }
 
-int prepare_msg_bm(char *msg, int msg_type)
+int prepare_msg_bm(char* msg, int msg_type)
 {
     int len = 0, length = 0, lengthpos = 0;
     u8 u8v = 0;
@@ -184,8 +184,8 @@ int prepare_msg_bm(char *msg, int msg_type)
     return len;
 }
 
-int prepare_msg_topo(char *msg, u8 msg_type,
-                     u8 action, bool del_all_neighbor, bool del_all_il)
+int prepare_msg_topo(char* msg, u8 msg_type, u8 action, bool del_all_neighbor,
+                     bool del_all_il)
 {
     int len = 0, length = 0, lengthpos = 0;
     u8 u8v = 0;
@@ -290,7 +290,7 @@ int prepare_msg_topo(char *msg, u8 msg_type,
     return len;
 }
 
-int prepare_msg_for_type4(char *msg)
+int prepare_msg_for_type4(char* msg)
 {
     int len = 0;
     char choice = 0;
@@ -306,61 +306,65 @@ int prepare_msg_for_type4(char *msg)
         scanf("%c", &choice);
         switch (choice)
         {
-        case '1':
-            len = prepare_msg_topo(msg, 4, 0, /* add/update */
-                                   0 /* del_all_neighbor */, 0 /* del_all_il */);
-            break;
-        case '2':
-            len = prepare_msg_topo(msg, 4, 1, /* add/update */
-                                   0 /* del_all_neighbor */, 0 /* del_all_il */);
-            break;
-        case '3':
-            len = prepare_msg_topo(msg, 4, 1, /* add/update */
-                                   0 /* del_all_neighbor */, 1 /* del_all_il */);
-            break;
-        case '4':
-            len = prepare_msg_topo(msg, 4, 1, /* add/update */
-                                   1 /* del_all_neighbor */, 1 /* del_all_il */);
-            break;
-        case 'q':
-            exit(EXIT_SUCCESS);
-        default:
-            printf("\nERROR: no such choice: %d\n", choice);
-            choice = 0;
-            break;
+            case '1':
+                len = prepare_msg_topo(msg, 4, 0, /* add/update */
+                                       0 /* del_all_neighbor */,
+                                       0 /* del_all_il */);
+                break;
+            case '2':
+                len = prepare_msg_topo(msg, 4, 1, /* add/update */
+                                       0 /* del_all_neighbor */,
+                                       0 /* del_all_il */);
+                break;
+            case '3':
+                len = prepare_msg_topo(msg, 4, 1, /* add/update */
+                                       0 /* del_all_neighbor */,
+                                       1 /* del_all_il */);
+                break;
+            case '4':
+                len = prepare_msg_topo(msg, 4, 1, /* add/update */
+                                       1 /* del_all_neighbor */,
+                                       1 /* del_all_il */);
+                break;
+            case 'q':
+                exit(EXIT_SUCCESS);
+            default:
+                printf("\nERROR: no such choice: %d\n", choice);
+                choice = 0;
+                break;
         }
     }
 
     return len;
 }
 
-int prepare_msg(char *msg, u8 msg_type)
+int prepare_msg(char* msg, u8 msg_type)
 {
     int len = 0;
 
     switch (msg_type)
     {
-    case 1: // pubkey
-        printf("pubkey msg is not supported\n");
-        len = -1;
-        break;
-    case 2: // bm from bgpd
-    case 3: // bm from fcs
-        len = prepare_msg_bm(msg, msg_type);
-        break;
-    case 4: // router link topo info
-        len = prepare_msg_for_type4(msg);
-        break;
-    default:
-        printf("msg_type: %d is not supported\n", msg_type);
-        len = -1;
-        break;
+        case 1: // pubkey
+            printf("pubkey msg is not supported\n");
+            len = -1;
+            break;
+        case 2: // bm from bgpd
+        case 3: // bm from fcs
+            len = prepare_msg_bm(msg, msg_type);
+            break;
+        case 4: // router link topo info
+            len = prepare_msg_for_type4(msg);
+            break;
+        default:
+            printf("msg_type: %d is not supported\n", msg_type);
+            len = -1;
+            break;
     }
 
     return len;
 }
 
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
     int count = 1, sockfd = 0;
     int msglen = 0, ret = 0;
@@ -393,13 +397,13 @@ int main(int argc, char *argv[])
     int yes = 0;
     setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
 
-    if (bind(sockfd, (struct sockaddr *)&clisockaddr, sizeof(clisockaddr)) < 0)
+    if (bind(sockfd, (struct sockaddr*)&clisockaddr, sizeof(clisockaddr)) < 0)
     {
         perror("bind()");
         exit(EXIT_FAILURE);
     }
 
-    if (connect(sockfd, (struct sockaddr *)&sockaddr, sizeof(sockaddr)) < 0)
+    if (connect(sockfd, (struct sockaddr*)&sockaddr, sizeof(sockaddr)) < 0)
     {
         perror("connect()");
         exit(EXIT_FAILURE);

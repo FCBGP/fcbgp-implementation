@@ -1,15 +1,15 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
 #include <ctype.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 #include "libmbs.h"
 
-int cut_mbsnewsize(int argc, char *argv[])
+int cut_mbsnewsize(int argc, char* argv[])
 {
     mbs_t mbs = NULL;
     mbs = mbsnewsize(100);
@@ -20,7 +20,7 @@ int cut_mbsnewsize(int argc, char *argv[])
     return 0;
 }
 
-int cut_mbsnew(int argc, char *argv[])
+int cut_mbsnew(int argc, char* argv[])
 {
     mbs_t mbs = NULL;
     mbs = mbsnew("hello world\n");
@@ -31,7 +31,7 @@ int cut_mbsnew(int argc, char *argv[])
     return 0;
 }
 
-int cut_mbsdup(int argc, char *argv[])
+int cut_mbsdup(int argc, char* argv[])
 {
     mbs_t mbs = NULL;
     mbs_t mbs2 = NULL;
@@ -45,7 +45,7 @@ int cut_mbsdup(int argc, char *argv[])
     return 0;
 }
 
-int cut_mbssetlen(int argc, char *argv[])
+int cut_mbssetlen(int argc, char* argv[])
 {
     mbs_t mbs = NULL;
 
@@ -59,29 +59,34 @@ int cut_mbssetlen(int argc, char *argv[])
     return 0;
 }
 
-int cut_mbsinclen(int argc, char *argv[])
+int cut_mbsinclen(int argc, char* argv[])
 {
     int rdlen;
     int blksize = 128;
     mbs_t mbs = NULL;
 
     int fd = open("mbs", O_RDONLY);
-    if (fd < 0) {
+    if (fd < 0)
+    {
         return -ENOENT;
     }
 
-    if (mbsexpand(&mbs, blksize) == NULL) {
+    if (mbsexpand(&mbs, blksize) == NULL)
+    {
         mbsfree(mbs);
         return -ENOMEM;
     }
 
-    while (1) {
+    while (1)
+    {
         int len = mbslen(mbs);
         int size = mbssize(mbs);
 
-        if (len + blksize >= size) {
+        if (len + blksize >= size)
+        {
             printf("mbslen %d mbssize %d need expand.\n", len, size);
-            if (mbsexpand(&mbs, blksize) == NULL) {
+            if (mbsexpand(&mbs, blksize) == NULL)
+            {
                 mbsfree(mbs);
                 return -ENOMEM;
             }
@@ -89,12 +94,14 @@ int cut_mbsinclen(int argc, char *argv[])
         }
 
         rdlen = read(fd, mbs + len, blksize);
-        if (rdlen <= 0) {
+        if (rdlen <= 0)
+        {
             break;
         }
 
         mbsinclen(mbs, rdlen);
-        printf("rdlen %d, mbslen %d, mbssize %d\n", rdlen, mbslen(mbs), mbssize(mbs));
+        printf("rdlen %d, mbslen %d, mbssize %d\n", rdlen, mbslen(mbs),
+               mbssize(mbs));
     }
 
     mbsdump(mbs);
@@ -103,7 +110,7 @@ int cut_mbsinclen(int argc, char *argv[])
     return 0;
 }
 
-int cut_mbscat(int argc, char *argv[])
+int cut_mbscat(int argc, char* argv[])
 {
     mbs_t mbs = NULL;
 
@@ -117,7 +124,7 @@ int cut_mbscat(int argc, char *argv[])
     return 0;
 }
 
-int cut_mbscatfmt(int argc, char *argv[])
+int cut_mbscatfmt(int argc, char* argv[])
 {
     mbs_t mbs = NULL;
 
@@ -132,7 +139,7 @@ int cut_mbscatfmt(int argc, char *argv[])
     return 0;
 }
 
-int cut_mbsaddfmt(int argc, char *argv[])
+int cut_mbsaddfmt(int argc, char* argv[])
 {
     mbs_t mbs = NULL;
 
@@ -150,7 +157,7 @@ int cut_mbsaddfmt(int argc, char *argv[])
     return 0;
 }
 
-int cut_mbsjoin(int argc, char *argv[])
+int cut_mbsjoin(int argc, char* argv[])
 {
     mbs_t mbs = NULL;
 
@@ -162,7 +169,7 @@ int cut_mbsjoin(int argc, char *argv[])
     return 0;
 }
 
-int cut_mbssum(int argc, char *argv[])
+int cut_mbssum(int argc, char* argv[])
 {
     mbs_t mbs = NULL;
 
@@ -174,7 +181,7 @@ int cut_mbssum(int argc, char *argv[])
     return 0;
 }
 
-int cut_mbssumex(int argc, char *argv[])
+int cut_mbssumex(int argc, char* argv[])
 {
     mbs_t mbs = NULL;
 
@@ -188,7 +195,7 @@ int cut_mbssumex(int argc, char *argv[])
     return 0;
 }
 
-int cut_mbscatmem(int argc, char *argv[])
+int cut_mbscatmem(int argc, char* argv[])
 {
     mbs_t mbs = NULL;
 
@@ -200,7 +207,7 @@ int cut_mbscatmem(int argc, char *argv[])
     return 0;
 }
 
-int cut_mbscatstdout(int argc, char *argv[])
+int cut_mbscatstdout(int argc, char* argv[])
 {
     mbs_t mbs = NULL;
 
@@ -212,7 +219,7 @@ int cut_mbscatstdout(int argc, char *argv[])
     return 0;
 }
 
-int cut_mbscatstdoutvargs(int argc, char *argv[])
+int cut_mbscatstdoutvargs(int argc, char* argv[])
 {
     mbs_t mbs = NULL;
 
@@ -224,23 +231,29 @@ int cut_mbscatstdoutvargs(int argc, char *argv[])
     return 0;
 }
 
-int cut_mbsreadline(int argc, char *argv[])
+int cut_mbsreadline(int argc, char* argv[])
 {
-    FILE *fp = NULL;
+    FILE* fp = NULL;
     mbs_t mbs = NULL;
 
-    if (argc > 1) {
+    if (argc > 1)
+    {
         fp = fopen(argv[1], "r");
-        if (fp == NULL) {
+        if (fp == NULL)
+        {
             return -ENOENT;
         }
-    } else {
+    }
+    else
+    {
         fp = stdin;
     }
 
-    while (1) {
+    while (1)
+    {
         mbs = mbsreadline(fp);
-        if (mbs == NULL) {
+        if (mbs == NULL)
+        {
             break;
         }
 
@@ -252,7 +265,7 @@ int cut_mbsreadline(int argc, char *argv[])
     return 0;
 }
 
-int cut_mbsmemmove(int argc, char *argv[])
+int cut_mbsmemmove(int argc, char* argv[])
 {
     int i = 0;
     int cnt = 0;
@@ -260,16 +273,20 @@ int cut_mbsmemmove(int argc, char *argv[])
 
     list = mbsnewsize(64);
 
-    while (1) {
-        if (i == 100) {
+    while (1)
+    {
+        if (i == 100)
+        {
             break;
         }
 
-        if (cnt > 64) {
+        if (cnt > 64)
+        {
             int len;
             int offset = 0;
-            char *p = strchr(list, ',');
-            if (p) {
+            char* p = strchr(list, ',');
+            if (p)
+            {
                 offset = p + 1 - list;
                 len = mbslen(list) - offset;
                 memmove(list, p + 1, len + 1);
@@ -279,9 +296,12 @@ int cut_mbsmemmove(int argc, char *argv[])
             cnt--;
         }
 
-        if (cnt == 0) {
+        if (cnt == 0)
+        {
             mbscatfmt(&list, "%d", i);
-        } else {
+        }
+        else
+        {
             mbscatfmt(&list, ",%d", i);
         }
 
@@ -296,7 +316,7 @@ int cut_mbsmemmove(int argc, char *argv[])
     return 0;
 }
 
-int cut_mbsendian(int argc, char *argv[])
+int cut_mbsendian(int argc, char* argv[])
 {
     mbs_t mbs = NULL;
 
@@ -319,19 +339,22 @@ int cut_mbsendian(int argc, char *argv[])
     return 0;
 }
 
-int cut_mbscattodeath(int argc, char *argv[])
+int cut_mbscattodeath(int argc, char* argv[])
 {
     char i = 0;
     mbs_t mbs = NULL;
 
     // this will failed after loop 1073741823 times.
-    while (1) {
-        if (mbscatchar(&mbs, i) == NULL) {
+    while (1)
+    {
+        if (mbscatchar(&mbs, i) == NULL)
+        {
             printf("%d\n", mbslen(mbs));
             break;
         }
 
-        if (mbslen(mbs) % 1000000 == 0) {
+        if (mbslen(mbs) % 1000000 == 0)
+        {
             printf("%d\n", mbslen(mbs));
         }
 
@@ -341,7 +364,7 @@ int cut_mbscattodeath(int argc, char *argv[])
     return 0;
 }
 
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
     mbsinit(0);
 

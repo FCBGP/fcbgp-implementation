@@ -1,13 +1,13 @@
 #ifndef LIBPHDR_H
 #define LIBPHDR_H
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdint.h>
 #include <string.h>
 
-#include "libendian.h"
 #include "libchecksum.h"
+#include "libendian.h"
 
 /* ethernet protocol */
 #define PHDR_ETH_P_LOOP 0x0060
@@ -69,29 +69,29 @@
 #define PHDR_IP_P_EIP 254
 
 /* ipv4 icmp type */
-#define PHDR_IP4_ICMP_ECHOREPLY 0   /* Echo Reply */
+#define PHDR_IP4_ICMP_ECHOREPLY 0       /* Echo Reply */
 #define PHDR_IP4_ICMP_DEST_UNREACH 3    /* Destination Unreachable */
 #define PHDR_IP4_ICMP_SOURCE_QUENCH 4   /* Source Quench */
-#define PHDR_IP4_ICMP_REDIRECT 5    /* Redirect (change route) */
-#define PHDR_IP4_ICMP_ECHO 8    /* Echo Request */
-#define PHDR_IP4_ICMP_ROUTE_ADV 9   /* route advertisement */
+#define PHDR_IP4_ICMP_REDIRECT 5        /* Redirect (change route) */
+#define PHDR_IP4_ICMP_ECHO 8            /* Echo Request */
+#define PHDR_IP4_ICMP_ROUTE_ADV 9       /* route advertisement */
 #define PHDR_IP4_ICMP_ROUTE_SOLICIT 10  /* route solicit */
 #define PHDR_IP4_ICMP_TIME_EXCEEDED 11  /* Time Exceeded */
 #define PHDR_IP4_ICMP_PARAMETERPROB 12  /* Parameter Problem */
-#define PHDR_IP4_ICMP_TIMESTAMP 13  /* Timestamp Request */
+#define PHDR_IP4_ICMP_TIMESTAMP 13      /* Timestamp Request */
 #define PHDR_IP4_ICMP_TIMESTAMPREPLY 14 /* Timestamp Reply */
 #define PHDR_IP4_ICMP_INFO_REQUEST 15   /* Information Request */
-#define PHDR_IP4_ICMP_INFO_REPLY 16 /* Information Reply */
-#define PHDR_IP4_ICMP_ADDRESS 17    /* Address Mask Request */
+#define PHDR_IP4_ICMP_INFO_REPLY 16     /* Information Reply */
+#define PHDR_IP4_ICMP_ADDRESS 17        /* Address Mask Request */
 #define PHDR_IP4_ICMP_ADDRESSREPLY 18   /* Address Mask Reply */
 
 /* ipv4, icmp Codes for UNREACH. */
-#define PHDR_IP4_ICMP_NET_UNREACH 0 /* Network Unreachable */
-#define PHDR_IP4_ICMP_HOST_UNREACH 1    /* Host Unreachable */
-#define PHDR_IP4_ICMP_PROT_UNREACH 2    /* Protocol Unreachable */
-#define PHDR_IP4_ICMP_PORT_UNREACH 3    /* Port Unreachable */
-#define PHDR_IP4_ICMP_FRAG_NEEDED 4 /* Fragmentation Needed/DF set */
-#define PHDR_IP4_ICMP_SR_FAILED 5   /* Source Route failed */
+#define PHDR_IP4_ICMP_NET_UNREACH 0  /* Network Unreachable */
+#define PHDR_IP4_ICMP_HOST_UNREACH 1 /* Host Unreachable */
+#define PHDR_IP4_ICMP_PROT_UNREACH 2 /* Protocol Unreachable */
+#define PHDR_IP4_ICMP_PORT_UNREACH 3 /* Port Unreachable */
+#define PHDR_IP4_ICMP_FRAG_NEEDED 4  /* Fragmentation Needed/DF set */
+#define PHDR_IP4_ICMP_SR_FAILED 5    /* Source Route failed */
 #define PHDR_IP4_ICMP_NET_UNKNOWN 6
 #define PHDR_IP4_ICMP_HOST_UNKNOWN 7
 #define PHDR_IP4_ICMP_HOST_ISOLATED 8
@@ -104,14 +104,14 @@
 #define PHDR_IP4_ICMP_PREC_CUTOFF 15    /* Precedence cut off */
 
 /* ipv4, icmp, Codes for REDIRECT. */
-#define PHDR_IP4_ICMP_REDIR_NET 0   /* Redirect Net */
-#define PHDR_IP4_ICMP_REDIR_HOST 1  /* Redirect Host */
-#define PHDR_IP4_ICMP_REDIR_NETTOS 2    /* Redirect Net for TOS */
-#define PHDR_IP4_ICMP_REDIR_HOSTTOS 3   /* Redirect Host for TOS */
+#define PHDR_IP4_ICMP_REDIR_NET 0     /* Redirect Net */
+#define PHDR_IP4_ICMP_REDIR_HOST 1    /* Redirect Host */
+#define PHDR_IP4_ICMP_REDIR_NETTOS 2  /* Redirect Net for TOS */
+#define PHDR_IP4_ICMP_REDIR_HOSTTOS 3 /* Redirect Host for TOS */
 
 /* Codes for TIME_EXCEEDED. */
-#define PHDR_IP4_ICMP_EXC_TTL 0 /* TTL count exceeded */
-#define PHDR_IP4_ICMP_EXC_FRAGTIME 1    /* Frag Reass time exceeded */
+#define PHDR_IP4_ICMP_EXC_TTL 0      /* TTL count exceeded */
+#define PHDR_IP4_ICMP_EXC_FRAGTIME 1 /* Frag Reass time exceeded */
 
 #define PHDR_TCP_FLAG_SYN 0x02
 #define PHDR_TCP_FLAG_FIN 0x01
@@ -128,39 +128,44 @@
 
 #define ETH_ALEN 6
 #define ETH_HLEN 14
-#define ETH_DATA_LEN 1500 /* Max. octets in payload */
+#define ETH_DATA_LEN 1500  /* Max. octets in payload */
 #define ETH_FRAME_LEN 1514 /* Max. octets in frame sans FCS */
 #define ETH_ADDR_FMT "%02x:%02x:%02x:%02x:%02x:%02x"
-#define ETH_ADDR_PRINT(mac) (mac)[0],(mac)[1],(mac)[2],(mac)[3],(mac)[4],(mac)[5]
+#define ETH_ADDR_PRINT(mac)                                                    \
+    (mac)[0], (mac)[1], (mac)[2], (mac)[3], (mac)[4], (mac)[5]
 
-typedef struct phdr_ether_st {
+typedef struct phdr_ether_st
+{
     uint8_t dst_mac[6];
     uint8_t src_mac[6];
     uint16_t protocol;
-} __attribute__ ((packed)) phdr_ether_t;
+} __attribute__((packed)) phdr_ether_t;
 
-typedef struct phdr_trunk_st {
+typedef struct phdr_trunk_st
+{
     uint8_t dst_mac[6];
     uint8_t src_mac[6];
     uint16_t protocol;
     uint16_t vlan;
     uint16_t second_protocol;
-} __attribute__ ((packed)) phdr_trunk_t;
+} __attribute__((packed)) phdr_trunk_t;
 
-#define PHDR_IP_DF 0x4000       /* Flag: "Don't Fragment" */
-#define PHDR_IP_MF 0x2000       /* Flag: "More Fragments" */
-#define PHDR_IP_OFFSET 0x1FFF   /* "Fragment Offset" part */
+#define PHDR_IP_DF 0x4000     /* Flag: "Don't Fragment" */
+#define PHDR_IP_MF 0x2000     /* Flag: "More Fragments" */
+#define PHDR_IP_OFFSET 0x1FFF /* "Fragment Offset" part */
 
 #define PHDR_IPV4_PROTOCOL(ipv4) (ipv4->protocol)
 #define PHDR_IPV4_TOTLEN(ipv4) (endian_ntohs(ipv4->total_len))
 #define PHDR_IPV4_HDRLEN(ipv4) (ipv4->ihl * 4)
-#define PHDR_IPV4_IS_FRAG(ipv4) (ipv4->frag_offset & endian_htons(PHDR_IP_MF | PHDR_IP_OFFSET))
+#define PHDR_IPV4_IS_FRAG(ipv4)                                                \
+    (ipv4->frag_offset & endian_htons(PHDR_IP_MF | PHDR_IP_OFFSET))
 
-typedef struct phdr_ipv4_st {
+typedef struct phdr_ipv4_st
+{
 #if defined(ARCH_IS_LITTLE_ENDIAN)
-    uint8_t ihl:4, version:4;
+    uint8_t ihl : 4, version : 4;
 #else
-    uint8_t version:4, ihl:4;
+    uint8_t version : 4, ihl : 4;
 #endif
 
     uint8_t tos;
@@ -172,11 +177,15 @@ typedef struct phdr_ipv4_st {
     uint16_t chksum;
     uint32_t src_addr;
     uint32_t dst_addr;
-} __attribute__ ((packed)) phdr_ipv4_t;
+} __attribute__((packed)) phdr_ipv4_t;
 
 #define IPADDR4_FMT "%u.%u.%u.%u"
-#define IPADDR4_HPRINT(hip) ((hip)&0xFF000000)>>24,((hip)&0x00FF0000)>>16,((hip)&0x0000FF00)>>8,(hip)&0x000000FF
-#define IPADDR4_NPRINT(nip) (nip)&0x000000FF,((nip)&0x0000FF00)>>8,((nip)&0x00FF0000)>>16,((nip)&0xFF000000)>>24
+#define IPADDR4_HPRINT(hip)                                                    \
+    ((hip)&0xFF000000) >> 24, ((hip)&0x00FF0000) >> 16,                        \
+        ((hip)&0x0000FF00) >> 8, (hip)&0x000000FF
+#define IPADDR4_NPRINT(nip)                                                    \
+    (nip) & 0x000000FF, ((nip)&0x0000FF00) >> 8, ((nip)&0x00FF0000) >> 16,     \
+        ((nip)&0xFF000000) >> 24
 
 /*
  * ipaddr4 is in host byte order
@@ -198,12 +207,15 @@ static inline int ipaddr4_is_broadcast(uint32_t ipaddr4)
 
 static inline int ipaddr4_is_netmask(uint32_t ipaddr4)
 {
-    if (ipaddr4 == 0) {
+    if (ipaddr4 == 0)
+    {
         return 0;
     }
 
-    while (ipaddr4) {
-        if ((ipaddr4 & 0x80000000) == 0) {
+    while (ipaddr4)
+    {
+        if ((ipaddr4 & 0x80000000) == 0)
+        {
             return 0;
         }
 
@@ -217,8 +229,10 @@ static inline int ipaddr4_masklen(uint32_t mask)
 {
     int i;
 
-    for (i=31; i>=0; i--) {
-        if ((mask & (1<<i)) == 0) {
+    for (i = 31; i >= 0; i--)
+    {
+        if ((mask & (1 << i)) == 0)
+        {
             return 31 - i;
         }
     }
@@ -226,30 +240,37 @@ static inline int ipaddr4_masklen(uint32_t mask)
     return 32;
 }
 
-static inline int ipaddr4_is_innet(uint32_t ipaddr4, uint32_t net, uint32_t mask)
+static inline int ipaddr4_is_innet(uint32_t ipaddr4, uint32_t net,
+                                   uint32_t mask)
 {
-    if (ipaddr4 == (ipaddr4 & mask)) {
+    if (ipaddr4 == (ipaddr4 & mask))
+    {
         return 0;
     }
 
-    if (ipaddr4 == (ipaddr4 | (~mask))) {
+    if (ipaddr4 == (ipaddr4 | (~mask)))
+    {
         return 0;
     }
 
-    if ((ipaddr4 & mask) == (net & mask)) {
+    if ((ipaddr4 & mask) == (net & mask))
+    {
         return 1;
     }
 
     return 0;
 }
 
-static inline int ipaddr4_is_samenet(uint32_t net1, uint32_t mask1, uint32_t net2, uint32_t mask2)
+static inline int ipaddr4_is_samenet(uint32_t net1, uint32_t mask1,
+                                     uint32_t net2, uint32_t mask2)
 {
-    if (mask1 != mask2) {
+    if (mask1 != mask2)
+    {
         return 0;
     }
 
-    if ((net1 & mask1) != (net2 & mask2)) {
+    if ((net1 & mask1) != (net2 & mask2))
+    {
         return 0;
     }
 
@@ -257,28 +278,32 @@ static inline int ipaddr4_is_samenet(uint32_t net1, uint32_t mask1, uint32_t net
 }
 
 #define PHDR_TCPV4_HDRLEN(tcpv4) (tcpv4->doff * 4)
-typedef struct phdr_tcpv4_st {
+typedef struct phdr_tcpv4_st
+{
     uint16_t src_port;
     uint16_t dst_port;
     uint32_t seq;
     uint32_t ack_seq;
 #if defined(ARCH_IS_LITTLE_ENDIAN)
-    uint16_t res1:4, doff:4, fin:1, syn:1, rst:1, psh:1, ack:1, urg:1, ece:1, cwr:1;
+    uint16_t res1 : 4, doff : 4, fin : 1, syn : 1, rst : 1, psh : 1, ack : 1,
+        urg : 1, ece : 1, cwr : 1;
 #else
-    uint16_t doff:4, res1:4, cwr:1, ece:1, urg:1, ack:1, psh:1, rst:1, syn:1, fin:1;
+    uint16_t doff : 4, res1 : 4, cwr : 1, ece : 1, urg : 1, ack : 1, psh : 1,
+        rst : 1, syn : 1, fin : 1;
 #endif
     uint16_t window;
     uint16_t chksum;
     uint16_t urgptr;
-} __attribute__ ((packed)) phdr_tcpv4_t;
+} __attribute__((packed)) phdr_tcpv4_t;
 
 /*
- * The following before/after/between routines deal with comparing 32 bit unsigned ints
- * and worry about wraparound (automatic with unsigned arithmetic).
+ * The following before/after/between routines deal with comparing 32 bit
+ * unsigned ints and worry about wraparound (automatic with unsigned
+ * arithmetic).
  */
 static inline int before(uint32_t seq1, uint32_t seq2)
 {
-    return (int32_t) (seq1 - seq2) < 0;
+    return (int32_t)(seq1 - seq2) < 0;
 }
 
 #define after(seq2, seq1) before(seq1, seq2)
@@ -289,81 +314,90 @@ static inline int between(uint32_t seq1, uint32_t seq2, uint32_t seq3)
     return (seq3 - seq2) >= (seq1 - seq2);
 }
 
-typedef struct phdr_udpv4_st {
+typedef struct phdr_udpv4_st
+{
     uint16_t src_port;
     uint16_t dst_port;
     uint16_t size;
     uint16_t chksum;
-} __attribute__ ((packed)) phdr_udpv4_t;
+} __attribute__((packed)) phdr_udpv4_t;
 
 #define PHDR_ICMP_TYPE(icmp) (icmp->type)
 #define PHDR_ICMP_ID(icmp) (icmp->echo.id)
 #define PHDR_ICMP_CODE(icmp) (icmp->code)
 
-typedef struct phdr_icmpv4_st {
+typedef struct phdr_icmpv4_st
+{
     uint8_t type;
     uint8_t code;
     uint16_t chksum;
-    union {
-        struct {
+    union
+    {
+        struct
+        {
             uint16_t id;
             uint16_t sequence;
         } echo;
-        struct {
+        struct
+        {
             uint16_t __unused;
             uint16_t mtu;
         } frag;
         uint32_t gateway;
     };
-} __attribute__ ((packed)) phdr_icmpv4_t;
+} __attribute__((packed)) phdr_icmpv4_t;
 
 static inline int phdr_icmp_type_is_error(uint8_t type)
 {
-    switch (type) {
-    case PHDR_IP4_ICMP_DEST_UNREACH:
-    case PHDR_IP4_ICMP_SOURCE_QUENCH:
-    case PHDR_IP4_ICMP_REDIRECT:
-    case PHDR_IP4_ICMP_TIME_EXCEEDED:
-    case PHDR_IP4_ICMP_PARAMETERPROB:
-        return 1;
-    default:
-        return 0;
+    switch (type)
+    {
+        case PHDR_IP4_ICMP_DEST_UNREACH:
+        case PHDR_IP4_ICMP_SOURCE_QUENCH:
+        case PHDR_IP4_ICMP_REDIRECT:
+        case PHDR_IP4_ICMP_TIME_EXCEEDED:
+        case PHDR_IP4_ICMP_PARAMETERPROB:
+            return 1;
+        default:
+            return 0;
     }
 }
 
 static inline int phdr_icmp_type_is_request(uint8_t type)
 {
-    switch (type) {
-    case PHDR_IP4_ICMP_ECHO:
-    case PHDR_IP4_ICMP_ROUTE_ADV:
-    case PHDR_IP4_ICMP_TIMESTAMP:
-    case PHDR_IP4_ICMP_INFO_REQUEST:
-    case PHDR_IP4_ICMP_ADDRESS:
-        return 1;
-    default:
-        return 0;
+    switch (type)
+    {
+        case PHDR_IP4_ICMP_ECHO:
+        case PHDR_IP4_ICMP_ROUTE_ADV:
+        case PHDR_IP4_ICMP_TIMESTAMP:
+        case PHDR_IP4_ICMP_INFO_REQUEST:
+        case PHDR_IP4_ICMP_ADDRESS:
+            return 1;
+        default:
+            return 0;
     }
 }
 
 static inline uint8_t phdr_icmp_get_request_type(uint8_t reply_type)
 {
-    switch (reply_type) {
-    case PHDR_IP4_ICMP_ECHOREPLY:
-        return PHDR_IP4_ICMP_ECHO;
-    case PHDR_IP4_ICMP_ROUTE_SOLICIT:
-        return PHDR_IP4_ICMP_ROUTE_ADV;
-    case PHDR_IP4_ICMP_TIMESTAMPREPLY:
-        return PHDR_IP4_ICMP_TIMESTAMP;
-    case PHDR_IP4_ICMP_INFO_REPLY:
-        return PHDR_IP4_ICMP_INFO_REQUEST;
-    case PHDR_IP4_ICMP_ADDRESSREPLY:
-        return PHDR_IP4_ICMP_ADDRESS;
-    default:
-        return 0;
+    switch (reply_type)
+    {
+        case PHDR_IP4_ICMP_ECHOREPLY:
+            return PHDR_IP4_ICMP_ECHO;
+        case PHDR_IP4_ICMP_ROUTE_SOLICIT:
+            return PHDR_IP4_ICMP_ROUTE_ADV;
+        case PHDR_IP4_ICMP_TIMESTAMPREPLY:
+            return PHDR_IP4_ICMP_TIMESTAMP;
+        case PHDR_IP4_ICMP_INFO_REPLY:
+            return PHDR_IP4_ICMP_INFO_REQUEST;
+        case PHDR_IP4_ICMP_ADDRESSREPLY:
+            return PHDR_IP4_ICMP_ADDRESS;
+        default:
+            return 0;
     };
 }
 
-typedef struct phdr_arpv4_st {
+typedef struct phdr_arpv4_st
+{
     uint16_t hard_type;
     uint16_t protocol;
     uint8_t hard_addr_size;
@@ -373,9 +407,9 @@ typedef struct phdr_arpv4_st {
     uint32_t sender_ip;
     uint8_t target_mac[6];
     uint32_t target_ip;
-} __attribute__ ((packed)) phdr_arpv4_t;
+} __attribute__((packed)) phdr_arpv4_t;
 
-static inline uint16_t phdr_ip_fast_csum(phdr_ipv4_t *iphdr)
+static inline uint16_t phdr_ip_fast_csum(phdr_ipv4_t* iphdr)
 {
     iphdr->chksum = 0;
     iphdr->chksum = ip_fast_csum(iphdr, iphdr->ihl);
@@ -383,9 +417,11 @@ static inline uint16_t phdr_ip_fast_csum(phdr_ipv4_t *iphdr)
     return iphdr->chksum;
 }
 
-static inline uint16_t phdr_tcp_fast_csum(phdr_ipv4_t *iphdr, phdr_tcpv4_t *tcphdr, int tcplen)
+static inline uint16_t phdr_tcp_fast_csum(phdr_ipv4_t* iphdr,
+                                          phdr_tcpv4_t* tcphdr, int tcplen)
 {
-    uint32_t pseudo_csum = csum_tcpudp_nofold(iphdr->src_addr, iphdr->dst_addr, tcplen, iphdr->protocol, 0);
+    uint32_t pseudo_csum = csum_tcpudp_nofold(iphdr->src_addr, iphdr->dst_addr,
+                                              tcplen, iphdr->protocol, 0);
 
     tcphdr->chksum = 0;
     tcphdr->chksum = csum_fold(csum_partial(tcphdr, tcplen, pseudo_csum));

@@ -1,20 +1,22 @@
+#include <arpa/inet.h>
 #include <errno.h>
-#include <string.h>
-#include <unistd.h>
+#include <linux/sockios.h>
 #include <net/if.h>
 #include <net/route.h>
-#include <sys/ioctl.h>
-#include <linux/sockios.h>
 #include <netinet/if_ether.h>
-#include <sys/socket.h>
 #include <netinet/in.h>
-#include <arpa/inet.h>
+#include <string.h>
+#include <sys/ioctl.h>
+#include <sys/socket.h>
+#include <unistd.h>
 
-int sys_netif_ethaddr_get(char *device, uint8_t * ethaddr)
+int sys_netif_ethaddr_get(char* device, uint8_t* ethaddr)
 {
     int ret;
-    char buf[sizeof(struct ifreq)] = { 0, };
-    struct ifreq *ifr = (struct ifreq *) buf;
+    char buf[sizeof(struct ifreq)] = {
+        0,
+    };
+    struct ifreq* ifr = (struct ifreq*)buf;
     int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
     if (sockfd < 0)
         return -ENOTSOCK;
@@ -22,7 +24,8 @@ int sys_netif_ethaddr_get(char *device, uint8_t * ethaddr)
     strcpy(ifr->ifr_name, device);
     ret = ioctl(sockfd, SIOCGIFHWADDR, ifr);
     close(sockfd);
-    if (ret < 0) {
+    if (ret < 0)
+    {
         return -ENOTTY;
     }
 
@@ -30,12 +33,14 @@ int sys_netif_ethaddr_get(char *device, uint8_t * ethaddr)
     return 0;
 }
 
-int sys_netif_ethaddr_set(char *device, uint8_t * ethaddr)
+int sys_netif_ethaddr_set(char* device, uint8_t* ethaddr)
 {
     int ret;
-    char buf[sizeof(struct ifreq)] = { 0, };
-    struct ifreq *ifr = (struct ifreq *) buf;
-    struct sockaddr *sockaddr = (struct sockaddr *) &(ifr->ifr_hwaddr);
+    char buf[sizeof(struct ifreq)] = {
+        0,
+    };
+    struct ifreq* ifr = (struct ifreq*)buf;
+    struct sockaddr* sockaddr = (struct sockaddr*)&(ifr->ifr_hwaddr);
 
     int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
     if (sockfd < 0)
@@ -47,19 +52,22 @@ int sys_netif_ethaddr_set(char *device, uint8_t * ethaddr)
     strcpy(ifr->ifr_name, device);
     ret = ioctl(sockfd, SIOCSIFHWADDR, ifr);
     close(sockfd);
-    if (ret < 0) {
+    if (ret < 0)
+    {
         return -ENOTTY;
     }
 
     return 0;
 }
 
-int sys_netif_ipaddr_get(char *device, char *ipaddr)
+int sys_netif_ipaddr_get(char* device, char* ipaddr)
 {
     int ret;
-    char buf[sizeof(struct ifreq)] = { 0, };
-    struct ifreq *ifr = (struct ifreq *) buf;
-    struct sockaddr_in *sockaddr = (struct sockaddr_in *) &(ifr->ifr_addr);
+    char buf[sizeof(struct ifreq)] = {
+        0,
+    };
+    struct ifreq* ifr = (struct ifreq*)buf;
+    struct sockaddr_in* sockaddr = (struct sockaddr_in*)&(ifr->ifr_addr);
 
     int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
     if (sockfd < 0)
@@ -68,7 +76,8 @@ int sys_netif_ipaddr_get(char *device, char *ipaddr)
     strcpy(ifr->ifr_name, device);
     ret = ioctl(sockfd, SIOCGIFADDR, ifr);
     close(sockfd);
-    if (ret < 0) {
+    if (ret < 0)
+    {
         return -ENOTTY;
     }
 
@@ -76,12 +85,14 @@ int sys_netif_ipaddr_get(char *device, char *ipaddr)
     return 0;
 }
 
-int sys_netif_ipaddr_set(char *device, char *ipaddr)
+int sys_netif_ipaddr_set(char* device, char* ipaddr)
 {
     int ret;
-    char buf[sizeof(struct ifreq)] = { 0, };
-    struct ifreq *ifr = (struct ifreq *) buf;
-    struct sockaddr_in *sockaddr = (struct sockaddr_in *) &(ifr->ifr_addr);
+    char buf[sizeof(struct ifreq)] = {
+        0,
+    };
+    struct ifreq* ifr = (struct ifreq*)buf;
+    struct sockaddr_in* sockaddr = (struct sockaddr_in*)&(ifr->ifr_addr);
 
     int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
     if (sockfd < 0)
@@ -93,19 +104,22 @@ int sys_netif_ipaddr_set(char *device, char *ipaddr)
     strcpy(ifr->ifr_name, device);
     ret = ioctl(sockfd, SIOCSIFADDR, ifr);
     close(sockfd);
-    if (ret < 0) {
+    if (ret < 0)
+    {
         return -ENOTTY;
     }
 
     return 0;
 }
 
-int sys_netif_ipmask_get(char *device, char *ipmask)
+int sys_netif_ipmask_get(char* device, char* ipmask)
 {
     int ret;
-    char buf[sizeof(struct ifreq)] = { 0, };
-    struct ifreq *ifr = (struct ifreq *) buf;
-    struct sockaddr_in *sockaddr = (struct sockaddr_in *) &(ifr->ifr_netmask);
+    char buf[sizeof(struct ifreq)] = {
+        0,
+    };
+    struct ifreq* ifr = (struct ifreq*)buf;
+    struct sockaddr_in* sockaddr = (struct sockaddr_in*)&(ifr->ifr_netmask);
 
     int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
     if (sockfd < 0)
@@ -114,7 +128,8 @@ int sys_netif_ipmask_get(char *device, char *ipmask)
     strcpy(ifr->ifr_name, device);
     ret = ioctl(sockfd, SIOCGIFNETMASK, ifr);
     close(sockfd);
-    if (ret < 0) {
+    if (ret < 0)
+    {
         return -ENOTTY;
     }
 
@@ -122,12 +137,14 @@ int sys_netif_ipmask_get(char *device, char *ipmask)
     return 0;
 }
 
-int sys_netif_ipmask_set(char *device, char *ipmask)
+int sys_netif_ipmask_set(char* device, char* ipmask)
 {
     int ret;
-    char buf[sizeof(struct ifreq)] = { 0, };
-    struct ifreq *ifr = (struct ifreq *) buf;
-    struct sockaddr_in *sockaddr = (struct sockaddr_in *) &(ifr->ifr_netmask);
+    char buf[sizeof(struct ifreq)] = {
+        0,
+    };
+    struct ifreq* ifr = (struct ifreq*)buf;
+    struct sockaddr_in* sockaddr = (struct sockaddr_in*)&(ifr->ifr_netmask);
 
     int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
     if (sockfd < 0)
@@ -139,21 +156,19 @@ int sys_netif_ipmask_set(char *device, char *ipmask)
     strcpy(ifr->ifr_name, device);
     ret = ioctl(sockfd, SIOCSIFNETMASK, ifr);
     close(sockfd);
-    if (ret < 0) {
+    if (ret < 0)
+    {
         return -ENOTTY;
     }
 
     return 0;
 }
 
-int sys_netif_gateway_add(char *gateway)
+int sys_netif_gateway_add(char* gateway)
 {
     int ret;
     struct rtentry rt;
-    struct sockaddr_in sockaddr = {
-        .sin_family = PF_INET,
-        .sin_port = 0
-    };
+    struct sockaddr_in sockaddr = {.sin_family = PF_INET, .sin_port = 0};
 
     int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
     if (sockfd < 0)
@@ -171,14 +186,15 @@ int sys_netif_gateway_add(char *gateway)
 
     ret = ioctl(sockfd, SIOCADDRT, &rt);
     close(sockfd);
-    if (ret < 0) {
+    if (ret < 0)
+    {
         return -ENOTTY;
     }
 
     return 0;
 }
 
-int sys_netif_enable(char *device)
+int sys_netif_enable(char* device)
 {
     int ret;
     struct ifreq ifr;
@@ -188,14 +204,16 @@ int sys_netif_enable(char *device)
 
     strcpy(ifr.ifr_name, device);
     ret = ioctl(sockfd, SIOCGIFFLAGS, &ifr);
-    if (ret < 0) {
+    if (ret < 0)
+    {
         close(sockfd);
         return -ENOTTY;
     }
 
     ifr.ifr_flags |= IFF_UP;
     ret = ioctl(sockfd, SIOCSIFFLAGS, &ifr);
-    if (ret < 0) {
+    if (ret < 0)
+    {
         close(sockfd);
         return -ENOTTY;
     }
@@ -204,7 +222,7 @@ int sys_netif_enable(char *device)
     return 0;
 }
 
-int sys_netif_disable(char *device)
+int sys_netif_disable(char* device)
 {
     int ret;
     struct ifreq ifr;
@@ -214,14 +232,16 @@ int sys_netif_disable(char *device)
 
     strcpy(ifr.ifr_name, device);
     ret = ioctl(sockfd, SIOCGIFFLAGS, &ifr);
-    if (ret < 0) {
+    if (ret < 0)
+    {
         close(sockfd);
         return -ENOTTY;
     }
 
     ifr.ifr_flags &= ~IFF_UP;
     ret = ioctl(sockfd, SIOCSIFFLAGS, &ifr);
-    if (ret < 0) {
+    if (ret < 0)
+    {
         close(sockfd);
         return -ENOTTY;
     }
@@ -230,7 +250,7 @@ int sys_netif_disable(char *device)
     return 0;
 }
 
-int sys_netif_mtu_get(char *device, int *mtu)
+int sys_netif_mtu_get(char* device, int* mtu)
 {
     int ret;
     struct ifreq ifr;
@@ -240,7 +260,8 @@ int sys_netif_mtu_get(char *device, int *mtu)
 
     strcpy(ifr.ifr_name, device);
     ret = ioctl(sockfd, SIOCGIFMTU, &ifr);
-    if (ret < 0) {
+    if (ret < 0)
+    {
         close(sockfd);
         return -ENOTTY;
     }
@@ -250,7 +271,7 @@ int sys_netif_mtu_get(char *device, int *mtu)
     return 0;
 }
 
-int sys_netif_mtu_set(char *device, int mtu)
+int sys_netif_mtu_set(char* device, int mtu)
 {
     int ret;
     struct ifreq ifr;
@@ -261,7 +282,8 @@ int sys_netif_mtu_set(char *device, int mtu)
     ifr.ifr_mtu = mtu;
     strcpy(ifr.ifr_name, device);
     ret = ioctl(sockfd, SIOCSIFMTU, &ifr);
-    if (ret < 0) {
+    if (ret < 0)
+    {
         close(sockfd);
         return -ENOTTY;
     }
@@ -270,7 +292,7 @@ int sys_netif_mtu_set(char *device, int mtu)
     return 0;
 }
 
-int sys_netif_promisc_enable(char *device)
+int sys_netif_promisc_enable(char* device)
 {
     int ret;
     struct ifreq ifr;
@@ -280,14 +302,16 @@ int sys_netif_promisc_enable(char *device)
 
     strcpy(ifr.ifr_name, device);
     ret = ioctl(sockfd, SIOCGIFFLAGS, &ifr);
-    if (ret < 0) {
+    if (ret < 0)
+    {
         close(sockfd);
         return -ENOTTY;
     }
 
     ifr.ifr_flags |= IFF_PROMISC;
     ret = ioctl(sockfd, SIOCSIFFLAGS, &ifr);
-    if (ret < 0) {
+    if (ret < 0)
+    {
         close(sockfd);
         return -ENOTTY;
     }
@@ -296,7 +320,7 @@ int sys_netif_promisc_enable(char *device)
     return 0;
 }
 
-int sys_netif_promisc_disable(char *device)
+int sys_netif_promisc_disable(char* device)
 {
     int ret;
     struct ifreq ifr;
@@ -306,14 +330,16 @@ int sys_netif_promisc_disable(char *device)
 
     strcpy(ifr.ifr_name, device);
     ret = ioctl(sockfd, SIOCGIFFLAGS, &ifr);
-    if (ret < 0) {
+    if (ret < 0)
+    {
         close(sockfd);
         return -ENOTTY;
     }
 
     ifr.ifr_flags &= ~IFF_PROMISC;
     ret = ioctl(sockfd, SIOCSIFFLAGS, &ifr);
-    if (ret < 0) {
+    if (ret < 0)
+    {
         close(sockfd);
         return -ENOTTY;
     }

@@ -1,28 +1,29 @@
+#include <errno.h>
+#include <fcntl.h>
+#include <net/if.h>
+#include <netinet/in.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/types.h>
-#include <sys/socket.h>
 #include <sys/ioctl.h>
+#include <sys/socket.h>
 #include <sys/time.h>
-#include <pthread.h>
-#include <netinet/in.h>
+#include <sys/types.h>
 #include <unistd.h>
-#include <fcntl.h>
-#include <errno.h>
-#include <net/if.h>
 
-#include "libnio.h"
-#include "liblist.h"
 #include "libdiag.h"
+#include "liblist.h"
+#include "libnio.h"
 
 /*
  * libnio - the network I/O library
  */
 
-nio_ctx_t *nio_create(char *ifname, uint8_t *smac, uint8_t *dmac, struct nio_ops_st *ops)
+nio_ctx_t* nio_create(char* ifname, uint8_t* smac, uint8_t* dmac,
+                      struct nio_ops_st* ops)
 {
-    nio_ctx_t *ctx = malloc(sizeof(struct nio_ctx_st));
+    nio_ctx_t* ctx = malloc(sizeof(struct nio_ctx_st));
     if (ctx == NULL)
         return NULL;
 
@@ -38,22 +39,22 @@ nio_ctx_t *nio_create(char *ifname, uint8_t *smac, uint8_t *dmac, struct nio_ops
     return ctx;
 }
 
-static void *nio_listen(void *arg)
+static void* nio_listen(void* arg)
 {
     int ret;
     int droped = 0;
     nio_pkt_t pkt;
-    nio_ctx_t *ctx = arg;
-    struct nio_ptype_st *ptype;
+    nio_ctx_t* ctx = arg;
+    struct nio_ptype_st* ptype;
 
     ctx->running = 1;
 
-    while (1) {
+    while (1)
+    {
         if (!ctx->running)
             break;
 
-        if (ctx->ops == NULL
-                || ctx->ops->recv == NULL)
+        if (ctx->ops == NULL || ctx->ops->recv == NULL)
             continue;
 
         ret = ctx->ops->recv(ctx, &pkt);
@@ -63,17 +64,24 @@ static void *nio_listen(void *arg)
         ctx->rx_packets++;
         ctx->rx_bytes += pkt.length;
 
-        if (ctx->verbose) {
-            DIAG_MEMORY(pkt.data, pkt.length, "nio %s recv the %uth packet %d/%u bytes\n",
-                    ctx->ifname, ctx->rx_packets, pkt.length, ctx->rx_bytes);
+        if (ctx->verbose)
+        {
+            DIAG_MEMORY(pkt.data, pkt.length,
+                        "nio %s recv the %uth packet %d/%u bytes\n",
+                        ctx->ifname, ctx->rx_packets, pkt.length,
+                        ctx->rx_bytes);
         }
 
         droped = 0;
-        list_for_each_entry(ptype, &ctx->ptype_head, ptype_node) {
-            if (ptype->proto == pkt.proto && ptype->handler) {
+        list_for_each_entry(ptype, &ctx->ptype_head, ptype_node)
+        {
+            if (ptype->proto == pkt.proto && ptype->handler)
+            {
                 ret = ptype->handler(ctx, &pkt);
-                if (ret < 0) {
-                    if (ctx->ops->drop) {
+                if (ret < 0)
+                {
+                    if (ctx->ops->drop)
+                    {
                         ctx->ops->drop(ctx, &pkt);
                     }
                 }
@@ -82,37 +90,43 @@ static void *nio_listen(void *arg)
             }
         }
 
-        if (!droped) {
-            if (ctx->ops->drop) {
+        if (!droped)
+        {
+            if (ctx->ops->drop)
+            {
                 ctx->ops->drop(ctx, &pkt);
             }
         }
     }
 
     ctx->running = 0;
-    pthread_exit((void *)0);
+    pthread_exit((void*)0);
     return NULL;
 }
 
-int nio_start(nio_ctx_t *ctx)
+int nio_start(nio_ctx_t* ctx)
 {
     int i = 0;
     int ret = -1;
 
-    if (ctx->running) {
+    if (ctx->running)
+    {
         DIAG_ERROR("nio already started.\n");
         return -EBUSY;
     }
 
     ret = pthread_create(&ctx->pid, NULL, nio_listen, (void*)ctx);
-    if (ret != 0) {
+    if (ret != 0)
+    {
         DIAG_ERROR("create thread failed: %d\n", ret);
         return -ECHILD;
     }
 
     // waiting for the thread is running.
-    while (i < 10000) {
-        if (ctx->running) {
+    while (i < 10000)
+    {
+        if (ctx->running)
+        {
             DIAG_INFO("nio %s started.\n", ctx->ifname);
             return 0;
         }
@@ -123,10 +137,12 @@ int nio_start(nio_ctx_t *ctx)
     return -ENOEXEC;
 }
 
-void nio_stop(nio_ctx_t *ctx)
+void nio_stop(nio_ctx_t* ctx)
 {
-    if (ctx) {
-        if (ctx->running) {
+    if (ctx)
+    {
+        if (ctx->running)
+        {
             ctx->running = 0;
             pthread_join(ctx->pid, NULL);
             DIAG_INFO("nio %s stoped.\n", ctx->ifname);
@@ -136,7 +152,7 @@ void nio_stop(nio_ctx_t *ctx)
     return;
 }
 
-int nio_send(nio_ctx_t *ctx, uint16_t proto, uint8_t *data, int len)
+int nio_send(nio_ctx_t* ctx, uint16_t proto, uint8_t* data, int len)
 {
     if (ctx == NULL || ctx->ops == NULL || ctx->ops->send == NULL)
         return -EINVAL;
@@ -144,15 +160,16 @@ int nio_send(nio_ctx_t *ctx, uint16_t proto, uint8_t *data, int len)
     ctx->tx_packets++;
     ctx->tx_bytes += len;
 
-    if (ctx->verbose) {
+    if (ctx->verbose)
+    {
         DIAG_MEMORY(data, len, "nio %s send the %uth packet %d/%u bytes\n",
-                ctx->ifname, ctx->tx_packets, len, ctx->tx_bytes);
+                    ctx->ifname, ctx->tx_packets, len, ctx->tx_bytes);
     }
 
     return ctx->ops->send(ctx, proto, data, len);
 }
 
-int nio_forward(nio_ctx_t *ctx, uint16_t proto, nio_pkt_t *pkt)
+int nio_forward(nio_ctx_t* ctx, uint16_t proto, nio_pkt_t* pkt)
 {
     if (ctx == NULL || ctx->ops == NULL || ctx->ops->forward == NULL)
         return -EINVAL;
@@ -160,7 +177,7 @@ int nio_forward(nio_ctx_t *ctx, uint16_t proto, nio_pkt_t *pkt)
     return ctx->ops->forward(ctx, proto, pkt);
 }
 
-int nio_forward6(nio_ctx_t *ctx, uint16_t proto, nio_pkt_t *pkt)
+int nio_forward6(nio_ctx_t* ctx, uint16_t proto, nio_pkt_t* pkt)
 {
     if (ctx == NULL || ctx->ops == NULL || ctx->ops->forward == NULL)
         return -EINVAL;
@@ -168,7 +185,7 @@ int nio_forward6(nio_ctx_t *ctx, uint16_t proto, nio_pkt_t *pkt)
     return ctx->ops->forward6(ctx, proto, pkt);
 }
 
-int nio_drop(nio_ctx_t *ctx, nio_pkt_t *pkt)
+int nio_drop(nio_ctx_t* ctx, nio_pkt_t* pkt)
 {
     if (ctx == NULL || ctx->ops == NULL || ctx->ops->drop == NULL)
         return -EINVAL;
@@ -176,10 +193,10 @@ int nio_drop(nio_ctx_t *ctx, nio_pkt_t *pkt)
     return ctx->ops->drop(ctx, pkt);
 }
 
-int nio_add_ptype(nio_ctx_t *ctx, uint16_t proto,
-        int (*handler)(nio_ctx_t *ctx, nio_pkt_t *pkt))
+int nio_add_ptype(nio_ctx_t* ctx, uint16_t proto,
+                  int (*handler)(nio_ctx_t* ctx, nio_pkt_t* pkt))
 {
-    struct nio_ptype_st *ptype;
+    struct nio_ptype_st* ptype;
 
     ptype = malloc(sizeof(struct nio_ptype_st));
     if (ptype == NULL)
@@ -192,7 +209,7 @@ int nio_add_ptype(nio_ctx_t *ctx, uint16_t proto,
     return 0;
 }
 
-int nio_open(nio_ctx_t *ctx, int argc, int *argv)
+int nio_open(nio_ctx_t* ctx, int argc, int* argv)
 {
     if (ctx->ops == NULL || ctx->ops->open == NULL)
         return -EINVAL;
@@ -200,19 +217,23 @@ int nio_open(nio_ctx_t *ctx, int argc, int *argv)
     return ctx->ops->open(ctx, argc, argv);
 }
 
-void nio_close(nio_ctx_t *ctx)
+void nio_close(nio_ctx_t* ctx)
 {
-    struct nio_ptype_st *ptype;
-    struct nio_ptype_st *tmp_ptype;
+    struct nio_ptype_st* ptype;
+    struct nio_ptype_st* tmp_ptype;
 
-    if (ctx) {
-        list_for_each_entry_safe(ptype, tmp_ptype, &ctx->ptype_head, ptype_node) {
+    if (ctx)
+    {
+        list_for_each_entry_safe(ptype, tmp_ptype, &ctx->ptype_head, ptype_node)
+        {
             list_del(&ptype->ptype_node);
             free(ptype);
         }
 
-        if (ctx->ops) {
-            if (ctx->ops->close) {
+        if (ctx->ops)
+        {
+            if (ctx->ops->close)
+            {
                 ctx->ops->close(ctx);
             }
         }
@@ -221,18 +242,19 @@ void nio_close(nio_ctx_t *ctx)
     }
 }
 
-int nio_verbose(nio_ctx_t *ctx, int verbose)
+int nio_verbose(nio_ctx_t* ctx, int verbose)
 {
-    if (ctx == NULL) {
+    if (ctx == NULL)
+    {
         return 0;
     }
 
     int old_verbose = ctx->verbose;
 
-    if (verbose == 1 || verbose == 0) {
+    if (verbose == 1 || verbose == 0)
+    {
         ctx->verbose = verbose;
     }
 
     return old_verbose;
 }
-

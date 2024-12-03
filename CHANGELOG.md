@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## 2024.12.03
+
+- [x] format: format code with .clang-format
+- [x] refactor: replace frr version from 9.0.1 to 10.2
+
 ## 2024.11.29
 
 - [x] publish: v0.3.0

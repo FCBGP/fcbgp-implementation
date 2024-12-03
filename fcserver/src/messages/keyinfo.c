@@ -18,7 +18,8 @@ extern "C"
 #include <stdio.h>
 #include <stdlib.h>
 
-    int fc_server_pubkey_handler(int clisockfd, const unsigned char *buff, int len)
+    int fc_server_pubkey_handler(int clisockfd, const unsigned char* buff,
+                                 int len)
     {
         DIAG_INFO("TODO pubkey\n");
         return 0;

@@ -17,13 +17,15 @@
 
 #include "libmd5.h"
 
-static void reverse_byte(uint8_t * buf, unsigned len)
+static void reverse_byte(uint8_t* buf, unsigned len)
 {
     uint32_t t;
 
-    do {
-        t = (uint32_t) ((unsigned) buf[3] << 8 | buf[2]) << 16 | ((unsigned) buf[1] << 8 | buf[0]);
-        *(uint32_t *) buf = t;
+    do
+    {
+        t = (uint32_t)((unsigned)buf[3] << 8 | buf[2]) << 16 |
+            ((unsigned)buf[1] << 8 | buf[0]);
+        *(uint32_t*)buf = t;
         buf += 4;
     } while (--len);
 }
@@ -37,8 +39,8 @@ static void reverse_byte(uint8_t * buf, unsigned len)
 #define F4(x, y, z) (y ^ (x | ~z))
 
 /* This is the central step in the MD5 algorithm. */
-#define MD5STEP(f, w, x, y, z, data, s) \
-	( w += f(x, y, z) + data,  w = w<<s | w>>(32-s),  w += x )
+#define MD5STEP(f, w, x, y, z, data, s)                                        \
+    (w += f(x, y, z) + data, w = w << s | w >> (32 - s), w += x)
 
 /*
  * The core of the MD5 algorithm, this alters an existing MD5 hash to
@@ -128,12 +130,11 @@ static void md5ctx_transform(uint32_t buf[4], uint32_t const in[16])
     buf[3] += d;
 }
 
-
 /*
  * Start MD5 accumulation.  Set bit count to 0 and buffer to mysterious
  * initialization constants.
  */
-void md5_init(md5ctx_t * ctx)
+void md5_init(md5ctx_t* ctx)
 {
     ctx->buf[0] = 0x67452301;
     ctx->buf[1] = 0xefcdab89;
@@ -148,7 +149,7 @@ void md5_init(md5ctx_t * ctx)
  * Update context to reflect the concatenation of another buffer full
  * of bytes.
  */
-void md5_update(md5ctx_t * ctx, uint8_t const *buf, unsigned len)
+void md5_update(md5ctx_t* ctx, uint8_t const* buf, unsigned len)
 {
     uint32_t t;
 
@@ -157,27 +158,29 @@ void md5_update(md5ctx_t * ctx, uint8_t const *buf, unsigned len)
      */
 
     t = ctx->bits[0];
-    if ((ctx->bits[0] = t + ((uint32_t) len << 3)) < t)
-        ctx->bits[1]++;         /* Carry from low to high */
+    if ((ctx->bits[0] = t + ((uint32_t)len << 3)) < t)
+        ctx->bits[1]++; /* Carry from low to high */
     ctx->bits[1] += len >> 29;
 
-    t = (t >> 3) & 0x3f;        /* Bytes already in shsInfo->data */
+    t = (t >> 3) & 0x3f; /* Bytes already in shsInfo->data */
 
     /*
      * Handle any leading odd-sized chunks
      */
 
-    if (t) {
-        uint8_t *p = (uint8_t *) ctx->in + t;
+    if (t)
+    {
+        uint8_t* p = (uint8_t*)ctx->in + t;
 
         t = 64 - t;
-        if (len < t) {
+        if (len < t)
+        {
             memcpy(p, buf, len);
             return;
         }
         memcpy(p, buf, t);
         reverse_byte(ctx->in, 16);
-        md5ctx_transform(ctx->buf, (uint32_t *) ctx->in);
+        md5ctx_transform(ctx->buf, (uint32_t*)ctx->in);
         buf += t;
         len -= t;
     }
@@ -185,10 +188,11 @@ void md5_update(md5ctx_t * ctx, uint8_t const *buf, unsigned len)
      * Process data in 64-byte chunks
      */
 
-    while (len >= 64) {
+    while (len >= 64)
+    {
         memcpy(ctx->in, buf, 64);
         reverse_byte(ctx->in, 16);
-        md5ctx_transform(ctx->buf, (uint32_t *) ctx->in);
+        md5ctx_transform(ctx->buf, (uint32_t*)ctx->in);
         buf += 64;
         len -= 64;
     }
@@ -204,9 +208,9 @@ void md5_update(md5ctx_t * ctx, uint8_t const *buf, unsigned len)
  * Final wrapup - pad to 64-byte boundary with the bit pattern
  * 1 0* (64-bit count of bits processed, MSB-first)
  */
-void md5_final(md5ctx_t * ctx, uint8_t digest[16])
+void md5_final(md5ctx_t* ctx, uint8_t digest[16])
 {
-    uint8_t *p;
+    uint8_t* p;
     unsigned count;
 
     /*
@@ -229,19 +233,22 @@ void md5_final(md5ctx_t * ctx, uint8_t digest[16])
     /*
      * Pad out to 56 mod 64
      */
-    if (count < 8) {
+    if (count < 8)
+    {
         /*
          * Two lots of padding:  Pad the first block to 64 bytes
          */
         memset(p, 0, count);
         reverse_byte(ctx->in, 16);
-        md5ctx_transform(ctx->buf, (uint32_t *) ctx->in);
+        md5ctx_transform(ctx->buf, (uint32_t*)ctx->in);
 
         /*
          * Now fill the next block with 56 bytes
          */
         memset(ctx->in, 0, 56);
-    } else {
+    }
+    else
+    {
         /*
          * Pad block to 56 bytes
          */
@@ -252,29 +259,30 @@ void md5_final(md5ctx_t * ctx, uint8_t digest[16])
     /*
      * Append length in bits and transform
      */
-    ((uint32_t *) ctx->in)[14] = ctx->bits[0];
-    ((uint32_t *) ctx->in)[15] = ctx->bits[1];
+    ((uint32_t*)ctx->in)[14] = ctx->bits[0];
+    ((uint32_t*)ctx->in)[15] = ctx->bits[1];
 
-    md5ctx_transform(ctx->buf, (uint32_t *) ctx->in);
-    reverse_byte((uint8_t *) ctx->buf, 4);
+    md5ctx_transform(ctx->buf, (uint32_t*)ctx->in);
+    reverse_byte((uint8_t*)ctx->buf, 4);
     memcpy(digest, ctx->buf, 16);
-    memset(ctx, 0, sizeof(*ctx));   /* In case it's sensitive */
+    memset(ctx, 0, sizeof(*ctx)); /* In case it's sensitive */
 }
 
-int strmd5digest(char *str, uint8_t digest[16])
+int strmd5digest(char* str, uint8_t digest[16])
 {
     int len;
     md5ctx_t ctx;
-    uint8_t *buffer;
+    uint8_t* buffer;
 
     memset(digest, 0, 16);
 
-    if (!str || str[0] == '\0') {
+    if (!str || str[0] == '\0')
+    {
         return -1;
     }
 
     len = strlen(str);
-    buffer = (uint8_t *) str;
+    buffer = (uint8_t*)str;
 
     md5_init(&ctx);
     md5_update(&ctx, buffer, len);
@@ -283,24 +291,26 @@ int strmd5digest(char *str, uint8_t digest[16])
     return 0;
 }
 
-char *strmd5sum(char *str, char *buf, int len)
+char* strmd5sum(char* str, char* buf, int len)
 {
     int i, j;
     uint8_t digest[16];
 
-    if (len < 33) {
+    if (len < 33)
+    {
         return NULL;
     }
 
-    if (strmd5digest(str, digest) < 0) {
+    if (strmd5digest(str, digest) < 0)
+    {
         return NULL;
     }
 
-    for (i = 0, j = 0; i < 16; i++) {
+    for (i = 0, j = 0; i < 16; i++)
+    {
         sprintf(buf + j, "%02X", digest[i]);
         j += 2;
     }
 
     return buf;
 }
-

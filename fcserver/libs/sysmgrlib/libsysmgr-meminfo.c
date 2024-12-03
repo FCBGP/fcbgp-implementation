@@ -1,5 +1,5 @@
-#include <stdlib.h>
 #include "libsysmgr.h"
+#include <stdlib.h>
 
 #define SYS_PROC_PATH_MEM_ROUTE SYS_PROC_PATH "meminfo"
 #define PROC_MEMINFO_FMT "%s %s %s"
@@ -11,31 +11,45 @@
  * Cached:           256352 kB
  */
 
-int sys_meminfo_get(sys_meminfo_t **pmeminfo)
+int sys_meminfo_get(sys_meminfo_t** pmeminfo)
 {
     int i;
-    FILE *fp = NULL;
-    char buf[256] = {0, };
-    char name[16] = {0, };
-    char size[16] = {0, };
-    char symb[16] = {0, };
-    int values[4] = { 0, };
+    FILE* fp = NULL;
+    char buf[256] = {
+        0,
+    };
+    char name[16] = {
+        0,
+    };
+    char size[16] = {
+        0,
+    };
+    char symb[16] = {
+        0,
+    };
+    int values[4] = {
+        0,
+    };
 
-    sys_meminfo_t *meminfo = malloc(sizeof(sys_meminfo_t));
-    if (meminfo == NULL) {
+    sys_meminfo_t* meminfo = malloc(sizeof(sys_meminfo_t));
+    if (meminfo == NULL)
+    {
         return -ENOMEM;
     }
 
     fp = fopen(SYS_PROC_PATH_MEM_ROUTE, "r");
-    if (fp == NULL) {
+    if (fp == NULL)
+    {
         free(meminfo);
         return -ENOENT;
     }
 
-    for (i = 0; i < 4; i++) {
+    for (i = 0; i < 4; i++)
+    {
         fgets(buf, sizeof(buf), fp);
 
-        if (sscanf(buf, PROC_MEMINFO_FMT, name, size, symb) != 3) {
+        if (sscanf(buf, PROC_MEMINFO_FMT, name, size, symb) != 3)
+        {
             free(meminfo);
             return -EINVAL;
         }
@@ -52,9 +66,10 @@ int sys_meminfo_get(sys_meminfo_t **pmeminfo)
     return 0;
 }
 
-int sys_meminfo_free(sys_meminfo_t *meminfo)
+int sys_meminfo_free(sys_meminfo_t* meminfo)
 {
-    if (meminfo) {
+    if (meminfo)
+    {
         free(meminfo);
     }
 

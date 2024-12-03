@@ -5,16 +5,16 @@
  * Description:  For testing how to enable both ipv4 and ipv6.
  ********************************************************************************/
 
+#include <arpa/inet.h>
+#include <netinet/in.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <arpa/inet.h>
-#include <sys/types.h>
 #include <sys/socket.h>
-#include <netinet/in.h>
+#include <sys/types.h>
+#include <unistd.h>
 
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
     int sockfd = 0;
     int clntfd = 0;
@@ -35,7 +35,7 @@ int main(int argc, char *argv[])
     setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(int));
     setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(int));
 
-    if (bind(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
+    if (bind(sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0)
     {
         perror("bind()");
         exit(EXIT_FAILURE);
@@ -47,14 +47,14 @@ int main(int argc, char *argv[])
     }
 
     socklen_t clnt_len = sizeof(struct sockaddr);
-    while ((clntfd = accept(sockfd, (struct sockaddr *)&clnt_addr,
-                    &clnt_len)) > 0)
+    while ((clntfd = accept(sockfd, (struct sockaddr*)&clnt_addr, &clnt_len)) >
+           0)
     {
-        int  addrform;
+        int addrform;
         socklen_t len = sizeof(addrform);
 
-        if (getsockopt(clntfd, IPPROTO_IPV6, IPV6_ADDRFORM,
-                    (char *) &addrform, &len) == -1)
+        if (getsockopt(clntfd, IPPROTO_IPV6, IPV6_ADDRFORM, (char*)&addrform,
+                       &len) == -1)
             perror("getsockopt IPV6_ADDRFORM");
         else if (addrform == PF_INET)
             printf("This is an IPv4 socket.\n");
@@ -62,15 +62,14 @@ int main(int argc, char *argv[])
         {
             printf("This is an IPv6 socket.\n");
             char addr[INET6_ADDRSTRLEN];
-            inet_ntop(AF_INET6, &clnt_addr.sin6_addr,
-                    addr, sizeof(struct sockaddr_in6));
+            inet_ntop(AF_INET6, &clnt_addr.sin6_addr, addr,
+                      sizeof(struct sockaddr_in6));
             printf("addr: %s\n", addr);
         }
         else
             printf("This system is broken.\n");
         close(clntfd);
     }
-
 
     return 0;
 }

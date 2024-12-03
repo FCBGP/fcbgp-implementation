@@ -5,13 +5,13 @@
  * Description:
  ********************************************************************************/
 
+#include "libncs6.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include "libncs6.h"
 
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
-    ncs6_ctx_t *fc_bgpd_ctx6;
+    ncs6_ctx_t* fc_bgpd_ctx6;
     if ((fc_bgpd_ctx6 = ncs6_create("demo test", 23160)) == NULL)
     {
         printf("create bgpd ncs failed\n");

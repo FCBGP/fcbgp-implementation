@@ -1,6 +1,6 @@
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdint.h>
 #include <string.h>
 
 #include "libendian.h"
@@ -34,22 +34,23 @@ static inline uint32_t csum_long(unsigned long x)
  */
 uint16_t csum_fold(uint32_t csum)
 {
-    uint32_t sum = (uint32_t) csum;
+    uint32_t sum = (uint32_t)csum;
     sum = (sum & 0xffff) + (sum >> 16);
     sum = (sum & 0xffff) + (sum >> 16);
-    return (uint16_t) ~ sum;
+    return (uint16_t)~sum;
 }
 
 #ifdef __tilegx__
-uint32_t do_csum(const uint8_t *buff, int len)
+uint32_t do_csum(const uint8_t* buff, int len)
 {
     int odd, count;
     unsigned long result = 0;
 
     if (len <= 0)
         goto out;
-    odd = 1 & (unsigned long) buff;
-    if (odd) {
+    odd = 1 & (unsigned long)buff;
+    if (odd)
+    {
 #if defined(ARCH_IS_LITTLE_ENDIAN)
         result += (*buff << 8);
 #else
@@ -58,50 +59,59 @@ uint32_t do_csum(const uint8_t *buff, int len)
         len--;
         buff++;
     }
-    count = len >> 1;           /* nr of 16-bit words.. */
-    if (count) {
-        if (2 & (unsigned long) buff) {
-            result += *(const uint16_t *) buff;
+    count = len >> 1; /* nr of 16-bit words.. */
+    if (count)
+    {
+        if (2 & (unsigned long)buff)
+        {
+            result += *(const uint16_t*)buff;
             count--;
             len -= 2;
             buff += 2;
         }
-        count >>= 1;            /* nr of 32-bit words.. */
-        if (count) {
-            if (4 & (unsigned long) buff) {
-                uint32_t w = *(const uint32_t *) buff;
+        count >>= 1; /* nr of 32-bit words.. */
+        if (count)
+        {
+            if (4 & (unsigned long)buff)
+            {
+                uint32_t w = *(const uint32_t*)buff;
                 result = __insn_v2sadau(result, w, 0);
                 count--;
                 len -= 4;
                 buff += 4;
             }
-            count >>= 1;        /* nr of 64-bit words.. */
+            count >>= 1; /* nr of 64-bit words.. */
 
             /*
              * This algorithm could wrap around for very
              * large buffers, but those should be impossible.
              */
-            if (count >= 65530) goto out;
+            if (count >= 65530)
+                goto out;
 
-            while (count) {
-                unsigned long w = *(const unsigned long *) buff;
+            while (count)
+            {
+                unsigned long w = *(const unsigned long*)buff;
                 count--;
                 buff += sizeof(w);
                 result = __insn_v2sadau(result, w, 0);
             }
 
-            if (len & 4) {
-                uint32_t w = *(const uint32_t *) buff;
+            if (len & 4)
+            {
+                uint32_t w = *(const uint32_t*)buff;
                 result = __insn_v2sadau(result, w, 0);
                 buff += 4;
             }
         }
-        if (len & 2) {
-            result += *(const uint16_t *) buff;
+        if (len & 2)
+        {
+            result += *(const uint16_t*)buff;
             buff += 2;
         }
     }
-    if (len & 1) {
+    if (len & 1)
+    {
 #if defined(ARCH_IS_LITTLE_ENDIAN)
         result += *buff;
 #else
@@ -116,15 +126,16 @@ out:
     return result;
 }
 #else
-static uint32_t do_csum(const uint8_t *buff, int len)
+static uint32_t do_csum(const uint8_t* buff, int len)
 {
     int odd;
     unsigned long result = 0;
 
     if (len <= 0)
         goto out;
-    odd = 1 & (unsigned long) buff;
-    if (odd) {
+    odd = 1 & (unsigned long)buff;
+    if (odd)
+    {
 #if defined(ARCH_IS_LITTLE_ENDIAN)
         result += (*buff << 8);
 #else
@@ -133,17 +144,21 @@ static uint32_t do_csum(const uint8_t *buff, int len)
         len--;
         buff++;
     }
-    if (len >= 2) {
-        if (2 & (unsigned long) buff) {
-            result += *(uint16_t *) buff;
+    if (len >= 2)
+    {
+        if (2 & (unsigned long)buff)
+        {
+            result += *(uint16_t*)buff;
             len -= 2;
             buff += 2;
         }
-        if (len >= 4) {
-            const uint8_t *end = buff + ((unsigned)len & ~3);
+        if (len >= 4)
+        {
+            const uint8_t* end = buff + ((unsigned)len & ~3);
             uint32_t carry = 0;
-            do {
-                uint32_t w = *(uint32_t *) buff;
+            do
+            {
+                uint32_t w = *(uint32_t*)buff;
                 buff += 4;
                 result += carry;
                 result += w;
@@ -152,12 +167,14 @@ static uint32_t do_csum(const uint8_t *buff, int len)
             result += carry;
             result = (result & 0xffff) + (result >> 16);
         }
-        if (len & 2) {
-            result += *(uint16_t *) buff;
+        if (len & 2)
+        {
+            result += *(uint16_t*)buff;
             buff += 2;
         }
     }
-    if (len & 1) {
+    if (len & 1)
+    {
 #if defined(ARCH_IS_LITTLE_ENDIAN)
         result += *buff;
 #else
@@ -176,24 +193,25 @@ out:
  *  This is a version of ip_compute_csum() optimized for IP headers,
  *  which always checksum on 4 octet boundaries.
  */
-uint16_t ip_fast_csum(const void *iph, uint32_t ihl)
+uint16_t ip_fast_csum(const void* iph, uint32_t ihl)
 {
-    return (uint16_t) ~ do_csum(iph, ihl * 4);
+    return (uint16_t)~do_csum(iph, ihl * 4);
 }
 
-uint32_t csum_tcpudp_nofold(uint32_t saddr, uint32_t daddr, uint16_t len, uint16_t proto, uint32_t sum)
+uint32_t csum_tcpudp_nofold(uint32_t saddr, uint32_t daddr, uint16_t len,
+                            uint16_t proto, uint32_t sum)
 {
-    unsigned long long s = (uint32_t) sum;
+    unsigned long long s = (uint32_t)sum;
 
-    s += (uint32_t) saddr;
-    s += (uint32_t) daddr;
+    s += (uint32_t)saddr;
+    s += (uint32_t)daddr;
 #if defined(ARCH_IS_BIG_ENDIAN)
     s += proto + len;
 #else
     s += (proto + len) << 8;
 #endif
     s += (s >> 32);
-    return (uint32_t) s;
+    return (uint32_t)s;
 }
 
 /*
@@ -208,9 +226,9 @@ uint32_t csum_tcpudp_nofold(uint32_t saddr, uint32_t daddr, uint16_t len, uint16
  *
  * it's best to have buff aligned on a 32-bit boundary
  */
-uint32_t csum_partial(const void *buff, int len, uint32_t wsum)
+uint32_t csum_partial(const void* buff, int len, uint32_t wsum)
 {
-    uint32_t sum = (uint32_t) wsum;
+    uint32_t sum = (uint32_t)wsum;
     uint32_t result = do_csum(buff, len);
 
     /* add in old sum, and carry.. */
@@ -218,6 +236,5 @@ uint32_t csum_partial(const void *buff, int len, uint32_t wsum)
     if (sum > result)
         result += 1;
 
-    return (uint32_t) result;
+    return (uint32_t)result;
 }
-

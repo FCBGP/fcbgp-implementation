@@ -1,27 +1,27 @@
-#include <time.h>
-#include <stdio.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <string.h>
+#include <time.h>
 
-#include "libstream.h"
 #include "libmsgpack.h"
+#include "libstream.h"
 
-static bool stream_read_and_check(void *data, size_t size, stream_t * stream)
+static bool stream_read_and_check(void* data, size_t size, stream_t* stream)
 {
     return (stream_read(stream, data, size) == size);
 }
 
-static bool stream_reader(mpack_ctx_t * ctx, void *data, size_t size)
+static bool stream_reader(mpack_ctx_t* ctx, void* data, size_t size)
 {
-    return stream_read_and_check(data, size, (stream_t *) ctx->buf);
+    return stream_read_and_check(data, size, (stream_t*)ctx->buf);
 }
 
-static size_t stream_writer(mpack_ctx_t * ctx, const void *data, size_t count)
+static size_t stream_writer(mpack_ctx_t* ctx, const void* data, size_t count)
 {
-    return stream_write((stream_t *) ctx->buf, (char *)data, count);
+    return stream_write((stream_t*)ctx->buf, (char*)data, count);
 }
 
-void mpack_write_cstr(mpack_ctx_t *mpctx, char *str)
+void mpack_write_cstr(mpack_ctx_t* mpctx, char* str)
 {
     int len = strlen(str);
 
@@ -29,7 +29,8 @@ void mpack_write_cstr(mpack_ctx_t *mpctx, char *str)
     return;
 }
 
-void mpack_write_diskinfo(mpack_ctx_t *mpctx, uint8_t diskid, int n_luns, int n_nics)
+void mpack_write_diskinfo(mpack_ctx_t* mpctx, uint8_t diskid, int n_luns,
+                          int n_nics)
 {
     int i;
 
@@ -48,7 +49,8 @@ void mpack_write_diskinfo(mpack_ctx_t *mpctx, uint8_t diskid, int n_luns, int n_
 
     mpack_write_cstr(mpctx, "luns");
     mpack_write_array(mpctx, n_luns);
-    for (i=0; i<n_luns; i++) {
+    for (i = 0; i < n_luns; i++)
+    {
         mpack_write_map(mpctx, 7);
         mpack_write_cstr(mpctx, "lunid");
         mpack_write_u16(mpctx, i);
@@ -74,7 +76,8 @@ void mpack_write_diskinfo(mpack_ctx_t *mpctx, uint8_t diskid, int n_luns, int n_
 
     mpack_write_cstr(mpctx, "nics");
     mpack_write_array(mpctx, n_nics);
-    for (i=0; i<n_nics; i++) {
+    for (i = 0; i < n_nics; i++)
+    {
         mpack_write_map(mpctx, 6);
         mpack_write_cstr(mpctx, "nicid");
         mpack_write_u8(mpctx, i);
@@ -100,17 +103,19 @@ int main(void)
 {
     int i;
     mpack_ctx_t mpctx;
-    stream_t *stream = NULL;
+    stream_t* stream = NULL;
 
 #if 1
     stream = stream_fopen("mpack.dat", "w");
-    if (stream == NULL) {
+    if (stream == NULL)
+    {
         fprintf(stderr, "open file mpack.dat to write failed.\n");
         return -1;
     }
 #else
     stream = stream_ramopen(malloc, realloc, free);
-    if (stream == NULL) {
+    if (stream == NULL)
+    {
         fprintf(stderr, "open memory to write failed.\n");
         return -1;
     }
@@ -118,11 +123,11 @@ int main(void)
 
     mpack_init(&mpctx, stream, stream_reader, stream_writer);
 
-    for (i=0; i<64; i++) {
+    for (i = 0; i < 64; i++)
+    {
         mpack_write_diskinfo(&mpctx, i, 1024, 64);
     }
 
     stream_close(stream);
     return 0;
 }
-
