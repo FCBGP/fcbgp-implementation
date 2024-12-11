@@ -11,28 +11,25 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-static void *
-fc_as_node_create(void)
+static void* fc_as_node_create(void)
 {
-    FC_ht_node_as_t *node = calloc(1, sizeof(FC_ht_node_as_t));
+    FC_ht_node_as_t* node = calloc(1, sizeof(FC_ht_node_as_t));
     return node;
 }
 
-static int
-fc_as_node_destroy(void *node)
+static int fc_as_node_destroy(void* node)
 {
-    FC_ht_node_as_t *node_as = (FC_ht_node_as_t *)node;
+    FC_ht_node_as_t* node_as = (FC_ht_node_as_t*)node;
     EC_KEY_free(node_as->pubkey);
     free(node_as);
     node_as = NULL;
     return 0;
 }
 
-static int
-fc_as_node_display(void *node)
+static int fc_as_node_display(void* node)
 {
     int i = 0;
-    FC_ht_node_as_t *node_as = (FC_ht_node_as_t *)node;
+    FC_ht_node_as_t* node_as = (FC_ht_node_as_t*)node;
 
     DIAG_INFO("asn: %d\n", node_as->asn);
     DIAG_INFO("  acs:\n");
@@ -52,42 +49,37 @@ fc_as_node_display(void *node)
     return 0;
 }
 
-static u32
-fc_as_hash(u32 asn)
+static u32 fc_as_hash(u32 asn)
 {
     u32 ret = jhash_1word(asn, 0xdeadbeef);
     // DIAG_INFO("ret : %d\n", ret);
     return ret;
 }
 
-static int
-fc_as_node_hash(void *node)
+static int fc_as_node_hash(void* node)
 {
-    FC_ht_node_as_t *node_as = (FC_ht_node_as_t *)node;
+    FC_ht_node_as_t* node_as = (FC_ht_node_as_t*)node;
     return fc_as_hash(node_as->asn);
 }
 
-static int
-fc_as_meta_hash(void *meta)
+static int fc_as_meta_hash(void* meta)
 {
-    FC_node_as_t *meta_as = (FC_node_as_t *)meta;
+    FC_node_as_t* meta_as = (FC_node_as_t*)meta;
     return fc_as_hash(meta_as->asn);
 }
 
-static int
-fc_as_meta_cmp(void *base, void *meta)
+static int fc_as_meta_cmp(void* base, void* meta)
 {
-    FC_ht_node_as_t *node_as = (FC_ht_node_as_t *)base;
-    FC_node_as_t *meta_as = (FC_node_as_t *)meta;
+    FC_ht_node_as_t* node_as = (FC_ht_node_as_t*)base;
+    FC_node_as_t* meta_as = (FC_node_as_t*)meta;
 
     return !!(node_as->asn != meta_as->asn);
 }
 
-static int
-fc_as_meta_save(void *base, void *meta)
+static int fc_as_meta_save(void* base, void* meta)
 {
-    FC_ht_node_as_t *node_as = (FC_ht_node_as_t *)base;
-    FC_node_as_t *meta_as = (FC_node_as_t *)meta;
+    FC_ht_node_as_t* node_as = (FC_ht_node_as_t*)base;
+    FC_node_as_t* meta_as = (FC_node_as_t*)meta;
 
     node_as->asn = meta_as->asn;
     node_as->pubkey = meta_as->pubkey;
@@ -108,18 +100,16 @@ htbl_ops_t g_fc_htbl_as_ops = {
     .meta_save_func = fc_as_meta_save,
 };
 
-static void *
-fc_prefix_node_create(void)
+static void* fc_prefix_node_create(void)
 {
-    FC_ht_node_prefix_t *node = calloc(1, sizeof(FC_ht_node_prefix_t));
+    FC_ht_node_prefix_t* node = calloc(1, sizeof(FC_ht_node_prefix_t));
     node->fcs = calloc(FC_MAX_SIZE, sizeof(FC_t));
     return node;
 }
 
-static int
-fc_prefix_node_destroy(void *node)
+static int fc_prefix_node_destroy(void* node)
 {
-    FC_ht_node_prefix_t *node_prefix = (FC_ht_node_prefix_t *)node;
+    FC_ht_node_prefix_t* node_prefix = (FC_ht_node_prefix_t*)node;
     free(node_prefix->fcs);
     node_prefix->fcs = NULL;
     free(node_prefix);
@@ -127,8 +117,7 @@ fc_prefix_node_destroy(void *node)
     return 0;
 }
 
-static int
-fc_prefix_hash(struct prefix *prefix)
+static int fc_prefix_hash(struct prefix* prefix)
 {
     int i = 0;
     int ret = 0;
@@ -141,25 +130,22 @@ fc_prefix_hash(struct prefix *prefix)
     return ret;
 }
 
-static int
-fc_prefix_node_hash(void *node)
+static int fc_prefix_node_hash(void* node)
 {
-    FC_ht_node_prefix_t *node_prefix = (FC_ht_node_prefix_t *)node;
+    FC_ht_node_prefix_t* node_prefix = (FC_ht_node_prefix_t*)node;
     return fc_prefix_hash(&node_prefix->ipprefix);
 }
 
-static int
-fc_prefix_meta_hash(void *meta)
+static int fc_prefix_meta_hash(void* meta)
 {
-    FCList_t *meta_prefix = (FCList_t *)meta;
+    FCList_t* meta_prefix = (FCList_t*)meta;
     return fc_prefix_hash(&meta_prefix->ipprefix);
 }
 
-static int
-fc_prefix_meta_cmp(void *base, void *meta)
+static int fc_prefix_meta_cmp(void* base, void* meta)
 {
-    FC_ht_node_prefix_t *node_prefix = (FC_ht_node_prefix_t *)base;
-    FCList_t *meta_prefix = (FCList_t *)meta;
+    FC_ht_node_prefix_t* node_prefix = (FC_ht_node_prefix_t*)base;
+    FCList_t* meta_prefix = (FCList_t*)meta;
 
     int ret = 0; // 0 for equal and 1 for inequal
     int i = 0;
@@ -170,7 +156,8 @@ fc_prefix_meta_cmp(void *base, void *meta)
         {
             for (i = 0; i < 4; ++i)
             {
-                if (node_prefix->ipprefix.u.val32[i] != meta_prefix->ipprefix.u.val32[i])
+                if (node_prefix->ipprefix.u.val32[i] !=
+                    meta_prefix->ipprefix.u.val32[i])
                 {
                     ret = 1;
                     break;
@@ -183,25 +170,21 @@ fc_prefix_meta_cmp(void *base, void *meta)
     return ret;
 }
 
-static int
-fc_prefix_meta_save(void *base, void *meta)
+static int fc_prefix_meta_save(void* base, void* meta)
 {
-    FC_ht_node_prefix_t *node_prefix = (FC_ht_node_prefix_t *)base;
-    FCList_t *meta_prefix = (FCList_t *)meta;
+    FC_ht_node_prefix_t* node_prefix = (FC_ht_node_prefix_t*)base;
+    FCList_t* meta_prefix = (FCList_t*)meta;
 
     node_prefix->size = meta_prefix->size;
     node_prefix->length = meta_prefix->length;
     node_prefix->fcs = meta_prefix->fcs;
-    memcpy(&node_prefix->ipprefix, &meta_prefix->ipprefix, sizeof(struct prefix));
+    memcpy(&node_prefix->ipprefix, &meta_prefix->ipprefix,
+           sizeof(struct prefix));
 
     return 0;
 }
 
-static int
-fc_prefix_node_display(void *node)
-{
-    return 0;
-}
+static int fc_prefix_node_display(void* node) { return 0; }
 
 htbl_ops_t g_fc_htbl_prefix_ops = {
     .node_create_func = fc_prefix_node_create,
@@ -215,7 +198,7 @@ htbl_ops_t g_fc_htbl_prefix_ops = {
 
 // 这里需要注意到是，htbl_ops需要是在ht之后不能销毁的
 // 所以只能使用g_htbl_ops这种用法了
-int fc_hashtable_create(htbl_ctx_t *ht, htbl_ops_t *ops)
+int fc_hashtable_create(htbl_ctx_t* ht, htbl_ops_t* ops)
 {
     int ret = 0;
     ht->bucketcnt = FCSRV_HTBL_BUCKETS_SIZE;
@@ -224,8 +207,9 @@ int fc_hashtable_create(htbl_ctx_t *ht, htbl_ops_t *ops)
     ret = htbl_init(ht);
     FC_ASSERT_RET(ret);
     /*
-       DIAG_INFO("htbl_init return %d ptr size %d spinlock size %d atomic size %d hlist size %d rwlock size %d hnode size %d node size %d",
-       ret, (int)sizeof(void *), (int)sizeof(spinlock_t), (int)sizeof(atomic_t),
+       DIAG_INFO("htbl_init return %d ptr size %d spinlock size %d atomic size
+       %d hlist size %d rwlock size %d hnode size %d node size %d", ret,
+       (int)sizeof(void *), (int)sizeof(spinlock_t), (int)sizeof(atomic_t),
        (int)sizeof(htbl_hlist_t), (int)sizeof(rwlock_t),
        (int)sizeof(htbl_node_t), (int)sizeof(FC_ht_node_as_t));
        */
@@ -233,7 +217,7 @@ int fc_hashtable_create(htbl_ctx_t *ht, htbl_ops_t *ops)
     return 0;
 }
 
-int fc_hashtable_destroy(htbl_ctx_t *ht)
+int fc_hashtable_destroy(htbl_ctx_t* ht)
 {
     if (ht)
     {
@@ -243,9 +227,8 @@ int fc_hashtable_destroy(htbl_ctx_t *ht)
     return 0;
 }
 
-int ht_aclinfo_insert(ht_acl_group_info_t *ht,
-                      u32 iface_index,
-                      FC_router_info_t *target_router)
+int ht_aclinfo_insert(ht_acl_group_info_t* ht, u32 iface_index,
+                      FC_router_info_t* target_router)
 {
     ht_acl_group_info_t *acl_group_info = NULL, *item = NULL;
 
@@ -266,13 +249,13 @@ int ht_aclinfo_insert(ht_acl_group_info_t *ht,
     return 0;
 }
 
-int ht_aclinfo_create(ht_acl_group_info_t **ht)
+int ht_aclinfo_create(ht_acl_group_info_t** ht)
 {
     (void)ht;
     return 0;
 }
 
-int ht_aclinfo_destroy(ht_acl_group_info_t *ht)
+int ht_aclinfo_destroy(ht_acl_group_info_t* ht)
 {
     ht_acl_group_info_t *acl_group_info = NULL, *tmp = NULL;
     HASH_ITER(hh, ht, acl_group_info, tmp)
@@ -284,10 +267,10 @@ int ht_aclinfo_destroy(ht_acl_group_info_t *ht)
     return 0;
 }
 
-u32 fnv1a_hash(const void *data, size_t len)
+u32 fnv1a_hash(const void* data, size_t len)
 {
     u32 hash = 2166136261u; // FNV-1a initial value
-    const unsigned char *p = (const unsigned char *)data;
+    const unsigned char* p = (const unsigned char*)data;
 
     for (size_t i = 0; i < len; i++)
     {

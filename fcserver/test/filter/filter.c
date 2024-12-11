@@ -8,33 +8,34 @@
  *
  * This software has been sponsored by Sophos Astaro <http://www.sophos.com>
  */
-#include <stdlib.h>
-#include <time.h>
-#include <string.h>
-#include <stddef.h> /* for offsetof */
+#include <arpa/inet.h>
+#include <errno.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
-#include <arpa/inet.h>
-#include <sys/types.h>
+#include <stddef.h> /* for offsetof */
+#include <stdlib.h>
+#include <string.h>
 #include <sys/socket.h>
-#include <errno.h>
+#include <sys/types.h>
+#include <time.h>
 
 #include <linux/netfilter.h>
-#include <linux/netfilter/nfnetlink.h>
 #include <linux/netfilter/nf_tables.h>
+#include <linux/netfilter/nfnetlink.h>
 
 #include <libmnl/libmnl.h>
-#include <libnftnl/rule.h>
 #include <libnftnl/expr.h>
+#include <libnftnl/rule.h>
 
-static void add_payload(struct nftnl_rule *r, uint32_t base, uint32_t dreg,
-        uint32_t offset, uint32_t len)
+static void add_payload(struct nftnl_rule* r, uint32_t base, uint32_t dreg,
+                        uint32_t offset, uint32_t len)
 {
-    struct nftnl_expr *e;
+    struct nftnl_expr* e;
 
     e = nftnl_expr_alloc("payload");
-    if (e == NULL) {
+    if (e == NULL)
+    {
         perror("expr payload oom");
         exit(EXIT_FAILURE);
     }
@@ -47,13 +48,14 @@ static void add_payload(struct nftnl_rule *r, uint32_t base, uint32_t dreg,
     nftnl_rule_add_expr(r, e);
 }
 
-static void add_cmp(struct nftnl_rule *r, uint32_t sreg, uint32_t op,
-        const void *data, uint32_t data_len)
+static void add_cmp(struct nftnl_rule* r, uint32_t sreg, uint32_t op,
+                    const void* data, uint32_t data_len)
 {
-    struct nftnl_expr *e;
+    struct nftnl_expr* e;
 
     e = nftnl_expr_alloc("cmp");
-    if (e == NULL) {
+    if (e == NULL)
+    {
         perror("expr cmp oom");
         exit(EXIT_FAILURE);
     }
@@ -65,12 +67,13 @@ static void add_cmp(struct nftnl_rule *r, uint32_t sreg, uint32_t op,
     nftnl_rule_add_expr(r, e);
 }
 
-static void add_counter(struct nftnl_rule *r)
+static void add_counter(struct nftnl_rule* r)
 {
-    struct nftnl_expr *e;
+    struct nftnl_expr* e;
 
     e = nftnl_expr_alloc("counter");
-    if (e == NULL) {
+    if (e == NULL)
+    {
         perror("expr counter oom");
         exit(EXIT_FAILURE);
     }
@@ -78,16 +81,17 @@ static void add_counter(struct nftnl_rule *r)
     nftnl_rule_add_expr(r, e);
 }
 
-static struct nftnl_rule *setup_rule(uint8_t family, const char *table,
-        const char *chain, const char *handle)
+static struct nftnl_rule* setup_rule(uint8_t family, const char* table,
+                                     const char* chain, const char* handle)
 {
-    struct nftnl_rule *r = NULL;
+    struct nftnl_rule* r = NULL;
     uint8_t proto;
     uint16_t dport;
     uint64_t handle_num;
 
     r = nftnl_rule_alloc();
-    if (r == NULL) {
+    if (r == NULL)
+    {
         perror("OOM");
         exit(EXIT_FAILURE);
     }
@@ -96,19 +100,20 @@ static struct nftnl_rule *setup_rule(uint8_t family, const char *table,
     nftnl_rule_set_str(r, NFTNL_RULE_CHAIN, chain);
     nftnl_rule_set_u32(r, NFTNL_RULE_FAMILY, family);
 
-    if (handle != NULL) {
+    if (handle != NULL)
+    {
         handle_num = atoll(handle);
         nftnl_rule_set_u64(r, NFTNL_RULE_POSITION, handle_num);
     }
 
     proto = IPPROTO_TCP;
     add_payload(r, NFT_PAYLOAD_NETWORK_HEADER, NFT_REG_1,
-            offsetof(struct iphdr, protocol), sizeof(uint8_t));
+                offsetof(struct iphdr, protocol), sizeof(uint8_t));
     add_cmp(r, NFT_REG_1, NFT_CMP_EQ, &proto, sizeof(uint8_t));
 
     dport = htons(22);
     add_payload(r, NFT_PAYLOAD_TRANSPORT_HEADER, NFT_REG_1,
-            offsetof(struct tcphdr, dest), sizeof(uint16_t));
+                offsetof(struct tcphdr, dest), sizeof(uint16_t));
     add_cmp(r, NFT_REG_1, NFT_CMP_EQ, &dport, sizeof(uint16_t));
 
     add_counter(r);
@@ -116,18 +121,19 @@ static struct nftnl_rule *setup_rule(uint8_t family, const char *table,
     return r;
 }
 
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
-    struct mnl_socket *nl;
-    struct nftnl_rule *r;
-    struct nlmsghdr *nlh;
-    struct mnl_nlmsg_batch *batch;
+    struct mnl_socket* nl;
+    struct nftnl_rule* r;
+    struct nlmsghdr* nlh;
+    struct mnl_nlmsg_batch* batch;
     uint8_t family;
     char buf[MNL_SOCKET_BUFFER_SIZE];
     uint32_t seq = time(NULL);
     int ret;
 
-    if (argc < 4 || argc > 5) {
+    if (argc < 4 || argc > 5)
+    {
         fprintf(stderr, "Usage: %s <family> <table> <chain>\n", argv[0]);
         exit(EXIT_FAILURE);
     }
@@ -138,7 +144,8 @@ int main(int argc, char *argv[])
         family = NFPROTO_IPV6;
     else if (strcmp(argv[1], "inet") == 0)
         family = NFPROTO_INET;
-    else {
+    else
+    {
         fprintf(stderr, "Unknown family: ip, ip6, inet\n");
         exit(EXIT_FAILURE);
     }
@@ -149,12 +156,14 @@ int main(int argc, char *argv[])
         r = setup_rule(family, argv[2], argv[3], argv[4]);
 
     nl = mnl_socket_open(NETLINK_NETFILTER);
-    if (nl == NULL) {
+    if (nl == NULL)
+    {
         perror("mnl_socket_open");
         exit(EXIT_FAILURE);
     }
 
-    if (mnl_socket_bind(nl, 0, MNL_SOCKET_AUTOPID) < 0) {
+    if (mnl_socket_bind(nl, 0, MNL_SOCKET_AUTOPID) < 0)
+    {
         perror("mnl_socket_bind");
         exit(EXIT_FAILURE);
     }
@@ -164,11 +173,9 @@ int main(int argc, char *argv[])
     nftnl_batch_begin(mnl_nlmsg_batch_current(batch), seq++);
     mnl_nlmsg_batch_next(batch);
 
-    nlh = nftnl_nlmsg_build_hdr(mnl_nlmsg_batch_current(batch),
-            NFT_MSG_NEWRULE,
-            nftnl_rule_get_u32(r, NFTNL_RULE_FAMILY),
-            NLM_F_APPEND | NLM_F_CREATE | NLM_F_ACK,
-            seq++);
+    nlh = nftnl_nlmsg_build_hdr(mnl_nlmsg_batch_current(batch), NFT_MSG_NEWRULE,
+                                nftnl_rule_get_u32(r, NFTNL_RULE_FAMILY),
+                                NLM_F_APPEND | NLM_F_CREATE | NLM_F_ACK, seq++);
     nftnl_rule_nlmsg_build_payload(nlh, r);
     nftnl_rule_free(r);
     mnl_nlmsg_batch_next(batch);
@@ -177,8 +184,9 @@ int main(int argc, char *argv[])
     mnl_nlmsg_batch_next(batch);
 
     ret = mnl_socket_sendto(nl, mnl_nlmsg_batch_head(batch),
-            mnl_nlmsg_batch_size(batch));
-    if (ret == -1) {
+                            mnl_nlmsg_batch_size(batch));
+    if (ret == -1)
+    {
         perror("mnl_socket_sendto");
         exit(EXIT_FAILURE);
     }
@@ -186,13 +194,15 @@ int main(int argc, char *argv[])
     mnl_nlmsg_batch_stop(batch);
 
     ret = mnl_socket_recvfrom(nl, buf, sizeof(buf));
-    if (ret == -1) {
+    if (ret == -1)
+    {
         perror("mnl_socket_recvfrom");
         exit(EXIT_FAILURE);
     }
 
     ret = mnl_cb_run(buf, ret, 0, mnl_socket_get_portid(nl), NULL, NULL);
-    if (ret < 0) {
+    if (ret < 0)
+    {
         perror("mnl_cb_run");
         exit(EXIT_FAILURE);
     }
@@ -201,4 +211,3 @@ int main(int argc, char *argv[])
 
     return EXIT_SUCCESS;
 }
-

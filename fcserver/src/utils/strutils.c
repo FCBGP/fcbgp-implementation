@@ -21,19 +21,19 @@ extern "C"
 #include <stdlib.h>
 #include <string.h>
     /**
-     * If the user forgets to remove the tail '/', we need to properly accept that.
-     * Well it does not need to distinguish the path whether ends with '/'
+     * If the user forgets to remove the tail '/', we need to properly accept
+     * that. Well it does not need to distinguish the path whether ends with '/'
      * @param path      path
      * @param filename  filename
      * @return          Return the combined fullpath
      * */
-    char *fc_combine_path(const char *const path, const char *const filename)
+    char* fc_combine_path(const char* const path, const char* const filename)
     {
         size_t path_len = strlen(path);
         size_t filename_len = strlen(filename);
         size_t combined_len = path_len + filename_len + 2; // 2 for '/' and '\0'
 
-        char *combined_path = (char *)malloc(combined_len);
+        char* combined_path = (char*)malloc(combined_len);
         if (combined_path == NULL)
         {
             DIAG_ERROR("malloc for combined_path failed\n");
@@ -54,7 +54,7 @@ extern "C"
      * @param size  input string size
      * @return      none.
      * */
-    void fc_utils_str_toupper(char *str, const int size)
+    void fc_utils_str_toupper(char* str, const int size)
     {
         int i = 0;
         if (str)
@@ -68,11 +68,12 @@ extern "C"
         }
     }
 
-    int fc_print_bin(const char *msg, const unsigned char *bin, const int binlen)
+    int fc_print_bin(const char* msg, const unsigned char* bin,
+                     const int binlen)
     {
         int curlen = 0;
         int binstrlen = 2 * binlen + 1;
-        char *binstr = calloc(binstrlen, sizeof(unsigned char));
+        char* binstr = calloc(binstrlen, sizeof(unsigned char));
         for (int i = 0; i < binlen; i++)
         {
             snprintf(binstr + curlen, binstrlen, "%02X", bin[i]);

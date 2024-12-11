@@ -612,35 +612,54 @@ int fc_ecdsa_verify(EC_KEY *pubkey, const char *const msg, int msglen,
 
 /* FC SERVER UTILS */
 /* BGPD TO FCSERVER */
+static int sockfd = 0;
 static int
 fc_send_packet_to_fcserver4(char *buff, int bufflen)
 {
     int ret = 0;
     int len = 0;
-    int sockfd = 0;
+    int error = 0;
     struct sockaddr_in sockaddr;
 
-    sockfd = socket(AF_INET, SOCK_STREAM, 0);
-
-    sockaddr.sin_family = AF_INET;
-    sockaddr.sin_port = htons(fc_config.fc_listen_port);
-    inet_pton(AF_INET, "127.0.0.1", &sockaddr.sin_addr);
-
-    ret = connect(sockfd, (struct sockaddr *)&sockaddr, sizeof(sockaddr));
-    if (ret < 0)
+    if (sockfd <= 0)
     {
-        zlog_debug("connect() error");
-        perror("connect()");
-        return -1;
+        sockfd = socket(AF_INET, SOCK_STREAM, 0);
+        if (sockfd < 0)
+        {
+            error = errno;
+            zlog_err("socket creation failed: %s", strerror(error));
+            return -1;
+        }
+
+        sockaddr.sin_family = AF_INET;
+        sockaddr.sin_port = htons(fc_config.fc_listen_port);
+        inet_pton(AF_INET, "127.0.0.1", &sockaddr.sin_addr);
+
+        ret = connect(sockfd, (struct sockaddr *)&sockaddr, sizeof(sockaddr));
+        if (ret < 0)
+        {
+            error = errno;
+            zlog_err("connect to fcserver failed: %s", strerror(error));
+            return -1;
+        }
     }
 
     while (len != bufflen)
     {
-        len = len + send(sockfd, buff + len, bufflen - len, 0);
+        ret = send(sockfd, buff + len, bufflen - len, 0);
+        if (ret == -1)
+        {
+            error = errno;
+            zlog_err("send to fcserver failed: %s", strerror(error));
+            if (error != EAGAIN && error != EWOULDBLOCK)
+            {
+                sockfd = -1;
+                return -1;
+            }
+        }
+        len = len + ret;
         zlog_debug("len = %d, total-length = %d", len, bufflen);
     }
-
-    close(sockfd);
 
     return 0;
 }
@@ -650,30 +669,50 @@ fc_send_packet_to_fcserver6(char *buff, int bufflen)
 {
     int ret = 0;
     int len = 0;
+    int error = 0;
     int sockfd = 0;
     struct sockaddr_in6 sockaddr;
 
-    sockfd = socket(AF_INET6, SOCK_STREAM, 0);
-
-    sockaddr.sin6_family = AF_INET6;
-    sockaddr.sin6_port = htons(fc_config.fc_listen_port);
-    inet_pton(AF_INET6, "::1", &sockaddr.sin6_addr);
-
-    ret = connect(sockfd, (struct sockaddr *)&sockaddr, sizeof(sockaddr));
-    if (ret < 0)
+    if (sockfd <= 0)
     {
-        zlog_debug("connect() error");
-        perror("connect()");
-        return -1;
+        sockfd = socket(AF_INET6, SOCK_STREAM, 0);
+        if (sockfd < 0)
+        {
+            error = errno;
+            zlog_err("socket creation failed: %s", strerror(error));
+            return -1;
+        }
+
+
+        sockaddr.sin6_family = AF_INET6;
+        sockaddr.sin6_port = htons(fc_config.fc_listen_port);
+        inet_pton(AF_INET6, "::1", &sockaddr.sin6_addr);
+
+        ret = connect(sockfd, (struct sockaddr *)&sockaddr, sizeof(sockaddr));
+        if (ret < 0)
+        {
+            error = errno;
+            zlog_err("connect to fcserver failed: %s", strerror(error));
+            return -1;
+        }
     }
 
     while (len != bufflen)
     {
-        len = len + send(sockfd, buff + len, bufflen - len, 0);
+        ret = send(sockfd, buff + len, bufflen - len, 0);
+        if (ret == -1)
+        {
+            error = errno;
+            zlog_err("send to fcserver failed: %s", strerror(error));
+            if (error != EAGAIN && error != EWOULDBLOCK)
+            {
+                sockfd = -1;
+                return -1;
+            }
+        }
+        len = len + ret;
         zlog_debug("len = %d, total-length = %d", len, bufflen);
     }
-
-    close(sockfd);
 
     return 0;
 }
@@ -691,17 +730,20 @@ fc_send_packet_to_fcserver_worker(void *args)
     int ret = 0;
     fc_sock_args_t *sock_args = (fc_sock_args_t *)args;
 
-    if (sock_args->ipversion == IPV4)
+    do
     {
-        ret = fc_send_packet_to_fcserver4(sock_args->buff,
-                                          sock_args->bufflen);
-    }
-    else if (sock_args->ipversion == IPV6)
-    {
-        ret = fc_send_packet_to_fcserver6(
-                                          sock_args->buff,
-                                          sock_args->bufflen);
-    }
+        if (sock_args->ipversion == IPV4)
+        {
+            ret = fc_send_packet_to_fcserver4(sock_args->buff,
+                                              sock_args->bufflen);
+        }
+        else if (sock_args->ipversion == IPV6)
+        {
+            ret = fc_send_packet_to_fcserver6(
+                                              sock_args->buff,
+                                              sock_args->bufflen);
+        }
+    } while (ret != 0);
     return NULL;
 }
 
@@ -713,7 +755,8 @@ int fc_send_packet_to_fcserver(u8 ipversion, char *buff, int bufflen)
         .buff = buff,
         .bufflen = bufflen
     };
-    pthread_create(&thread, NULL, fc_send_packet_to_fcserver_worker, &sock_args);
+    // pthread_create(&thread, NULL, fc_send_packet_to_fcserver_worker, &sock_args);
+    fc_send_packet_to_fcserver_worker(&sock_args);
 
     return 0;
 }
@@ -740,5 +783,7 @@ int bgp_fc_init(struct bgp_master *bm)
 
 int bgp_fc_destroy(struct bgp_master *bm)
 {
+    close(sockfd);
+
     return 0;
 }

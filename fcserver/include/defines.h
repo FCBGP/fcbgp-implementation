@@ -25,8 +25,8 @@
 #include <sys/epoll.h>
 
 #define FC_PRJ_VERSION FCS_VERSION_STRING
-#define FC_VERSION_STR "FC Server V" FC_PRJ_VERSION \
-                       " compiled at " __DATE__ " " __TIME__ ""
+#define FC_VERSION_STR                                                         \
+    "FC Server V" FC_PRJ_VERSION " compiled at " __DATE__ " " __TIME__ ""
 #define OPENSSL_VERSION_NEEDED "3.x"
 
 #define FC_BUFF_SIZE 1000007
@@ -108,47 +108,45 @@ enum
     FC_HASH_ALGO_CRC32,
 };
 
-#define FC_ASSERT_RET_BASE(ret, msg)                  \
-    do                                                \
-    {                                                 \
-        if (ret != 0)                                 \
-        {                                             \
-            DIAG_ERROR("%s:%d error: ret is not 0.  " \
-                       "msg: %s\n",                   \
-                       __func__, __LINE__, msg);      \
-        }                                             \
+#define FC_ASSERT_RET_BASE(ret, msg)                                           \
+    do                                                                         \
+    {                                                                          \
+        if (ret != 0)                                                          \
+        {                                                                      \
+            DIAG_ERROR("%s:%d error: ret is not 0.  "                          \
+                       "msg: %s\n",                                            \
+                       __func__, __LINE__, msg);                               \
+        }                                                                      \
     } while (0)
 
 #define FC_ASSERT_RET(ret) FC_ASSERT_RET_BASE(ret, "")
 
-#define FC_ASSERT_RETP(retp)                             \
-    do                                                   \
-    {                                                    \
-        if (retp == NULL)                                \
-        {                                                \
-            DIAG_ERROR("%s:%d error: pointer is NULL\n", \
-                       __func__, __LINE__);              \
-        }                                                \
+#define FC_ASSERT_RETP(retp)                                                   \
+    do                                                                         \
+    {                                                                          \
+        if (retp == NULL)                                                      \
+        {                                                                      \
+            DIAG_ERROR("%s:%d error: pointer is NULL\n", __func__, __LINE__);  \
+        }                                                                      \
     } while (0)
 
-#define FC_MEM_CHECK(expr)                             \
-    do                                                 \
-    {                                                  \
-        if (!(expr))                                   \
-        {                                              \
-            DIAG_ERROR("[%s:%d] ERROR: memory leak\n", \
-                       __func__, __LINE__);            \
-        }                                              \
+#define FC_MEM_CHECK(expr)                                                     \
+    do                                                                         \
+    {                                                                          \
+        if (!(expr))                                                           \
+        {                                                                      \
+            DIAG_ERROR("[%s:%d] ERROR: memory leak\n", __func__, __LINE__);    \
+        }                                                                      \
     } while (0)
 
-#define FC_MEM_FREE(ptr) \
-    do                   \
-    {                    \
-        if (ptr)         \
-        {                \
-            free(ptr);   \
-            ptr = NULL;  \
-        }                \
+#define FC_MEM_FREE(ptr)                                                       \
+    do                                                                         \
+    {                                                                          \
+        if (ptr)                                                               \
+        {                                                                      \
+            free(ptr);                                                         \
+            ptr = NULL;                                                        \
+        }                                                                      \
     } while (0)
 
 struct prefix
@@ -182,7 +180,7 @@ typedef struct FCList_s
     int length; // length of FCs
     int size;   // number of FC in fcs
     struct prefix ipprefix;
-    FC_t *fcs;
+    FC_t* fcs;
 } FCList_t;
 
 typedef struct FC_ht_node_prefix_s
@@ -191,7 +189,7 @@ typedef struct FC_ht_node_prefix_s
     int length;
     int size;
     struct prefix ipprefix;
-    FC_t *fcs;
+    FC_t* fcs;
 } FC_ht_node_prefix_t;
 
 /* ds-asn-ips */
@@ -221,7 +219,7 @@ typedef struct FC_node_as_s
     u32 asn;
     char cert[FC_MAX_SIZE];
     u8 ski[FC_SKI_LENGTH];
-    EC_KEY *pubkey;
+    EC_KEY* pubkey;
     FC_acs_t acs;
 } FC_node_as_t;
 
@@ -232,7 +230,7 @@ typedef struct FC_ht_node_as_s
     u32 asn;
     char cert[FC_MAX_SIZE];
     u8 ski[FC_SKI_LENGTH];
-    EC_KEY *pubkey;
+    EC_KEY* pubkey;
     FC_acs_t acs;
 } FC_ht_node_as_t;
 
@@ -242,7 +240,7 @@ typedef struct FC_node_linkinfo_s
     int family; // AF_INET, AF_INET6
     struct sockaddr sockaddr;
     int infotype; // 1 for fcs/bm, 2 for aer/bgpd
-    void *infodata;
+    void* infodata;
 } FC_node_linkinfo_t;
 
 typedef struct FC_ht_node_linkinfo_s
@@ -252,7 +250,7 @@ typedef struct FC_ht_node_linkinfo_s
     int family; // AF_INET, AF_INET6
     struct sockaddr sockaddr;
     int infotype; // 1 for fcs/bm, 2 for aer/bgpd
-    void *infodata;
+    void* infodata;
 } FC_ht_node_linkinfo_t;
 
 /* ds-binding-message */
@@ -286,7 +284,7 @@ typedef struct FC_msg_bm_st
 
 typedef struct FC_msg_bm_new_s
 {
-    FC_msg_bm_t *old_bm;
+    FC_msg_bm_t* old_bm;
     u8 new_fc_num;
     u8 new_as_num;
     FC_t new_fclist[FCSRV_MAX_LINK_AS];
@@ -314,27 +312,27 @@ typedef struct ht_acl_group_info_st
     u32 acl_group_index;
     u32 acl_rule_in_id;
     u32 acl_rule_out_id;
-    ht_acl_rule_info_t *ht_acl_rule_info;
+    ht_acl_rule_info_t* ht_acl_rule_info;
     UT_hash_handle hh;
 } ht_acl_group_info_t;
 
 typedef struct FC_router_iface_info_st
 {
-    struct FC_router_iface_info_st *next;
+    struct FC_router_iface_info_st* next;
     u32 iface_index;
 } FC_router_iface_info_t;
 
 typedef struct FC_router_link_info_st
 {
-    struct FC_router_link_info_st *next;
+    struct FC_router_link_info_st* next;
     u32 neighbor_asn;
-    FC_router_iface_info_t *iface_list;
+    FC_router_iface_info_t* iface_list;
 } FC_router_link_info_t;
 
 typedef struct FC_router_info_st
 {
     int fd; // router bgp fd, will remove this data-structue when closed
-    struct FC_router_info_st *next;
+    struct FC_router_info_st* next;
     u32 bgpid;
     char host[INET6_ADDRSTRLEN];
     u16 port;
@@ -342,14 +340,14 @@ typedef struct FC_router_info_st
     char password[FC_MAX_SIZE];
     u32 acl_group_index;
     py_config_t py_config;
-    FC_router_link_info_t *links;
+    FC_router_link_info_t* links;
 } FC_router_info_t;
 
 typedef struct FC_server_s
 {
-    char *prog_name;
-    char *prog_addr4;
-    char *prog_addr6;
+    char* prog_name;
+    char* prog_addr4;
+    char* prog_addr6;
     u8 log_level;
     bool clear_fc_db;
     int use_data_plane;
@@ -360,7 +358,7 @@ typedef struct FC_server_s
 
     u8 asns_num; /* as-ip totoal num, of course it's number of AS */
     u32 asns[FCSRV_MAX_LINK_AS];
-    sqlite3 *db;
+    sqlite3* db;
     htbl_ctx_t ht_as;
     htbl_ctx_t ht_prefix;
 
@@ -369,17 +367,17 @@ typedef struct FC_server_s
     int epollfd;
 
     int routers_num;
-    FC_router_info_t *routers;
-    ht_acl_group_info_t *ht_acl_group_info;
+    FC_router_info_t* routers;
+    ht_acl_group_info_t* ht_acl_group_info;
 
     int fcs_addr_type;
-    char *fc_db_fname;
-    char *config_fname;
-    char *prikey_fname;
-    char *certs_location;
+    char* fc_db_fname;
+    char* config_fname;
+    char* prikey_fname;
+    char* certs_location;
     FC_node_as_t aps[FCSRV_MAX_LINK_AS];
-    EC_KEY *pubkey;
-    EC_KEY *prikey;
+    EC_KEY* pubkey;
+    EC_KEY* prikey;
     u8 ski[FC_SKI_LENGTH];
     int nics_num;
     char nics[FC_MAX_SIZE][20]; /* network interface cards */

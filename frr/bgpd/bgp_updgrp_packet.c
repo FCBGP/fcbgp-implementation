@@ -665,7 +665,7 @@ struct bpacket *subgroup_update_packet(struct update_subgroup *subgrp)
 	uint32_t addpath_tx_id = 0;
 	struct prefix_rd *prd = NULL;
 	mpls_label_t label = MPLS_INVALID_LABEL, *label_pnt = NULL;
-	uint32_t num_labels = 0;
+	uint8_t num_labels = 0;
 
 	if (!subgrp)
 		return NULL;
@@ -739,16 +739,14 @@ struct bpacket *subgroup_update_packet(struct update_subgroup *subgrp)
 			/* 5: Encode all the attributes, except MP_REACH_NLRI
 			 * attr. */
 #ifdef USE_FC
-			total_attr_len = bgp_packet_attribute(
-				NULL, peer, s, adv->baa->attr, &vecarr, NULL,
-				afi, safi, from, NULL, NULL, 0, 0, 0, path,
-                dest_p);
+			total_attr_len = bgp_packet_attribute(NULL, peer, s, adv->baa->attr,
+							      &vecarr, NULL, afi, safi, from, NULL,
+							      NULL, 0, 0, 0, dest_p);
 #else
-
-			total_attr_len = bgp_packet_attribute(
-				NULL, peer, s, adv->baa->attr, &vecarr, NULL,
-				afi, safi, from, NULL, NULL, 0, 0, 0, path);
-#endif
+			total_attr_len = bgp_packet_attribute(NULL, peer, s, adv->baa->attr,
+							      &vecarr, NULL, afi, safi, from, NULL,
+							      NULL, 0, 0, 0);
+#endif // USE_FC
 
 			space_remaining =
 				STREAM_CONCAT_REMAIN(s, snlri, STREAM_SIZE(s))
@@ -782,24 +780,50 @@ struct bpacket *subgroup_update_packet(struct update_subgroup *subgrp)
 			}
 		}
 
-        if ((afi == AFI_IP && safi == SAFI_UNICAST)
-                && !peer_cap_enhe(peer, afi, safi))
-            stream_put_prefix_addpath(s, dest_p, addpath_capable,
-                    addpath_tx_id);
-        else {
-            /* Encode the prefix in MP_REACH_NLRI attribute */
-            if (dest->pdest)
-                prd = (struct prefix_rd *)bgp_dest_get_prefix(
-                        dest->pdest);
+		if ((afi == AFI_IP && safi == SAFI_UNICAST)
+		    && !peer_cap_enhe(peer, afi, safi))
+			stream_put_prefix_addpath(s, dest_p, addpath_capable,
+						  addpath_tx_id);
+		else {
+			/* Encode the prefix in MP_REACH_NLRI attribute */
+			if (dest->pdest)
+				prd = (struct prefix_rd *)bgp_dest_get_prefix(
+					dest->pdest);
 
 			if (safi == SAFI_LABELED_UNICAST) {
 				label = bgp_adv_label(dest, path, peer, afi,
 						      safi);
 				label_pnt = &label;
 				num_labels = 1;
-			} else if (path && path->extra) {
-				label_pnt = &path->extra->label[0];
-				num_labels = path->extra->num_labels;
+			} else if (safi == SAFI_MPLS_VPN && path &&
+				   CHECK_FLAG(path->flags,
+					      BGP_PATH_MPLSVPN_NH_LABEL_BIND) &&
+				   path->mplsvpn.bmnc.nh_label_bind_cache &&
+				   path->peer && path->peer != peer &&
+				   path->sub_type != BGP_ROUTE_IMPORTED &&
+				   path->sub_type != BGP_ROUTE_STATIC &&
+				   bgp_mplsvpn_path_uses_valid_mpls_label(
+					   path) &&
+				   bgp_path_info_nexthop_changed(path, peer,
+								 afi)) {
+				/* Redistributed mpls vpn route between distinct
+				 * peers from 'pi->peer' to 'to',
+				 * and an mpls label is used in this path,
+				 * and there is a nh label bind entry,
+				 * then get appropriate mpls local label. When
+				 * called here, 'get_label()' returns a valid
+				 * label.
+				 */
+				label = bgp_mplsvpn_nh_label_bind_get_label(
+					path);
+				label_pnt = &label;
+				num_labels = 1;
+			} else {
+				num_labels = BGP_PATH_INFO_NUM_LABELS(path);
+				label_pnt =
+					num_labels
+						? &path->extra->labels->label[0]
+						: NULL;
 			}
 
 			if (stream_empty(snlri))
@@ -843,7 +867,8 @@ struct bpacket *subgroup_update_packet(struct update_subgroup *subgrp)
 			bgp_debug_rdpfxpath2str(afi, safi, prd, dest_p,
 						label_pnt, num_labels,
 						addpath_capable, addpath_tx_id,
-						&adv->baa->attr->evpn_overlay,
+						bgp_attr_get_evpn_overlay(
+							adv->baa->attr),
 						pfx_buf, sizeof(pfx_buf));
 			zlog_debug("u%" PRIu64 ":s%" PRIu64 " send UPDATE %s",
 				   subgrp->update_group->id, subgrp->id,
@@ -858,7 +883,10 @@ struct bpacket *subgroup_update_packet(struct update_subgroup *subgrp)
 
 		adj->attr = bgp_attr_intern(adv->baa->attr);
 		adv = bgp_advertise_clean_subgroup(subgrp, adj);
+#ifdef USE_FC
+#else
 	}
+#endif // USE_FC
 
 	if (!stream_empty(s)) {
 		if (!stream_empty(snlri)) {
@@ -886,9 +914,13 @@ struct bpacket *subgroup_update_packet(struct update_subgroup *subgrp)
 		pkt = bpacket_queue_add(SUBGRP_PKTQ(subgrp), packet, &vecarr);
 		stream_reset(s);
 		stream_reset(snlri);
+#ifdef USE_FC
+    }
+    }
+#else
 		return pkt;
 	}
-
+#endif // USE_FC
 	return NULL;
 }
 
@@ -1066,9 +1098,8 @@ void subgroup_default_update_packet(struct update_subgroup *subgrp,
 	safi_t safi;
 	struct bpacket_attr_vec_arr vecarr;
 	bool addpath_capable = false;
-	uint8_t default_originate_label[4] = {0x80, 0x00, 0x00};
-	mpls_label_t *label = NULL;
-	uint32_t num_labels = 0;
+	mpls_label_t label = MPLS_LABEL_IMPLICIT_NULL;
+	uint8_t num_labels = 0;
 
 	if (DISABLE_BGP_ANNOUNCE)
 		return;
@@ -1083,7 +1114,11 @@ void subgroup_default_update_packet(struct update_subgroup *subgrp,
 	addpath_capable = bgp_addpath_encode_tx(peer, afi, safi);
 
 	if (safi == SAFI_LABELED_UNICAST) {
-		label = (mpls_label_t *)default_originate_label;
+		label = mpls_lse_encode((afi == AFI_IP)
+						? MPLS_LABEL_IPV4_EXPLICIT_NULL
+						: MPLS_LABEL_IPV6_EXPLICIT_NULL,
+					0, 0, 1);
+		bgp_set_valid_label(&label);
 		num_labels = 1;
 	}
 
@@ -1128,14 +1163,15 @@ void subgroup_default_update_packet(struct update_subgroup *subgrp,
 	/* Make place for total attribute length.  */
 	pos = stream_get_endp(s);
 	stream_putw(s, 0);
-	total_attr_len = bgp_packet_attribute(
-		NULL, peer, s, attr, &vecarr, &p, afi, safi, from, NULL, label,
-		num_labels, addpath_capable,
-		BGP_ADDPATH_TX_ID_FOR_DEFAULT_ORIGINATE, NULL
 #ifdef USE_FC
-        , NULL
-#endif
-        );
+	total_attr_len = bgp_packet_attribute(NULL, peer, s, attr, &vecarr, &p, afi, safi, from,
+					      NULL, &label, num_labels, addpath_capable,
+					      BGP_ADDPATH_TX_ID_FOR_DEFAULT_ORIGINATE, &p);
+#else
+	total_attr_len = bgp_packet_attribute(NULL, peer, s, attr, &vecarr, &p, afi, safi, from,
+					      NULL, &label, num_labels, addpath_capable,
+					      BGP_ADDPATH_TX_ID_FOR_DEFAULT_ORIGINATE);
+#endif // USE_FC
 
 	/* Set Total Path Attribute Length. */
 	stream_putw_at(s, pos, total_attr_len);

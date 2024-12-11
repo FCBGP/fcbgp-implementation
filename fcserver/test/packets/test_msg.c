@@ -27,7 +27,7 @@ extern "C"
     static int env_init()
     {
         int ret = 0;
-        char *fpath = "/etc/frr/assets/10.key";
+        char* fpath = "/etc/frr/assets/10.key";
         ret = fc_read_eckey_from_file(fpath, FC_KEY_TYPE_PRIVATE, prikey10);
         FC_ASSERT_RET(ret);
 
@@ -55,7 +55,7 @@ extern "C"
         return 0;
     }
 
-    static int sock_init(int *sockfd, int srv_port, const char *srv_straddr)
+    static int sock_init(int* sockfd, int srv_port, const char* srv_straddr)
     {
         int ret = 0;
 
@@ -74,8 +74,7 @@ extern "C"
             perror("inet_pton()");
         }
 
-        ret = connect(sockfd, (struct sockaddr *)&sockaddr,
-                      sizeof(sockaddr));
+        ret = connect(sockfd, (struct sockaddr*)&sockaddr, sizeof(sockaddr));
         if (ret != 0)
         {
             perror("connect()");
@@ -85,7 +84,7 @@ extern "C"
         return 0;
     }
 
-    static int send_msg(int sockfd, const char *buf, int buflen)
+    static int send_msg(int sockfd, const char* buf, int buflen)
     {
         int txlen = 0, len = 0;
         while (len < buflen)
@@ -98,10 +97,10 @@ extern "C"
         return 0;
     }
 
-    static int test_msg_bgpd_ip4(int sockfd, FC_msg_hdr_t *hdr, FC_msg_bm_t *bm)
+    static int test_msg_bgpd_ip4(int sockfd, FC_msg_hdr_t* hdr, FC_msg_bm_t* bm)
     {
         int ret = 0, buflen = 0;
-        char *buf = NULL;
+        char* buf = NULL;
         u8 val8 = 0;
         u16 val16 = 0;
         u32 val32 = 0;
@@ -166,7 +165,7 @@ extern "C"
         return ret;
     }
 
-    int main(int argc, char *argv[])
+    int main(int argc, char* argv[])
     {
         int sockfd = 0, ret = 0, choice = 0, len = 0;
 
@@ -205,30 +204,30 @@ extern "C"
             scanf("%d", &choice);
             switch (choice)
             {
-            case 0:
-                printf("Bye~\n");
-                break;
-            case 1:
-                test_msg_bgpd_ip4(sockfd, &hdr, &bm);
-                break;
-            case 2:
-                test_msg_bgpd_ip6(sockfd, &hdr, &bm);
-                break;
-            case 3:
-                test_msg_bc_ip4(sockfd, &hdr, &bm);
-                break;
-            case 4:
-                test_msg_bc_ip6(sockfd, &hdr, &bm);
-                break;
-            case 5:
-                test_msg_topo_add(sockfd);
-                break;
-            case 6:
-                test_msg_topo_del(sockfd);
-                break;
-            default:
-                fprintf(stderr, "Wrong input. Try again\n");
-                break;
+                case 0:
+                    printf("Bye~\n");
+                    break;
+                case 1:
+                    test_msg_bgpd_ip4(sockfd, &hdr, &bm);
+                    break;
+                case 2:
+                    test_msg_bgpd_ip6(sockfd, &hdr, &bm);
+                    break;
+                case 3:
+                    test_msg_bc_ip4(sockfd, &hdr, &bm);
+                    break;
+                case 4:
+                    test_msg_bc_ip6(sockfd, &hdr, &bm);
+                    break;
+                case 5:
+                    test_msg_topo_add(sockfd);
+                    break;
+                case 6:
+                    test_msg_topo_del(sockfd);
+                    break;
+                default:
+                    fprintf(stderr, "Wrong input. Try again\n");
+                    break;
             }
         }
 

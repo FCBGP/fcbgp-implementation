@@ -46,27 +46,28 @@ typedef enum
     FC_TOPO_DIRECTION_BOTH = 0x03,
 } direction_e;
 
-
-extern void *fc_server_main_backend(void *args);
+extern void* fc_server_main_backend(void* args);
 extern int fc_server_create(void);
 extern void fc_server_destroy(int signum);
-extern int fc_server_handler(int clisockfd, char *buff, int buffsize, int recvlen);
-extern int fc_server_pubkey_handler(int clisockfd, const unsigned char *buff, int bufflen);
-extern int fc_server_bm_handler(int clisockfd, unsigned char *buff, int bufflen, int msg_type);
-extern int fc_server_topo_handler(int clisockfd, const unsigned char *buff, int bufflen);
+extern int fc_server_handler(int clisockfd, char* buff, int buffsize,
+                             int recvlen);
+extern int fc_server_pubkey_handler(int clisockfd, const unsigned char* buff,
+                                    int bufflen);
+extern int fc_server_bm_handler(int clisockfd, unsigned char* buff, int bufflen,
+                                int msg_type);
+extern int fc_server_topo_handler(int clisockfd, const unsigned char* buff,
+                                  int bufflen);
 extern int fc_server_topo_del_all_routers(void);
-extern int fc_sock_get_addr_from_peer_fd(int fd,
-                                         struct sockaddr *sockaddr,
-                                         char *ipbuf,
-                                         int buffsize);
+extern int fc_sock_get_addr_from_peer_fd(int fd, struct sockaddr* sockaddr,
+                                         char* ipbuf, int buffsize);
 
-extern bool fc_asn_is_offpath(u32 asn, const FC_msg_bm_t *bm);
-extern int fc_acl_gen(int clisockfd, const FC_msg_bm_t *bm);
-extern int fc_bm_find_server(uint32_t asn, char *ifaddr, char *ifname);
+extern bool fc_asn_is_offpath(u32 asn, const FC_msg_bm_t* bm);
+extern int fc_acl_gen(int clisockfd, const FC_msg_bm_t* bm);
+extern int fc_bm_find_server(uint32_t asn, char* ifaddr, char* ifname);
 extern int fc_server_topo_init_msg(int clisockfd);
 
-extern void *fc_main_front(void *args);
-extern void fc_server_info_help(void);
+extern void* fc_main_front(void* args);
+
 extern void fc_cmd_help(void);
 extern void fc_cmd_acl(void);
 extern void fc_cmd_bm(void);

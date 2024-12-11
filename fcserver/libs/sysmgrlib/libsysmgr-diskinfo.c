@@ -13,33 +13,47 @@
  *  none /proc/sys/fs/binfmt_misc binfmt_misc rw 0 0
  */
 
-int sys_diskinfo_get(sys_diskinfo_t ** pdiskinfos)
+int sys_diskinfo_get(sys_diskinfo_t** pdiskinfos)
 {
     int cnt = 0;
-    FILE *fp = NULL;
-    char buf[256] = { 0, };
-    char disk_layout[32] = { 0, };
-    char disk_perm[8] = { 0, };
-    char temp[2] = {0, };
+    FILE* fp = NULL;
+    char buf[256] = {
+        0,
+    };
+    char disk_layout[32] = {
+        0,
+    };
+    char disk_perm[8] = {
+        0,
+    };
+    char temp[2] = {
+        0,
+    };
 
-    sys_diskinfo_t *tail = NULL;
-    sys_diskinfo_t *head = NULL;
-    sys_diskinfo_t *diskinfo = NULL;
+    sys_diskinfo_t* tail = NULL;
+    sys_diskinfo_t* head = NULL;
+    sys_diskinfo_t* diskinfo = NULL;
 
     struct statfs disk_stat;
 
     fp = fopen(SYS_ETC_PATH_MTAB, "r");
-    if (fp == NULL) {
+    if (fp == NULL)
+    {
         return -ENOENT;
     }
 
-    while (fgets(buf, sizeof(buf), fp)) {
+    while (fgets(buf, sizeof(buf), fp))
+    {
         diskinfo = calloc(1, sizeof(sys_diskinfo_t));
-        if (!diskinfo) {
+        if (!diskinfo)
+        {
             return -ENOMEM;
         }
 
-        if (sscanf(buf, "%s %s %s %s %s %s", diskinfo->filesystem, diskinfo->mounted_on, disk_layout, disk_perm, &temp[0], &temp[1]) != 6) {
+        if (sscanf(buf, "%s %s %s %s %s %s", diskinfo->filesystem,
+                   diskinfo->mounted_on, disk_layout, disk_perm, &temp[0],
+                   &temp[1]) != 6)
+        {
             free(diskinfo);
             continue;
         }
@@ -47,20 +61,27 @@ int sys_diskinfo_get(sys_diskinfo_t ** pdiskinfos)
         statfs(diskinfo->mounted_on, &disk_stat);
 
         diskinfo->blocks = disk_stat.f_blocks * disk_stat.f_bsize / 1024;
-        diskinfo->used = (disk_stat.f_blocks - disk_stat.f_bfree) * disk_stat.f_bsize / 1024;
+        diskinfo->used =
+            (disk_stat.f_blocks - disk_stat.f_bfree) * disk_stat.f_bsize / 1024;
         diskinfo->available = disk_stat.f_bavail * disk_stat.f_bsize / 1024;
 
-        if (disk_stat.f_blocks) {
+        if (disk_stat.f_blocks)
+        {
             diskinfo->usage_rate = disk_stat.f_bavail / disk_stat.f_blocks + 1;
-        } else {
+        }
+        else
+        {
             diskinfo->usage_rate = 0;
         }
 
         diskinfo->next = NULL;
-        if (tail) {
+        if (tail)
+        {
             tail->next = diskinfo;
             tail = diskinfo;
-        } else {
+        }
+        else
+        {
             head = diskinfo;
             tail = diskinfo;
         }
@@ -73,17 +94,19 @@ int sys_diskinfo_get(sys_diskinfo_t ** pdiskinfos)
     return cnt;
 }
 
-int sys_diskinfo_free(sys_diskinfo_t *diskinfos)
+int sys_diskinfo_free(sys_diskinfo_t* diskinfos)
 {
-    sys_diskinfo_t *cur = NULL;
-    sys_diskinfo_t *next = NULL;
+    sys_diskinfo_t* cur = NULL;
+    sys_diskinfo_t* next = NULL;
 
-    if (diskinfos == NULL) {
+    if (diskinfos == NULL)
+    {
         return 0;
     }
 
     cur = diskinfos;
-    while (cur) {
+    while (cur)
+    {
         next = cur->next;
         free(cur);
         cur = next;

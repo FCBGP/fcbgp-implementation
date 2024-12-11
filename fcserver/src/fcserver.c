@@ -27,20 +27,20 @@
 #include "fcserver.h"
 #include "hashutils.h"
 
-#define fc_error_foreach_server       \
-    _(SYS_MEM, "memory alloc")        \
-    _(SOCK_SOCKET, "socket()")        \
-    _(SOCK_OPT, "setsockopt()")       \
-    _(SOCK_BIND, "bind()")            \
-    _(SOCK_LISTEN, "listen()")        \
-    _(SOCK_ACCEPT, "accept()")        \
-    _(SOCK_CONNECT, "connect()")      \
-    _(SOCK_SEND, "send()")            \
-    _(SOCK_RECV, "recv()")            \
-    _(EPOLL_CTL, "epoll_ctl()")       \
-    _(EPOLL_CREATE, "epoll_create()") \
-    _(EPOLL_WAIT, "epoll_wait()")     \
-    _(GPN, "getpeername()")           \
+#define fc_error_foreach_server                                                \
+    _(SYS_MEM, "memory alloc")                                                 \
+    _(SOCK_SOCKET, "socket()")                                                 \
+    _(SOCK_OPT, "setsockopt()")                                                \
+    _(SOCK_BIND, "bind()")                                                     \
+    _(SOCK_LISTEN, "listen()")                                                 \
+    _(SOCK_ACCEPT, "accept()")                                                 \
+    _(SOCK_CONNECT, "connect()")                                               \
+    _(SOCK_SEND, "send()")                                                     \
+    _(SOCK_RECV, "recv()")                                                     \
+    _(EPOLL_CTL, "epoll_ctl()")                                                \
+    _(EPOLL_CREATE, "epoll_create()")                                          \
+    _(EPOLL_WAIT, "epoll_wait()")                                              \
+    _(GPN, "getpeername()")                                                    \
     _(FCNTL, "fcntl()")
 
 typedef enum
@@ -52,26 +52,23 @@ typedef enum
         FC_ERR_SERVER_N,
 } fc_err_sock_t;
 
-static char *fc_err_sock_strings[] = {
+static char* fc_err_sock_strings[] = {
 #define _(sym, str) str,
     fc_error_foreach_server
 #undef _
 };
 
-#define fc_print_error(err_no)                   \
-    do                                           \
-    {                                            \
-        DIAG_ERROR("[%s: %d] error: %s\n",       \
-                   __func__, __LINE__,           \
-                   fc_err_sock_strings[err_no]); \
+#define fc_print_error(err_no)                                                 \
+    do                                                                         \
+    {                                                                          \
+        DIAG_ERROR("[%s: %d] error: %s\n", __func__, __LINE__,                 \
+                   fc_err_sock_strings[err_no]);                               \
     } while (0)
 
 FC_server_t g_fc_server = {0};
 
-int fc_sock_get_addr_from_peer_fd(int fd,
-                                  struct sockaddr *sockaddr,
-                                  char *ipbuf,
-                                  int buffsize)
+int fc_sock_get_addr_from_peer_fd(int fd, struct sockaddr* sockaddr,
+                                  char* ipbuf, int buffsize)
 {
     int ret = 0;
     socklen_t socklen = sizeof(struct sockaddr);
@@ -85,20 +82,19 @@ int fc_sock_get_addr_from_peer_fd(int fd,
 
     if (AF_INET6 == sockaddr->sa_family)
     {
-        struct sockaddr_in6 *in = (struct sockaddr_in6 *)sockaddr;
+        struct sockaddr_in6* in = (struct sockaddr_in6*)sockaddr;
         inet_ntop(AF_INET6, &in->sin6_addr, ipbuf, buffsize);
     }
     else if (AF_INET == sockaddr->sa_family)
     {
-        struct sockaddr_in *in = (struct sockaddr_in *)sockaddr;
+        struct sockaddr_in* in = (struct sockaddr_in*)sockaddr;
         inet_ntop(AF_INET, &in->sin_addr, ipbuf, buffsize);
     }
 
     return FC_ERR_SERVER_NOERR;
 }
 
-static int
-fc_sock_set_nonblock(int fd)
+static int fc_sock_set_nonblock(int fd)
 {
     int flags = 0;
     flags = fcntl(fd, F_GETFL, 0);
@@ -106,8 +102,7 @@ fc_sock_set_nonblock(int fd)
     return fcntl(fd, F_SETFL, flags);
 }
 
-static int
-fc_mlp_server_sock()
+static int fc_mlp_server_sock()
 {
     int ret = FC_ERR_SERVER_NOERR;
     int yes = 1;
@@ -131,8 +126,8 @@ fc_mlp_server_sock()
     }
 
     // setsockopt reuse address
-    ret = setsockopt(g_fc_server.sockfd, SOL_SOCKET, SO_REUSEADDR,
-                     &yes, sizeof(int));
+    ret = setsockopt(g_fc_server.sockfd, SOL_SOCKET, SO_REUSEADDR, &yes,
+                     sizeof(int));
     if (ret == -1)
     {
         DIAG_ERROR("setsockopt(), %s\n", strerror(errno));
@@ -144,9 +139,9 @@ fc_mlp_server_sock()
     sockaddr.sin6_family = AF_INET6;
     sockaddr.sin6_port = htons(g_fc_server.listen_port);
     inet_pton(AF_INET6, g_fc_server.prog_addr6,
-              (struct sockaddr_in6 *)&sockaddr.sin6_addr);
+              (struct sockaddr_in6*)&sockaddr.sin6_addr);
     socklen = sizeof(struct sockaddr_in6);
-    ret = bind(g_fc_server.sockfd, (struct sockaddr *)&sockaddr, socklen);
+    ret = bind(g_fc_server.sockfd, (struct sockaddr*)&sockaddr, socklen);
     if (ret < 0)
     {
         DIAG_ERROR("bind(), %s\n", strerror(errno));
@@ -164,8 +159,7 @@ fc_mlp_server_sock()
     return ret;
 }
 
-static int
-fc_mlp_server_epoll_conn()
+static int fc_mlp_server_epoll_conn()
 {
     int ret = 0;
     int clisockfd = 0;
@@ -175,8 +169,7 @@ fc_mlp_server_epoll_conn()
 
     while (1)
     {
-        clisockfd = accept(g_fc_server.sockfd,
-                           (struct sockaddr *)&clisockaddr,
+        clisockfd = accept(g_fc_server.sockfd, (struct sockaddr*)&clisockaddr,
                            &clisocklen);
         if (clisockfd < 0)
         {
@@ -195,8 +188,7 @@ fc_mlp_server_epoll_conn()
         fc_sock_set_nonblock(clisockfd);
         event.data.fd = clisockfd;
         event.events = EPOLLIN | EPOLLET;
-        ret = epoll_ctl(g_fc_server.epollfd, EPOLL_CTL_ADD,
-                        clisockfd, &event);
+        ret = epoll_ctl(g_fc_server.epollfd, EPOLL_CTL_ADD, clisockfd, &event);
         if (ret < 0)
         {
             DIAG_ERROR("epoll_ctl(), %s\n", strerror(errno));
@@ -208,9 +200,8 @@ fc_mlp_server_epoll_conn()
     return FC_ERR_SERVER_NOERR;
 }
 
-static int
-fc_mlp_server_epoll_recv(int fd, char **buff,
-                         int *buffsize, int *recvlen, int *done)
+static int fc_mlp_server_epoll_recv(int fd, char** buff, int* buffsize,
+                                    int* recvlen, int* done)
 {
     int total = 0, count = 0, flags = 0;
     u16 fc_msg_len = 0;
@@ -247,14 +238,14 @@ fc_mlp_server_epoll_recv(int fd, char **buff,
         total += count;
 
         // fc msg length
-        memcpy(&fc_msg_len, *buff+total+2, 2);
+        memcpy(&fc_msg_len, *buff + total + 2, 2);
         fc_msg_len = ntohs(fc_msg_len);
 
         // memory realloc
         if (fc_msg_len >= *buffsize - total)
         {
             int new_buffsize = total + fc_msg_len + FC_HDR_GENERAL_LENGTH + 1;
-            char *new_buff = realloc(*buff, new_buffsize);
+            char* new_buff = realloc(*buff, new_buffsize);
             if (new_buff == NULL)
             {
                 perror("Failed to allocate memory");
@@ -296,18 +287,17 @@ fc_mlp_server_epoll_recv(int fd, char **buff,
 
     struct sockaddr_in6 peer_sockaddr = {0};
     char peer_ipbuf[INET6_ADDRSTRLEN] = {0};
-    fc_sock_get_addr_from_peer_fd(fd, (struct sockaddr *)&peer_sockaddr,
+    fc_sock_get_addr_from_peer_fd(fd, (struct sockaddr*)&peer_sockaddr,
                                   peer_ipbuf, INET6_ADDRSTRLEN);
-    DIAG_INFO("Recv from fd: %d, remote.addr: %s, remote.port: %d\n",
-              fd, peer_ipbuf, ntohs(peer_sockaddr.sin6_port));
+    DIAG_INFO("Recv from fd: %d, remote.addr: %s, remote.port: %d\n", fd,
+              peer_ipbuf, ntohs(peer_sockaddr.sin6_port));
 
     *recvlen = total;
 
     return FC_ERR_SERVER_NOERR;
 }
 
-static int
-fc_mlp_server_epoll()
+static int fc_mlp_server_epoll()
 {
     int ret = 0, i = 0;
     int active_events_num = 0;
@@ -327,8 +317,8 @@ fc_mlp_server_epoll()
     // add server socket to epoll events
     event.data.fd = g_fc_server.sockfd;
     event.events = EPOLLIN | EPOLLET;
-    ret = epoll_ctl(g_fc_server.epollfd, EPOLL_CTL_ADD,
-                    g_fc_server.sockfd, &event);
+    ret = epoll_ctl(g_fc_server.epollfd, EPOLL_CTL_ADD, g_fc_server.sockfd,
+                    &event);
     if (ret < 0)
     {
         DIAG_ERROR("epoll_ctl(), %s\n", strerror(errno));
@@ -338,11 +328,12 @@ fc_mlp_server_epoll()
     // epoll event loop
     while (1)
     {
-        active_events_num = epoll_wait(g_fc_server.epollfd, events,
-                                       FC_EPOLL_MAX_EVENTS, -1);
+        active_events_num =
+            epoll_wait(g_fc_server.epollfd, events, FC_EPOLL_MAX_EVENTS, -1);
         for (i = 0; i < active_events_num; ++i)
         {
-            if ((events[i].events & EPOLLERR) || (events[i].events & EPOLLHUP) || (!events[i].events & EPOLLIN))
+            if ((events[i].events & EPOLLERR) ||
+                (events[i].events & EPOLLHUP) || (!events[i].events & EPOLLIN))
             {
                 /* an error has occured on this fd,
                  * or the socket is not ready for reading */
@@ -369,7 +360,7 @@ fc_mlp_server_epoll()
                  * we must read whatever data is available completely,
                  * as we are running in edge-triggered mode
                  * and won't get a notification again for the same data */
-                char *buff = NULL;
+                char* buff = NULL;
                 int bufflen = 0;
                 int recvlen = 0, done = 0;
                 ret = fc_mlp_server_epoll_recv(events[i].data.fd, &buff,
@@ -380,8 +371,7 @@ fc_mlp_server_epoll()
                 }
 
                 // process the data
-                DIAG_INFO("fd: %d, recvlen: %d\n",
-                          events[i].data.fd, recvlen);
+                DIAG_INFO("fd: %d, recvlen: %d\n", events[i].data.fd, recvlen);
                 fc_server_handler(events[i].data.fd, buff, bufflen, recvlen);
 
                 // release the buffer
@@ -394,7 +384,8 @@ fc_mlp_server_epoll()
                     /* closing the descriptor will make epoll remove it
                      * from the set of fds which are monitored. */
                     close(events[i].data.fd);
-                    DIAG_INFO("#################################################\n\n\n");
+                    DIAG_INFO("################################################"
+                              "#\n\n\n");
                 }
             }
         }
@@ -405,8 +396,7 @@ fc_mlp_server_epoll()
     return ret;
 }
 
-static inline void
-fc_server_show_info(void)
+static inline void fc_server_show_info(void)
 {
     DIAG_INFO("program name: %s\n", g_fc_server.prog_name);
     DIAG_INFO("program address ipv4: %s\n", g_fc_server.prog_addr4);
@@ -434,8 +424,7 @@ fc_server_show_info(void)
     }
 }
 
-static int
-fc_multi_long_pull_server(void)
+static int fc_multi_long_pull_server(void)
 {
     int ret = 0;
 
@@ -471,8 +460,8 @@ atexit:
 int fc_server_create(void)
 {
     FC_node_as_t meta = {0};
-    FC_ht_node_as_t *node = NULL;
-    FC_router_info_t *router = NULL;
+    FC_ht_node_as_t* node = NULL;
+    FC_router_info_t* router = NULL;
 
     fc_db_init(&g_fc_server.db);
 
@@ -486,17 +475,16 @@ int fc_server_create(void)
 
     switch (g_fc_server.use_data_plane)
     {
-    case FC_DP_MODE_H3C:
-        // py ncclient establishes sessions
-        router = g_fc_server.routers;
-        while (router)
-        {
-            py_setup(&router->py_config, "script",
-                     router->host, router->username,
-                     router->password, router->port);
-            router = router->next;
-        }
-        break;
+        case FC_DP_MODE_H3C:
+            // py ncclient establishes sessions
+            router = g_fc_server.routers;
+            while (router)
+            {
+                py_setup(&router->py_config, "script", router->host,
+                         router->username, router->password, router->port);
+                router = router->next;
+            }
+            break;
     }
 
     int ret = fc_multi_long_pull_server();
@@ -504,7 +492,7 @@ int fc_server_create(void)
     return ret;
 }
 
-bool fc_asn_is_offpath(u32 asn, const FC_msg_bm_t *bm)
+bool fc_asn_is_offpath(u32 asn, const FC_msg_bm_t* bm)
 {
     int i = 0;
 
@@ -521,7 +509,7 @@ bool fc_asn_is_offpath(u32 asn, const FC_msg_bm_t *bm)
     return true;
 }
 
-int fc_server_handler(int clisockfd, char *buff, int buffsize, int recvlen)
+int fc_server_handler(int clisockfd, char* buff, int buffsize, int recvlen)
 {
     int currlen = 0;
     int i = 0;
@@ -552,28 +540,29 @@ int fc_server_handler(int clisockfd, char *buff, int buffsize, int recvlen)
         unsigned char msg[BUFSIZ] = {0};
         int msglen = fc_msg_len + FC_HDR_GENERAL_LENGTH;
         memcpy(msg, buff + currlen, msglen); // including general header
-        fc_print_bin("new packet", msg + currlen, FC_HDR_GENERAL_LENGTH + fc_msg_len);
+        fc_print_bin("new packet", msg + currlen,
+                     FC_HDR_GENERAL_LENGTH + fc_msg_len);
         currlen = currlen + FC_HDR_GENERAL_LENGTH + fc_msg_len;
 
         switch (fc_msg_type)
         {
-        case FC_MSG_PUBKEY: // pubkey
-            DIAG_ERROR("Not support pubkey\n");
-            fc_server_pubkey_handler(clisockfd, msg, msglen);
-            break;
-        case FC_MSG_BGPD: // bm
-            fc_server_bm_handler(clisockfd, msg, msglen, FC_MSG_BGPD);
-            break;
-        case FC_MSG_BC: // broadcast msg
-            fc_server_bm_handler(clisockfd, msg, msglen, FC_MSG_BC);
-            break;
-        case FC_MSG_TOPO:
-            fc_server_topo_handler(clisockfd, msg, msglen);
-            fc_server_topo_init_msg(clisockfd);
-            break;
-        default:
-            DIAG_ERROR("Not supported message type: %d\n", fc_msg_type);
-            break;
+            case FC_MSG_PUBKEY: // pubkey
+                DIAG_ERROR("Not support pubkey\n");
+                fc_server_pubkey_handler(clisockfd, msg, msglen);
+                break;
+            case FC_MSG_BGPD: // bm
+                fc_server_bm_handler(clisockfd, msg, msglen, FC_MSG_BGPD);
+                break;
+            case FC_MSG_BC: // broadcast msg
+                fc_server_bm_handler(clisockfd, msg, msglen, FC_MSG_BC);
+                break;
+            case FC_MSG_TOPO:
+                fc_server_topo_handler(clisockfd, msg, msglen);
+                fc_server_topo_init_msg(clisockfd);
+                break;
+            default:
+                DIAG_ERROR("Not supported message type: %d\n", fc_msg_type);
+                break;
         }
 
         DIAG_INFO("### Process Packet: %d End ###\n", i);
@@ -582,24 +571,21 @@ int fc_server_handler(int clisockfd, char *buff, int buffsize, int recvlen)
     return 0;
 }
 
-static inline void
-fc_server_info_welcome_banner(void)
-{
-    fc_cmd_version();
-}
+static inline void fc_server_info_welcome_banner(void) { fc_cmd_version(); }
 
-void fc_server_info_help(void)
+static void fc_server_info_help(void)
 {
     fc_server_info_welcome_banner();
     fprintf(stdout, "\n");
-    fprintf(stdout, "\t-f <config.json>  Specify the location of config.json.\n");
-    fprintf(stdout, "\t                  Default location is /etc/frr/assets/\n");
+    fprintf(stdout,
+            "\t-f <config.json>  Specify the location of config.json.\n");
+    fprintf(stdout,
+            "\t                  Default location is /etc/frr/assets/\n");
     fprintf(stdout, "\t-h                Print this message.\n");
     fprintf(stdout, "\t-v                Print FC Server version.\n");
 }
 
-static void
-fc_server_args_parse(int argc, char **argv)
+static void fc_server_args_parse(int argc, char** argv)
 {
     int opt = 0;
 
@@ -607,19 +593,19 @@ fc_server_args_parse(int argc, char **argv)
     {
         switch (opt)
         {
-        case 'f':
-            memcpy(g_fc_server.config_fname, optarg, strlen(optarg));
-            break;
-        case 'v':
-            fc_server_info_welcome_banner();
-            exit(EXIT_SUCCESS);
-        case 'h':
-            fc_server_info_help();
-            exit(EXIT_SUCCESS);
-        default:
-            DIAG_ERROR("unknown opt: %d\n", opt);
-            fc_server_info_help();
-            exit(EXIT_FAILURE);
+            case 'f':
+                memcpy(g_fc_server.config_fname, optarg, strlen(optarg));
+                break;
+            case 'v':
+                fc_server_info_welcome_banner();
+                exit(EXIT_SUCCESS);
+            case 'h':
+                fc_server_info_help();
+                exit(EXIT_SUCCESS);
+            default:
+                DIAG_ERROR("unknown opt: %d\n", opt);
+                fc_server_info_help();
+                exit(EXIT_FAILURE);
         }
     }
 
@@ -629,12 +615,10 @@ fc_server_args_parse(int argc, char **argv)
     }
 }
 
-void *fc_server_main_backend(void *args)
+void* fc_server_main_backend(void* args)
 {
     (void)args;
     int ret = 0;
-
-    signal(SIGINT, fc_server_destroy);
 
     fc_server_info_welcome_banner();
 
@@ -663,7 +647,7 @@ void *fc_server_main_backend(void *args)
 
 void fc_server_destroy(int signum)
 {
-    FC_router_info_t *router = NULL;
+    FC_router_info_t* router = NULL;
 
     if (signum == SIGINT || signum == SIGUSR1)
     {
@@ -724,8 +708,10 @@ void fc_server_destroy(int signum)
     }
 }
 
-int main(int argc, char **argv)
+int main(int argc, char** argv)
 {
+    signal(SIGUSR1, fc_server_destroy);
+
     g_fc_server.prog_name = FC_PROGRAM_NAME;
     g_fc_server.prog_addr4 = "0.0.0.0";
     g_fc_server.prog_addr6 = "::";

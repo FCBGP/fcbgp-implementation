@@ -22,11 +22,9 @@ extern "C"
 #include <stdio.h>
 #include <stdlib.h>
 
-    static int
-    fc_bm_sent_to_peer(const char *sockaddrstr,
-                       const FC_msg_bm_t *bm,
-                       unsigned char *buffer,
-                       int bufferlen)
+    static int fc_bm_sent_to_peer(const char* sockaddrstr,
+                                  const FC_msg_bm_t* bm, unsigned char* buffer,
+                                  int bufferlen)
     {
         int ret = 0;
         int sockfd = 0;
@@ -36,32 +34,32 @@ extern "C"
 
         switch (g_fc_server.fcs_addr_type)
         {
-        case FC_FCS_ADDR_TYPE_V4:
-            if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
-            {
-                DIAG_ERROR("socket(), %s\n", strerror(errno));
-                return -1;
-            }
-            in4.sin_family = AF_INET;
-            in4.sin_port = htons(g_fc_server.listen_port);
-            inet_pton(AF_INET, sockaddrstr, &(in4.sin_addr));
-            ret = connect(sockfd, (struct sockaddr*)&in4, sizeof(in4));
-            break;
-        case FC_FCS_ADDR_TYPE_V6:
-            if ((sockfd = socket(AF_INET6, SOCK_STREAM, 0)) < 0)
-            {
-                DIAG_ERROR("socket(), %s\n", strerror(errno));
-                return -1;
-            }
-            in6.sin6_family = AF_INET6;
-            in6.sin6_port = htons(g_fc_server.listen_port);
-            inet_pton(AF_INET6, sockaddrstr, &(in6.sin6_addr));
-            ret = connect(sockfd, (struct sockaddr*)&in6, sizeof(in6));
-            break;
-        default:
-            DIAG_ERROR("No such FCS Address Type: %d\n",
-                       g_fc_server.fcs_addr_type);
-            break;
+            case FC_FCS_ADDR_TYPE_V4:
+                if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+                {
+                    DIAG_ERROR("socket(), %s\n", strerror(errno));
+                    return -1;
+                }
+                in4.sin_family = AF_INET;
+                in4.sin_port = htons(g_fc_server.listen_port);
+                inet_pton(AF_INET, sockaddrstr, &(in4.sin_addr));
+                ret = connect(sockfd, (struct sockaddr*)&in4, sizeof(in4));
+                break;
+            case FC_FCS_ADDR_TYPE_V6:
+                if ((sockfd = socket(AF_INET6, SOCK_STREAM, 0)) < 0)
+                {
+                    DIAG_ERROR("socket(), %s\n", strerror(errno));
+                    return -1;
+                }
+                in6.sin6_family = AF_INET6;
+                in6.sin6_port = htons(g_fc_server.listen_port);
+                inet_pton(AF_INET6, sockaddrstr, &(in6.sin6_addr));
+                ret = connect(sockfd, (struct sockaddr*)&in6, sizeof(in6));
+                break;
+            default:
+                DIAG_ERROR("No such FCS Address Type: %d\n",
+                           g_fc_server.fcs_addr_type);
+                break;
         }
 
         if (ret < 0)
@@ -81,10 +79,10 @@ extern "C"
         return 0;
     }
 
-    int fc_bm_find_server(uint32_t asn, char *ifaddr, char *ifname)
+    int fc_bm_find_server(uint32_t asn, char* ifaddr, char* ifname)
     {
         FC_node_as_t meta;
-        FC_ht_node_as_t *node;
+        FC_ht_node_as_t* node;
 
         meta.asn = asn;
         node = htbl_meta_find(&g_fc_server.ht_as, &meta);
@@ -93,24 +91,24 @@ extern "C"
         {
             switch (g_fc_server.fcs_addr_type)
             {
-            case FC_FCS_ADDR_TYPE_V4:
-                memcpy(ifaddr, node->acs.ipv4[0].ifaddr,
-                       strlen(node->acs.ipv4[0].ifaddr));
-                if (ifname)
-                {
-                    memcpy(ifname, node->acs.ipv4[0].ifname,
-                           strlen(node->acs.ipv4[0].ifname));
-                }
-                break;
-            case FC_FCS_ADDR_TYPE_V6:
-                memcpy(ifaddr, node->acs.ipv6[0].ifaddr,
-                       strlen(node->acs.ipv6[0].ifaddr));
-                if (ifname)
-                {
-                    memcpy(ifname, node->acs.ipv6[0].ifname,
-                           strlen(node->acs.ipv6[0].ifname));
-                }
-                break;
+                case FC_FCS_ADDR_TYPE_V4:
+                    memcpy(ifaddr, node->acs.ipv4[0].ifaddr,
+                           strlen(node->acs.ipv4[0].ifaddr));
+                    if (ifname)
+                    {
+                        memcpy(ifname, node->acs.ipv4[0].ifname,
+                               strlen(node->acs.ipv4[0].ifname));
+                    }
+                    break;
+                case FC_FCS_ADDR_TYPE_V6:
+                    memcpy(ifaddr, node->acs.ipv6[0].ifaddr,
+                           strlen(node->acs.ipv6[0].ifaddr));
+                    if (ifname)
+                    {
+                        memcpy(ifname, node->acs.ipv6[0].ifname,
+                               strlen(node->acs.ipv6[0].ifname));
+                    }
+                    break;
             }
             return 0;
         }
@@ -118,9 +116,8 @@ extern "C"
         return -1;
     }
 
-    static int
-    fc_bm_broadcast_to_peer(int clisockfd, const FC_msg_bm_t *bm,
-                            unsigned char *buffer, int bufferlen)
+    static int fc_bm_broadcast_to_peer(int clisockfd, const FC_msg_bm_t* bm,
+                                       unsigned char* buffer, int bufferlen)
     {
         DIAG_INFO("broadcast to peers start\n");
         int i = 0, ret = 0;
@@ -138,7 +135,7 @@ extern "C"
             }
 
             meta.asn = asn;
-            FC_ht_node_as_t *node = htbl_meta_find(&g_fc_server.ht_as, &meta);
+            FC_ht_node_as_t* node = htbl_meta_find(&g_fc_server.ht_as, &meta);
 
             if (node)
             {
@@ -150,8 +147,7 @@ extern "C"
                     if (ret == 0)
                     {
                         DIAG_INFO("remote-acs addr: %s\n", ifaddr);
-                        fc_bm_sent_to_peer(ifaddr,
-                                           bm, buffer, bufferlen);
+                        fc_bm_sent_to_peer(ifaddr, bm, buffer, bufferlen);
                     }
                     else
                     {
@@ -166,8 +162,7 @@ extern "C"
                     if (ret == 0)
                     {
                         DIAG_INFO("remote-acs addr: %s\n", ifaddr);
-                        fc_bm_sent_to_peer(ifaddr,
-                                           bm, buffer, bufferlen);
+                        fc_bm_sent_to_peer(ifaddr, bm, buffer, bufferlen);
                     }
                     else
                     {
@@ -200,9 +195,14 @@ extern "C"
         return 0;
     }
 
-    static int
-    fc_bm_verify_fc(FC_msg_bm_t *bm)
+    static int fc_bm_verify_fc(FC_msg_bm_t* bm)
     {
+        if (bm == NULL)
+        {
+            DIAG_ERROR("No such BM\n");
+            return -1;
+        }
+
         u8 msg[FC_BUFF_SIZE];
         int ret = 0;
         int msglen = 0;
@@ -229,14 +229,15 @@ extern "C"
             {
                 if (bm->ipversion == IPV4)
                 {
-                    u32 ip4 = ((struct sockaddr_in *)&(bm->dst_ip[j].ip))->sin_addr.s_addr;
+                    u32 ip4 = ((struct sockaddr_in*)&(bm->dst_ip[j].ip))
+                                  ->sin_addr.s_addr;
                     memcpy(msg + msglen, &ip4, IP4_LENGTH);
                     msglen += IP4_LENGTH;
                 }
                 else
                 {
-                    struct sockaddr_in6 *ip6;
-                    ip6 = (struct sockaddr_in6 *)&(bm->dst_ip[j].ip);
+                    struct sockaddr_in6* ip6;
+                    ip6 = (struct sockaddr_in6*)&(bm->dst_ip[j].ip);
                     memcpy(msg + msglen, &(ip6->sin6_addr), IP6_LENGTH);
                     msglen += IP6_LENGTH;
                 }
@@ -244,38 +245,45 @@ extern "C"
                 msglen += 1;
             }
 
-            FC_ht_node_as_t *node;
+            FC_ht_node_as_t* node;
             FC_node_as_t meta = {0};
             meta.asn = bm->fclist[i].current_asn;
             node = htbl_meta_find(&g_fc_server.ht_as, &meta);
 
+            if (node == NULL)
+            {
+                DIAG_ERROR("Cannot find ASN: %u, have you configed it?\n",
+                           meta.asn);
+                return -1;
+            }
+
             DIAG_INFO("asn: %u, ", node->asn);
             fc_print_bin("ski", node->ski, FC_SKI_LENGTH);
 
-            ret = fc_ecdsa_verify(node->pubkey, msg, msglen,
-                                  bm->fclist[i].sig, bm->fclist[i].siglen);
+            ret = fc_ecdsa_verify(node->pubkey, msg, msglen, bm->fclist[i].sig,
+                                  bm->fclist[i].siglen);
             switch (ret)
             {
-            case 1:
-                DIAG_INFO("verify fc %d ok\n", i);
-                break;
-            case 0:
-                DIAG_ERROR("verify fc %d failed\n", i);
-                break;
-            default:
-                DIAG_ERROR("verify fc %d error\n", i);
-                break;
+                case 1:
+                    DIAG_INFO("verify fc %d ok\n", i);
+                    break;
+                case 0:
+                    DIAG_ERROR("verify fc %d failed\n", i);
+                    break;
+                default:
+                    DIAG_ERROR("verify fc %d error\n", i);
+                    break;
             }
         }
+
         return 0;
     }
 
-    static void
-    fc_bm_print(const FC_msg_bm_t *bm)
+    static void fc_bm_print(const FC_msg_bm_t* bm)
     {
         int i = 0;
-        struct sockaddr_in *in4 = NULL;
-        struct sockaddr_in6 *in6 = NULL;
+        struct sockaddr_in* in4 = NULL;
+        struct sockaddr_in6* in6 = NULL;
         char ipstr[INET6_ADDRSTRLEN];
         DIAG_INFO("bm version: %d\n", bm->bmversion);
         DIAG_INFO("ip version: %d\n", bm->ipversion);
@@ -296,20 +304,18 @@ extern "C"
             DIAG_INFO("  idx: %d, ", i);
             switch (bm->ipversion)
             {
-            case IPV4:
-                in4 = (struct sockaddr_in *)&bm->src_ip[i].ip;
-                inet_ntop(AF_INET,
-                          &in4->sin_addr,
-                          ipstr, sizeof(struct sockaddr_in));
-                DIAG_INFO("%s/%d\n", ipstr, bm->src_ip[i].prefix_length);
-                break;
-            case IPV6:
-                in6 = (struct sockaddr_in6 *)&bm->src_ip[i].ip;
-                inet_ntop(AF_INET6,
-                          &in6->sin6_addr,
-                          ipstr, sizeof(struct sockaddr_in6));
-                DIAG_INFO("%s/%d\n", ipstr, bm->src_ip[i].prefix_length);
-                break;
+                case IPV4:
+                    in4 = (struct sockaddr_in*)&bm->src_ip[i].ip;
+                    inet_ntop(AF_INET, &in4->sin_addr, ipstr,
+                              sizeof(struct sockaddr_in));
+                    DIAG_INFO("%s/%d\n", ipstr, bm->src_ip[i].prefix_length);
+                    break;
+                case IPV6:
+                    in6 = (struct sockaddr_in6*)&bm->src_ip[i].ip;
+                    inet_ntop(AF_INET6, &in6->sin6_addr, ipstr,
+                              sizeof(struct sockaddr_in6));
+                    DIAG_INFO("%s/%d\n", ipstr, bm->src_ip[i].prefix_length);
+                    break;
             }
         }
         DIAG_INFO("dst ip prefix:\n");
@@ -319,39 +325,38 @@ extern "C"
             DIAG_INFO("  idx: %d, ", i);
             switch (bm->ipversion)
             {
-            case IPV4:
-                inet_ntop(AF_INET,
-                          &((struct sockaddr_in *)&bm->dst_ip[i].ip)->sin_addr,
-                          ipstr, sizeof(struct sockaddr_in));
-                DIAG_INFO("%s/%d\n", ipstr, bm->dst_ip[i].prefix_length);
-                break;
-            case IPV6:
-                inet_ntop(AF_INET6,
-                          &((struct sockaddr_in6 *)&bm->dst_ip[i].ip)->sin6_addr,
-                          ipstr, sizeof(struct sockaddr_in6));
-                DIAG_INFO("%s/%d\n", ipstr, bm->dst_ip[i].prefix_length);
-                break;
+                case IPV4:
+                    inet_ntop(
+                        AF_INET,
+                        &((struct sockaddr_in*)&bm->dst_ip[i].ip)->sin_addr,
+                        ipstr, sizeof(struct sockaddr_in));
+                    DIAG_INFO("%s/%d\n", ipstr, bm->dst_ip[i].prefix_length);
+                    break;
+                case IPV6:
+                    inet_ntop(
+                        AF_INET6,
+                        &((struct sockaddr_in6*)&bm->dst_ip[i].ip)->sin6_addr,
+                        ipstr, sizeof(struct sockaddr_in6));
+                    DIAG_INFO("%s/%d\n", ipstr, bm->dst_ip[i].prefix_length);
+                    break;
             }
         }
         DIAG_INFO("fc list:\n");
         for (i = 0; i < bm->fc_num; ++i)
         {
-            DIAG_INFO("  idx: %d, 3 asn: %d, %d, %d, algo-id: %d, flags: %d, siglen: %d, ",
-                      i,
-                      bm->fclist[i].previous_asn,
-                      bm->fclist[i].current_asn,
-                      bm->fclist[i].nexthop_asn,
-                      bm->fclist[i].algo_id,
-                      bm->fclist[i].flags,
-                      bm->fclist[i].siglen);
+            DIAG_INFO("  idx: %d, 3 asn: %d, %d, %d, algo-id: %d, flags: %d, "
+                      "siglen: %d, ",
+                      i, bm->fclist[i].previous_asn, bm->fclist[i].current_asn,
+                      bm->fclist[i].nexthop_asn, bm->fclist[i].algo_id,
+                      bm->fclist[i].flags, bm->fclist[i].siglen);
             fc_print_bin("sig", bm->fclist[i].sig, bm->fclist[i].siglen);
         }
 
         fc_print_bin("bin", bm->ski, FC_SKI_LENGTH);
     }
 
-    static int
-    fc_msg_bm_decap_fixed(FC_msg_bm_t *bm, const unsigned char *buff, int currlen)
+    static int fc_msg_bm_decap_fixed(FC_msg_bm_t* bm, const unsigned char* buff,
+                                     int currlen)
     {
         memcpy(bm, buff, FC_HDR_BM_FIX_LENGTH);
         currlen += FC_HDR_BM_FIX_LENGTH;
@@ -367,31 +372,30 @@ extern "C"
         return currlen;
     }
 
-    static int
-    fc_msg_bm_decap_srcip(FC_msg_bm_t *bm, const unsigned char *buff,
-                          int currlen, int ip_addr_len)
+    static int fc_msg_bm_decap_srcip(FC_msg_bm_t* bm, const unsigned char* buff,
+                                     int currlen, int ip_addr_len)
     {
         int i = 0;
-        struct sockaddr_in *in4 = NULL;
-        struct sockaddr_in6 *in6 = NULL;
+        struct sockaddr_in* in4 = NULL;
+        struct sockaddr_in6* in6 = NULL;
         for (i = 0; i < bm->src_ip_num; ++i)
         {
             bm->src_ip[i].prefix_length = *(buff + currlen + ip_addr_len);
             switch (bm->ipversion)
             {
-            case IPV4:
-                in4 = (struct sockaddr_in *)&bm->src_ip[i].ip;
-                in4->sin_family = AF_INET;
-                memcpy(&(in4->sin_addr), buff + currlen, ip_addr_len);
-                //    in4->sin_addr.s_addr = ntohl(in4->sin_addr.s_addr);
-                break;
-            case IPV6:
-                in6 = (struct sockaddr_in6 *)&bm->src_ip[i].ip;
-                in6->sin6_family = AF_INET6;
-                memcpy(&(in6->sin6_addr), buff + currlen, ip_addr_len);
-                break;
-            default:
-                break;
+                case IPV4:
+                    in4 = (struct sockaddr_in*)&bm->src_ip[i].ip;
+                    in4->sin_family = AF_INET;
+                    memcpy(&(in4->sin_addr), buff + currlen, ip_addr_len);
+                    //    in4->sin_addr.s_addr = ntohl(in4->sin_addr.s_addr);
+                    break;
+                case IPV6:
+                    in6 = (struct sockaddr_in6*)&bm->src_ip[i].ip;
+                    in6->sin6_family = AF_INET6;
+                    memcpy(&(in6->sin6_addr), buff + currlen, ip_addr_len);
+                    break;
+                default:
+                    break;
             }
             currlen += ip_addr_len + 1;
         }
@@ -399,30 +403,29 @@ extern "C"
         return currlen;
     }
 
-    static int
-    fc_msg_bm_decap_dstip(FC_msg_bm_t *bm, const unsigned char *buff,
-                          int currlen, int ip_addr_len)
+    static int fc_msg_bm_decap_dstip(FC_msg_bm_t* bm, const unsigned char* buff,
+                                     int currlen, int ip_addr_len)
     {
         int i = 0;
-        struct sockaddr_in *in4 = NULL;
-        struct sockaddr_in6 *in6 = NULL;
+        struct sockaddr_in* in4 = NULL;
+        struct sockaddr_in6* in6 = NULL;
         for (i = 0; i < bm->dst_ip_num; ++i)
         {
             bm->dst_ip[i].prefix_length = *(buff + currlen + ip_addr_len);
             switch (bm->ipversion)
             {
-            case IPV4:
-                in4 = (struct sockaddr_in *)&bm->dst_ip[i].ip;
-                in4->sin_family = AF_INET;
-                memcpy(&(in4->sin_addr), buff + currlen, ip_addr_len);
-                //   in4->sin_addr.s_addr = ntohl(in4->sin_addr.s_addr);
-                break;
-            case IPV6:
-                in6 = (struct sockaddr_in6 *)&bm->dst_ip[i].ip;
-                memcpy(&(in6->sin6_addr), buff + currlen, ip_addr_len);
-                break;
-            default:
-                break;
+                case IPV4:
+                    in4 = (struct sockaddr_in*)&bm->dst_ip[i].ip;
+                    in4->sin_family = AF_INET;
+                    memcpy(&(in4->sin_addr), buff + currlen, ip_addr_len);
+                    //   in4->sin_addr.s_addr = ntohl(in4->sin_addr.s_addr);
+                    break;
+                case IPV6:
+                    in6 = (struct sockaddr_in6*)&bm->dst_ip[i].ip;
+                    memcpy(&(in6->sin6_addr), buff + currlen, ip_addr_len);
+                    break;
+                default:
+                    break;
             }
             currlen += ip_addr_len + 1;
         }
@@ -430,8 +433,8 @@ extern "C"
         return currlen;
     }
 
-    static int
-    fc_msg_bm_decap_fclist(FC_msg_bm_t *bm, const unsigned char *buff, int currlen)
+    static int fc_msg_bm_decap_fclist(FC_msg_bm_t* bm,
+                                      const unsigned char* buff, int currlen)
     {
         int i = 0;
         for (i = 0; i < bm->fc_num; ++i)
@@ -470,8 +473,7 @@ extern "C"
             if (bm->fclist[i].nexthop_asn == bm->fclist[i].previous_asn)
             {
                 DIAG_INFO("Not needed fclist, 3 asns: %08X %08X %08X\n",
-                          bm->fclist[i].previous_asn,
-                          bm->fclist[i].current_asn,
+                          bm->fclist[i].previous_asn, bm->fclist[i].current_asn,
                           bm->fclist[i].nexthop_asn);
                 return -1;
             }
@@ -480,12 +482,12 @@ extern "C"
         return currlen;
     }
 
-    static int
-    fc_msg_bm_bgpd_handler(int clisockfd, FC_msg_bm_t *bm, unsigned char *buffer,
-                           const unsigned char *msg,
-                           unsigned char *buff, int currlen)
+    static int fc_msg_bm_bgpd_handler(int clisockfd, FC_msg_bm_t* bm,
+                                      unsigned char* buffer,
+                                      const unsigned char* msg,
+                                      unsigned char* buff, int currlen)
     {
-        unsigned char *sigbuff = NULL;
+        unsigned char* sigbuff = NULL;
         unsigned int sigbufflen = 0;
 
         // TODO verify signature from bgpd
@@ -508,13 +510,13 @@ extern "C"
         buffer[1] = FC_MSG_BC;
         u16 new_length = htons(currlen);
         memcpy(&buffer[2], &new_length, sizeof(u16));
-        fc_bm_broadcast_to_peer(clisockfd, bm, buffer, FC_HDR_GENERAL_LENGTH + currlen);
+        fc_bm_broadcast_to_peer(clisockfd, bm, buffer,
+                                FC_HDR_GENERAL_LENGTH + currlen);
         return 0;
     }
 
-    static int
-    fc_msg_bm_bc_handler(FC_msg_bm_t *bm, const unsigned char *msg,
-                         const unsigned char *buff, int currlen)
+    static int fc_msg_bm_bc_handler(FC_msg_bm_t* bm, const unsigned char* msg,
+                                    const unsigned char* buff, int currlen)
     {
         int ret = 0;
 
@@ -526,27 +528,27 @@ extern "C"
         DIAG_INFO("bm asn: %u, ", bm->local_asn);
         fc_print_bin("ski", bm->ski, FC_SKI_LENGTH);
 
-        FC_ht_node_as_t *node;
+        FC_ht_node_as_t* node;
         FC_node_as_t meta = {0};
         meta.asn = bm->local_asn;
         node = htbl_meta_find(&g_fc_server.ht_as, &meta);
         DIAG_INFO("node asn: %u, ", node->asn);
         fc_print_bin("ski", node->ski, FC_SKI_LENGTH);
 
-        ret = fc_ecdsa_verify(node->pubkey,
-                              msg, currlen, bm->signature, bm->siglen);
+        ret = fc_ecdsa_verify(node->pubkey, msg, currlen, bm->signature,
+                              bm->siglen);
 
         switch (ret)
         {
-        case 1:
-            DIAG_INFO("verify sig ok\n");
-            break;
-        case 0:
-            DIAG_ERROR("verify sig failed\n");
-            break;
-        default:
-            DIAG_ERROR("verify sig error\n");
-            break;
+            case 1:
+                DIAG_INFO("verify sig ok\n");
+                break;
+            case 0:
+                DIAG_ERROR("verify sig failed\n");
+                break;
+            default:
+                DIAG_ERROR("verify sig error\n");
+                break;
         }
 
         DIAG_INFO("### Verify BM Signature End ###\n");
@@ -556,36 +558,36 @@ extern "C"
 
     // buff is starting from bm's ipversion
     // msg_type: is broadcast msg
-    int fc_server_bm_handler(int clisockfd, unsigned char *buffer,
+    int fc_server_bm_handler(int clisockfd, unsigned char* buffer,
                              int bufferlen, int msg_type)
     {
         FC_msg_bm_t bm = {0};
         unsigned char msg[FC_BUFF_SIZE] = {0};
         int curlen = 0, ret = 0, ip_addr_len = 0;
-        unsigned char *buff = buffer + FC_HDR_GENERAL_LENGTH;
+        unsigned char* buff = buffer + FC_HDR_GENERAL_LENGTH;
 
         // bmversion
         switch (buff[0])
         {
-        case FC_MSG_BM_VERSION: // current bm version
-            break;
-        default:
-            DIAG_ERROR("BM version %d is not supported\n", buff[0]);
-            return -1;
+            case FC_MSG_BM_VERSION: // current bm version
+                break;
+            default:
+                DIAG_ERROR("BM version %d is not supported\n", buff[0]);
+                return -1;
         }
 
         // ipversion
         switch (buff[1])
         {
-        case IPV4: // ipv4
-            ip_addr_len = IP4_LENGTH;
-            break;
-        case IPV6: // ipv6
-            ip_addr_len = IP6_LENGTH;
-            break;
-        default:
-            DIAG_ERROR("IP version %d is not supported now\n", buff[1]);
-            return -1;
+            case IPV4: // ipv4
+                ip_addr_len = IP4_LENGTH;
+                break;
+            case IPV6: // ipv6
+                ip_addr_len = IP6_LENGTH;
+                break;
+            default:
+                DIAG_ERROR("IP version %d is not supported now\n", buff[1]);
+                return -1;
         }
 
         curlen = fc_msg_bm_decap_fixed(&bm, buff, curlen);
@@ -608,12 +610,13 @@ extern "C"
 
         switch (msg_type)
         {
-        case FC_MSG_BGPD:
-            fc_msg_bm_bgpd_handler(clisockfd, &bm, buffer, msg, buff, curlen);
-            break;
-        case FC_MSG_BC:
-            fc_msg_bm_bc_handler(&bm, msg, buff, curlen);
-            break;
+            case FC_MSG_BGPD:
+                fc_msg_bm_bgpd_handler(clisockfd, &bm, buffer, msg, buff,
+                                       curlen);
+                break;
+            case FC_MSG_BC:
+                fc_msg_bm_bc_handler(&bm, msg, buff, curlen);
+                break;
         }
 
         fc_bm_print(&bm);

@@ -1,5 +1,16 @@
 # CHANGELOG
 
+## 2024.12.09
+
+- [x] publish: v0.4.0
+- [x] format: format code with .clang-format
+- [x] refactor: replace frr version from 9.0.1 to 10.2
+- [x] Send network prefix one by one
+- [x] Add more than one network prefix to `frr.conf`.
+- [x] long socket connetion for sending bm from bgpd to fcserver
+- [x] make fcserver more robust when analyzing unconfiged ASN in FC.
+
+
 ## 2024.11.29
 
 - [x] publish: v0.3.0

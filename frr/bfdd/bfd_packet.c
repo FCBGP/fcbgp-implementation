@@ -12,6 +12,11 @@
  */
 
 #include <zebra.h>
+#include <sys/ioctl.h>
+
+#ifdef GNU_LINUX
+#include <linux/filter.h>
+#endif
 
 #ifdef BFD_LINUX
 #include <linux/if_packet.h>
@@ -893,6 +898,12 @@ void bfd_recv_cb(struct event *t)
 		return;
 	}
 
+	if (BFD_GETMBIT(cp->flags)) {
+		cp_debug(is_mhop, &peer, &local, ifindex, vrfid,
+			 "detect non-zero Multipoint (M) flag");
+		return;
+	}
+
 	if (cp->discrs.my_discr == 0) {
 		cp_debug(is_mhop, &peer, &local, ifindex, vrfid,
 			 "'my discriminator' is zero");
@@ -971,7 +982,7 @@ void bfd_recv_cb(struct event *t)
 	}
 
 	/* Save remote diagnostics before state switch. */
-	bfd->remote_diag = cp->diag & BFD_DIAGMASK;
+	bfd->remote_diag = CHECK_FLAG(cp->diag, BFD_DIAGMASK);
 
 	/* Update remote timers settings. */
 	bfd->remote_timers.desired_min_tx = ntohl(cp->timers.desired_min_tx);
@@ -1727,7 +1738,7 @@ void bfd_peer_mac_set(int sd, struct bfd_session *bfd,
 
 	if (CHECK_FLAG(bfd->flags, BFD_SESS_FLAG_MAC_SET))
 		return;
-	if (ifp->flags & IFF_NOARP)
+	if (CHECK_FLAG(ifp->flags, IFF_NOARP))
 		return;
 
 	if (peer->sa_sin.sin_family == AF_INET) {
@@ -1742,9 +1753,10 @@ void bfd_peer_mac_set(int sd, struct bfd_session *bfd,
 		strlcpy(arpreq_.arp_dev, ifp->name, sizeof(arpreq_.arp_dev));
 
 		if (ioctl(sd, SIOCGARP, &arpreq_) < 0) {
-			zlog_warn(
-				"BFD: getting peer's mac on %s failed error %s",
-				ifp->name, strerror(errno));
+			if (bglobal.debug_network)
+				zlog_debug(
+					"BFD: getting peer's mac on %s failed error %s",
+					ifp->name, strerror(errno));
 			UNSET_FLAG(bfd->flags, BFD_SESS_FLAG_MAC_SET);
 			memset(bfd->peer_hw_addr, 0, sizeof(bfd->peer_hw_addr));
 

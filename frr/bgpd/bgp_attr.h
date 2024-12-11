@@ -13,7 +13,7 @@
 
 #ifdef USE_FC
 #include "bgp_fc.h"
-#endif
+#endif // USE_FC
 
 /* Simple bit mapping. */
 #define BITMAP_NBBY 8
@@ -159,16 +159,61 @@ struct attr {
 	uint32_t med;
 	uint32_t local_pref;
 	ifindex_t nh_ifindex;
+	uint8_t nh_flags;
+
+#define BGP_ATTR_NH_VALID 0x01
+#define BGP_ATTR_NH_IF_OPERSTATE 0x02
+#define BGP_ATTR_NH_MP_PREFER_GLOBAL 0x04 /* MP Nexthop preference */
 
 	/* Path origin attribute */
 	uint8_t origin;
+
+	/* ES info */
+	uint8_t es_flags;
+	/* Path is not "locally-active" on the advertising VTEP. This is
+	 * translated into an ARP-ND ECOM.
+	 */
+#define ATTR_ES_PROXY_ADVERT (1 << 0)
+	/* Destination ES is present locally. This flag is set on local
+	 * paths and sync paths
+	 */
+#define ATTR_ES_IS_LOCAL (1 << 1)
+	/* There are one or more non-best paths from ES peers. Note that
+	 * this flag is only set on the local MAC-IP paths in the VNI
+	 * route table (not set in the global routing table). And only
+	 * non-proxy advertisements from an ES peer can result in this
+	 * flag being set.
+	 */
+#define ATTR_ES_PEER_ACTIVE (1 << 2)
+	/* There are one or more non-best proxy paths from ES peers */
+#define ATTR_ES_PEER_PROXY (1 << 3)
+	/* An ES peer has router bit set - only applicable if
+	 * ATTR_ES_PEER_ACTIVE is set
+	 */
+#define ATTR_ES_PEER_ROUTER (1 << 4)
+
+	/* These two flags are only set on L3 routes installed in a
+	 * VRF as a result of EVPN MAC-IP route
+	 * XXX - while splitting up per-family attrs these need to be
+	 * classified as non-EVPN
+	 */
+#define ATTR_ES_L3_NHG_USE    (1 << 5)
+#define ATTR_ES_L3_NHG_ACTIVE (1 << 6)
+#define ATTR_ES_L3_NHG	      (ATTR_ES_L3_NHG_USE | ATTR_ES_L3_NHG_ACTIVE)
+
+	/* Distance as applied by Route map */
+	uint8_t distance;
+
+	/* EVPN DF preference for DF election on local ESs */
+	uint8_t df_alg;
+	uint16_t df_pref;
 
 	/* PMSI tunnel type (RFC 6514). */
 	enum pta_type pmsi_tnl_type;
 
 	/* has the route-map changed any attribute?
 	   Used on the peer outbound side. */
-	uint32_t rmap_change_flags;
+	uint16_t rmap_change_flags;
 
 	/* Multi-Protocol Nexthop, AFI IPv6 */
 	struct in6_addr mp_nexthop_global;
@@ -176,6 +221,9 @@ struct attr {
 
 	/* ifIndex corresponding to mp_nexthop_local. */
 	ifindex_t nh_lla_ifindex;
+
+	/* MPLS label */
+	mpls_label_t label;
 
 	/* Extended Communities attribute. */
 	struct ecommunity *ecommunity;
@@ -209,50 +257,12 @@ struct attr {
 	/* MP Nexthop length */
 	uint8_t mp_nexthop_len;
 
-	/* MP Nexthop preference */
-	uint8_t mp_nexthop_prefer_global;
-
-	/* Static MAC for EVPN */
-	uint8_t sticky;
-
-	/* Flag for default gateway extended community in EVPN */
-	uint8_t default_gw;
-
-	/* NA router flag (R-bit) support in EVPN */
-	uint8_t router_flag;
-
-	/* ES info */
-	uint8_t es_flags;
-	/* Path is not "locally-active" on the advertising VTEP. This is
-	 * translated into an ARP-ND ECOM.
-	 */
-#define ATTR_ES_PROXY_ADVERT (1 << 0)
-	/* Destination ES is present locally. This flag is set on local
-	 * paths and sync paths
-	 */
-#define ATTR_ES_IS_LOCAL (1 << 1)
-	/* There are one or more non-best paths from ES peers. Note that
-	 * this flag is only set on the local MAC-IP paths in the VNI
-	 * route table (not set in the global routing table). And only
-	 * non-proxy advertisements from an ES peer can result in this
-	 * flag being set.
-	 */
-#define ATTR_ES_PEER_ACTIVE (1 << 2)
-	/* There are one or more non-best proxy paths from ES peers */
-#define ATTR_ES_PEER_PROXY (1 << 3)
-	/* An ES peer has router bit set - only applicable if
-	 * ATTR_ES_PEER_ACTIVE is set
-	 */
-#define ATTR_ES_PEER_ROUTER (1 << 4)
-
-	/* These two flags are only set on L3 routes installed in a
-	 * VRF as a result of EVPN MAC-IP route
-	 * XXX - while splitting up per-family attrs these need to be
-	 * classified as non-EVPN
-	 */
-#define ATTR_ES_L3_NHG_USE (1 << 5)
-#define ATTR_ES_L3_NHG_ACTIVE (1 << 6)
-#define ATTR_ES_L3_NHG (ATTR_ES_L3_NHG_USE | ATTR_ES_L3_NHG_ACTIVE)
+	/* EVPN flags */
+	uint8_t evpn_flags;
+#define ATTR_EVPN_FLAG_STICKY	  (1 << 0)
+#define ATTR_EVPN_FLAG_DEFAULT_GW (1 << 1)
+/* NA router flag (R-bit) support in EVPN */
+#define ATTR_EVPN_FLAG_ROUTER (1 << 2)
 
 	/* route tag */
 	route_tag_t tag;
@@ -260,23 +270,19 @@ struct attr {
 	/* Label index */
 	uint32_t label_index;
 
-	/* MPLS label */
-	mpls_label_t label;
-
 	/* SRv6 VPN SID */
 	struct bgp_attr_srv6_vpn *srv6_vpn;
 
 	/* SRv6 L3VPN SID */
 	struct bgp_attr_srv6_l3vpn *srv6_l3vpn;
 
-	uint16_t encap_tunneltype;		     /* grr */
 	struct bgp_attr_encap_subtlv *encap_subtlvs; /* rfc5512 */
 
 #ifdef ENABLE_BGP_VNC
 	struct bgp_attr_encap_subtlv *vnc_subtlvs; /* VNC-specific */
 #endif
 	/* EVPN */
-	struct bgp_route_evpn evpn_overlay;
+	struct bgp_route_evpn *evpn_overlay;
 
 	/* EVPN MAC Mobility sequence number, if any. */
 	uint32_t mm_seqnum;
@@ -291,24 +297,19 @@ struct attr {
 	/* EVPN local router-mac */
 	struct ethaddr rmac;
 
-	/* Distance as applied by Route map */
-	uint8_t distance;
+	uint8_t encap_tunneltype;
 
 	/* rmap set table */
 	uint32_t rmap_table_id;
 
 	/* Link bandwidth value, if any. */
-	uint32_t link_bw;
+	uint64_t link_bw;
 
 	/* EVPN ES */
 	esi_t esi;
 
 	/* SR-TE Color */
 	uint32_t srte_color;
-
-	/* EVPN DF preference and algorithm for DF election on local ESs */
-	uint16_t df_pref;
-	uint8_t df_alg;
 
 	/* Nexthop type */
 	enum nexthop_types_t nh_type;
@@ -356,7 +357,7 @@ struct transit {
 	__builtin_choose_expr((X) >= 1 && (X) <= 64, 1ULL << ((X)-1), (void)0)
 
 #define BGP_CLUSTER_LIST_LENGTH(attr)                                          \
-	(((attr)->flag & ATTR_FLAG_BIT(BGP_ATTR_CLUSTER_LIST))                 \
+	(CHECK_FLAG((attr)->flag, ATTR_FLAG_BIT(BGP_ATTR_CLUSTER_LIST))        \
 		 ? bgp_attr_get_cluster((attr))->length                        \
 		 : 0)
 
@@ -368,7 +369,7 @@ enum bgp_attr_parse_ret {
 	/* only used internally, send notify + convert to BGP_ATTR_PARSE_ERROR
 	 */
 	BGP_ATTR_PARSE_ERROR_NOTIFYPLS = -3,
-	BGP_ATTR_PARSE_EOR = -4,
+	BGP_ATTR_PARSE_MISSING_MANDATORY = -4,
 };
 
 struct bpacket_attr_vec_arr;
@@ -376,13 +377,16 @@ struct bpacket_attr_vec_arr;
 /* Prototypes. */
 extern void bgp_attr_init(void);
 extern void bgp_attr_finish(void);
+#ifdef USE_FC
 extern enum bgp_attr_parse_ret
 bgp_attr_parse(struct peer *peer, struct attr *attr, bgp_size_t size,
-	       struct bgp_nlri *mp_update, struct bgp_nlri *mp_withdraw
-#ifdef USE_FC
-           , FCList_t *fclist, char *fcbuff
-#endif
-           );
+	       struct bgp_nlri *mp_update, struct bgp_nlri *mp_withdraw,
+           FCList_t *fclist, char *fcbuff);
+#else
+extern enum bgp_attr_parse_ret
+bgp_attr_parse(struct peer *peer, struct attr *attr, bgp_size_t size,
+	       struct bgp_nlri *mp_update, struct bgp_nlri *mp_withdraw);
+#endif // USE_FC
 extern struct attr *bgp_attr_intern(struct attr *attr);
 extern void bgp_attr_unintern_sub(struct attr *attr);
 extern void bgp_attr_unintern(struct attr **pattr);
@@ -394,16 +398,22 @@ extern struct attr *bgp_attr_aggregate_intern(
 	struct community *community, struct ecommunity *ecommunity,
 	struct lcommunity *lcommunity, struct bgp_aggregate *aggregate,
 	uint8_t atomic_aggregate, const struct prefix *p);
-extern bgp_size_t bgp_packet_attribute(
-	struct bgp *bgp, struct peer *peer, struct stream *s, struct attr *attr,
-	struct bpacket_attr_vec_arr *vecarr, struct prefix *p, afi_t afi,
-	safi_t safi, struct peer *from, struct prefix_rd *prd,
-	mpls_label_t *label, uint32_t num_labels, bool addpath_capable,
-	uint32_t addpath_tx_id, struct bgp_path_info *bpi
 #ifdef USE_FC
-    , const struct prefix *prefix_for_fc
-#endif
-    );
+extern bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer, struct stream *s,
+				       struct attr *attr, struct bpacket_attr_vec_arr *vecarr,
+				       struct prefix *p, afi_t afi, safi_t safi, struct peer *from,
+				       struct prefix_rd *prd, mpls_label_t *label,
+				       uint8_t num_labels, bool addpath_capable,
+				       uint32_t addpath_tx_id,
+                       const struct prefix *prefix_for_fc);
+#else
+extern bgp_size_t bgp_packet_attribute(struct bgp *bgp, struct peer *peer, struct stream *s,
+				       struct attr *attr, struct bpacket_attr_vec_arr *vecarr,
+				       struct prefix *p, afi_t afi, safi_t safi, struct peer *from,
+				       struct prefix_rd *prd, mpls_label_t *label,
+				       uint8_t num_labels, bool addpath_capable,
+				       uint32_t addpath_tx_id);
+#endif // USE_FC
 extern void bgp_dump_routes_attr(struct stream *s, struct bgp_path_info *bpi,
 				 const struct prefix *p);
 extern bool attrhash_cmp(const void *arg1, const void *arg2);
@@ -460,7 +470,7 @@ extern size_t bgp_packet_mpattr_start(struct stream *s, struct peer *peer,
 extern void bgp_packet_mpattr_prefix(struct stream *s, afi_t afi, safi_t safi,
 				     const struct prefix *p,
 				     const struct prefix_rd *prd,
-				     mpls_label_t *label, uint32_t num_labels,
+				     mpls_label_t *label, uint8_t num_labels,
 				     bool addpath_capable,
 				     uint32_t addpath_tx_id, struct attr *);
 extern size_t bgp_packet_mpattr_prefix_size(afi_t afi, safi_t safi,
@@ -471,12 +481,14 @@ extern size_t bgp_packet_mpunreach_start(struct stream *s, afi_t afi,
 					 safi_t safi);
 extern void bgp_packet_mpunreach_prefix(
 	struct stream *s, const struct prefix *p, afi_t afi, safi_t safi,
-	const struct prefix_rd *prd, mpls_label_t *label, uint32_t num_labels,
+	const struct prefix_rd *prd, mpls_label_t *label, uint8_t num_labels,
 	bool addpath_capable, uint32_t addpath_tx_id, struct attr *attr);
 extern void bgp_packet_mpunreach_end(struct stream *s, size_t attrlen_pnt);
 
 extern enum bgp_attr_parse_ret bgp_attr_nexthop_valid(struct peer *peer,
 						      struct attr *attr);
+
+extern uint32_t bgp_attr_get_color(struct attr *attr);
 
 static inline bool bgp_rmap_nhop_changed(uint32_t out_rmap_flags,
 					 uint32_t in_rmap_flags)
@@ -594,6 +606,10 @@ static inline void bgp_attr_set_transit(struct attr *attr,
 	attr->transit = transit;
 }
 
+#define AIGP_TRANSMIT_ALLOWED(peer)                                                                \
+	(CHECK_FLAG((peer)->flags, PEER_FLAG_AIGP) || ((peer)->sub_sort == BGP_PEER_EBGP_OAD) ||   \
+	 ((peer)->sort != BGP_PEER_EBGP))
+
 static inline uint64_t bgp_attr_get_aigp_metric(const struct attr *attr)
 {
 	return attr->aigp_metric;
@@ -602,9 +618,17 @@ static inline uint64_t bgp_attr_get_aigp_metric(const struct attr *attr)
 static inline void bgp_attr_set_aigp_metric(struct attr *attr, uint64_t aigp)
 {
 	attr->aigp_metric = aigp;
+	SET_FLAG(attr->flag, ATTR_FLAG_BIT(BGP_ATTR_AIGP));
+}
 
-	if (aigp)
-		attr->flag |= ATTR_FLAG_BIT(BGP_ATTR_AIGP);
+static inline uint64_t bgp_aigp_metric_total(struct bgp_path_info *bpi)
+{
+	uint64_t aigp = bgp_attr_get_aigp_metric(bpi->attr);
+
+	if (bpi->nexthop)
+		return aigp + bpi->nexthop->metric;
+	else
+		return aigp;
 }
 
 static inline struct cluster_list *bgp_attr_get_cluster(const struct attr *attr)
@@ -616,18 +640,23 @@ static inline void bgp_attr_set_cluster(struct attr *attr,
 					struct cluster_list *cl)
 {
 	attr->cluster1 = cl;
+
+	if (cl)
+		SET_FLAG(attr->flag, ATTR_FLAG_BIT(BGP_ATTR_CLUSTER_LIST));
+	else
+		UNSET_FLAG(attr->flag, ATTR_FLAG_BIT(BGP_ATTR_CLUSTER_LIST));
 }
 
-static inline const struct bgp_route_evpn *
+static inline struct bgp_route_evpn *
 bgp_attr_get_evpn_overlay(const struct attr *attr)
 {
-	return &attr->evpn_overlay;
+	return attr->evpn_overlay;
 }
 
 static inline void bgp_attr_set_evpn_overlay(struct attr *attr,
-					     struct bgp_route_evpn *eo)
+					     struct bgp_route_evpn *bre)
 {
-	memcpy(&attr->evpn_overlay, eo, sizeof(struct bgp_route_evpn));
+	attr->evpn_overlay = bre;
 }
 
 static inline struct bgp_attr_encap_subtlv *
@@ -648,5 +677,8 @@ bgp_attr_set_vnc_subtlvs(struct attr *attr,
 	attr->vnc_subtlvs = vnc_subtlvs;
 #endif
 }
+
+extern bool route_matches_soo(struct bgp_path_info *pi, struct ecommunity *soo);
+extern void evpn_overlay_free(struct bgp_route_evpn *bre);
 
 #endif /* _QUAGGA_BGP_ATTR_H */

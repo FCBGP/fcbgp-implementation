@@ -28,8 +28,8 @@ extern "C"
 
     typedef struct fc_cmd_st
     {
-        const char *cmd;
-        const char *desc;
+        const char* cmd;
+        const char* desc;
         const void (*func)(void);
     } fc_cmd_t;
 
@@ -48,19 +48,19 @@ extern "C"
 
     void fc_cmd_link(void)
     {
-        FC_router_info_t *routers = g_fc_server.routers;
+        FC_router_info_t* routers = g_fc_server.routers;
         printf("local asn: %u\n", g_fc_server.local_asn);
         while (routers && g_fc_server.routers_num > 0)
         {
             printf(" bgpid: %8X\n", routers->bgpid);
             printf(" acl group index: %d\n", routers->acl_group_index);
             printf(" links:\n");
-            FC_router_link_info_t *link_info = routers->links;
+            FC_router_link_info_t* link_info = routers->links;
             while (link_info)
             {
                 printf("  neighbor asn: %8X\n", link_info->neighbor_asn);
                 printf("  iface\n");
-                FC_router_iface_info_t *iface_list = link_info->iface_list;
+                FC_router_iface_info_t* iface_list = link_info->iface_list;
                 while (iface_list)
                 {
                     printf("   %08X\n", iface_list->iface_index);
@@ -72,25 +72,22 @@ extern "C"
         }
     }
 
-    static int fc_acl_rule_iterator_handler(void *key,
-                                            void *val,
-                                            void *udata)
+    static int fc_acl_rule_iterator_handler(void* key, void* val, void* udata)
     {
-        u32 iface_index = *(u32 *)key;
-        ht_acl_group_info_t *acl_group_info = (ht_acl_group_info_t *)key;
+        u32 iface_index = *(u32*)key;
+        ht_acl_group_info_t* acl_group_info = (ht_acl_group_info_t*)key;
         ht_acl_rule_info_t *acl_rule_info = NULL, *tmp = NULL;
         HASH_ITER(hh, acl_group_info->ht_acl_rule_info, acl_rule_info, tmp)
         {
-            printf("group index: %u, direction(1 for in, 2 for out): %d, iface index: %08X\n"
-                   "\tipversion: %d rule_id: %u, src prefix: %s/%d, dst prefix: %s/%d\n",
-                   acl_rule_info->acl_group_index,
-                   acl_rule_info->direction,
-                   iface_index,
-                   acl_rule_info->ipversion,
-                   acl_rule_info->rule_id,
-                   acl_rule_info->saddr,
-                   acl_rule_info->sprefixlen,
-                   acl_rule_info->daddr,
+            printf("group index: %u, direction(1 for in, 2 for out): %d, iface "
+                   "index: "
+                   "%08X\n"
+                   "\tipversion: %d rule_id: %u, src prefix: %s/%d, dst "
+                   "prefix: %s/%d\n",
+                   acl_rule_info->acl_group_index, acl_rule_info->direction,
+                   iface_index, acl_rule_info->ipversion,
+                   acl_rule_info->rule_id, acl_rule_info->saddr,
+                   acl_rule_info->sprefixlen, acl_rule_info->daddr,
                    acl_rule_info->dprefixlen);
         }
 
@@ -106,8 +103,7 @@ extern "C"
         HASH_ITER(hh, g_fc_server.ht_acl_group_info, acl_group_info, tmp)
         {
             int ret = fc_acl_rule_iterator_handler(&acl_group_info->iface_index,
-                                                   acl_group_info,
-                                                   NULL);
+                                                   acl_group_info, NULL);
             if (ret == 'q')
             {
                 break;
@@ -118,19 +114,17 @@ extern "C"
     void fc_cmd_bm(void)
     {
         int bm_nums = 0, i = 0;
-        struct sockaddr_in *sockaddr = NULL;
-        struct sockaddr_in6 *sockaddr6 = NULL;
-        FC_msg_bm_t *bm = NULL;
-        FC_msg_bm_t *bms = fc_db_read_bms(&bm_nums);
+        struct sockaddr_in* sockaddr = NULL;
+        struct sockaddr_in6* sockaddr6 = NULL;
+        FC_msg_bm_t* bm = NULL;
+        FC_msg_bm_t* bms = fc_db_read_bms(&bm_nums);
 
         if (bm_nums == 0)
         {
             printf("There is no Binding Messages\n");
         }
 
-        for (i = 0, bm = &bms[i];
-             i < bm_nums;
-             ++i, bm = &bms[i])
+        for (i = 0, bm = &bms[i]; i < bm_nums; ++i, bm = &bms[i])
         {
             printf("bm:    %d/%d\n", i + 1, bm_nums);
             printf("  ipversion: %d\n", bm->ipversion);
@@ -141,16 +135,16 @@ extern "C"
                 char ipstr[INET6_ADDRSTRLEN] = {0};
                 switch (bm->ipversion)
                 {
-                case IPV4:
-                    sockaddr = (struct sockaddr_in *)&bm->src_ip[j].ip;
-                    inet_ntop(AF_INET, &sockaddr->sin_addr,
-                              ipstr, sizeof(struct sockaddr_in));
-                    break;
-                case IPV6:
-                    sockaddr6 = (struct sockaddr_in6 *)&bm->src_ip[j].ip;
-                    inet_ntop(AF_INET6, &sockaddr6->sin6_addr,
-                              ipstr, sizeof(struct sockaddr_in6));
-                    break;
+                    case IPV4:
+                        sockaddr = (struct sockaddr_in*)&bm->src_ip[j].ip;
+                        inet_ntop(AF_INET, &sockaddr->sin_addr, ipstr,
+                                  sizeof(struct sockaddr_in));
+                        break;
+                    case IPV6:
+                        sockaddr6 = (struct sockaddr_in6*)&bm->src_ip[j].ip;
+                        inet_ntop(AF_INET6, &sockaddr6->sin6_addr, ipstr,
+                                  sizeof(struct sockaddr_in6));
+                        break;
                 }
                 printf("    %s/%d\n", ipstr, bm->src_ip[j].prefix_length);
             }
@@ -160,16 +154,16 @@ extern "C"
                 char ipstr[INET6_ADDRSTRLEN] = {0};
                 switch (bm->ipversion)
                 {
-                case IPV4:
-                    sockaddr = (struct sockaddr_in *)&bm->dst_ip[j].ip;
-                    inet_ntop(AF_INET, &sockaddr->sin_addr,
-                              ipstr, sizeof(struct sockaddr_in));
-                    break;
-                case IPV6:
-                    sockaddr6 = (struct sockaddr_in6 *)&bm->dst_ip[j].ip;
-                    inet_ntop(AF_INET6, &sockaddr6->sin6_addr,
-                              ipstr, sizeof(struct sockaddr_in6));
-                    break;
+                    case IPV4:
+                        sockaddr = (struct sockaddr_in*)&bm->dst_ip[j].ip;
+                        inet_ntop(AF_INET, &sockaddr->sin_addr, ipstr,
+                                  sizeof(struct sockaddr_in));
+                        break;
+                    case IPV6:
+                        sockaddr6 = (struct sockaddr_in6*)&bm->dst_ip[j].ip;
+                        inet_ntop(AF_INET6, &sockaddr6->sin6_addr, ipstr,
+                                  sizeof(struct sockaddr_in6));
+                        break;
                 }
                 printf("    %s/%d\n", ipstr, bm->dst_ip[j].prefix_length);
             }
@@ -177,8 +171,7 @@ extern "C"
             for (int j = 0; j < bm->fc_num; ++j)
             {
                 printf("    3 asns: %08X %08X %08X\n",
-                       bm->fclist[j].previous_asn,
-                       bm->fclist[j].current_asn,
+                       bm->fclist[j].previous_asn, bm->fclist[j].current_asn,
                        bm->fclist[j].nexthop_asn);
             }
 
@@ -210,12 +203,12 @@ extern "C"
 
         switch (g_fc_server.fcs_addr_type)
         {
-        case FC_FCS_ADDR_TYPE_V4:
-            printf("fcs addr type: ipv4\n");
-            break;
-        case FC_FCS_ADDR_TYPE_V6:
-            printf("fcs addr type: ipv6\n");
-            break;
+            case FC_FCS_ADDR_TYPE_V4:
+                printf("fcs addr type: ipv4\n");
+                break;
+            case FC_FCS_ADDR_TYPE_V6:
+                printf("fcs addr type: ipv6\n");
+                break;
         }
 
         printf("ASNs:\n");
@@ -240,8 +233,7 @@ extern "C"
         }
     }
 
-    static inline void
-    fc_print_char_line(char ch, char *string)
+    static inline void fc_print_char_line(char ch, char* string)
     {
         int i = 0, line_len = 78, ln = 0, rn = 0, string_len = 0;
 
@@ -251,10 +243,14 @@ extern "C"
 
         printf("*");
         for (i = 0; i < ln; ++i)
+        {
             printf("%c", ch);
+        }
         printf("%s", string);
         for (i = 0; i < rn; ++i)
+        {
             printf("%c", ch);
+        }
         printf("*\n");
     }
 
@@ -262,18 +258,21 @@ extern "C"
     {
         fc_print_char_line('*', "");
         fc_print_char_line(' ', FC_VERSION_STR);
-        fc_print_char_line(' ', "Home page: <https://gitee.com/basil1728/fcbgp-new>");
-        fc_print_char_line(' ', "A private repository. Not avaliable without permission.");
-        fc_print_char_line(' ', "Need help or report bugs please mailto: guoyangfei@zgclab.edu.cn");
-        fc_print_char_line(' ', "OPENSSL_VERSION needed: " OPENSSL_VERSION_NEEDED);
-        fc_print_char_line(' ', "OPENSSL_VERSION current: " OPENSSL_VERSION_TEXT);
+        fc_print_char_line(
+            ' ', "Home page: <https://gitee.com/basil1728/fcbgp-new>");
+        fc_print_char_line(
+            ' ', "A private repository. Not avaliable without permission.");
+        fc_print_char_line(
+            ' ',
+            "Need help or report bugs please mailto: guoyangfei@zgclab.edu.cn");
+        fc_print_char_line(' ',
+                           "OPENSSL_VERSION needed: " OPENSSL_VERSION_NEEDED);
+        fc_print_char_line(' ',
+                           "OPENSSL_VERSION current: " OPENSSL_VERSION_TEXT);
         fc_print_char_line('*', "");
     }
 
-    void fc_cmd_quit(void)
-    {
-        fc_server_destroy(SIGUSR1);
-    }
+    void fc_cmd_quit(void) { fc_server_destroy(SIGUSR1); }
 
     void fc_cmd_help(void)
     {
@@ -281,7 +280,7 @@ extern "C"
             printf("%8s\t\t%s\n", cmds[i].cmd, cmds[i].desc);
     }
 
-    void completion(const char *buf, linenoiseCompletions *lc)
+    void completion(const char* buf, linenoiseCompletions* lc)
     {
         for (int i = 0; i < FC_CMD_N_NUM; ++i)
         {
@@ -292,13 +291,13 @@ extern "C"
         }
     }
 
-    char *hints_cb(const char *buf, int *color, int *bold)
+    char* hints_cb(const char* buf, int* color, int* bold)
     {
         for (int i = 0; i < FC_CMD_N_NUM; ++i)
         {
             if (buf[0] == cmds[i].cmd[0] && strcasecmp(buf, cmds[i].cmd) != 0)
             {
-                char *hint = strdup(cmds[i].cmd);
+                char* hint = strdup(cmds[i].cmd);
                 *color = 35;
                 *bold = 0;
                 return hint + strlen(buf);
@@ -307,16 +306,13 @@ extern "C"
         return NULL;
     }
 
-    void hints_free(void *data)
-    {
-        free(data);
-    }
+    void hints_free(void* data) { free(data); }
 
-    void *fc_main_front(void *args)
+    void* fc_main_front(void* args)
     {
         (void)args;
 
-        char *line;
+        char* line;
         /* Set the completion callback. This will be called every time the
          * user uses the <tab> key. */
         linenoiseSetCompletionCallback(completion);
@@ -325,11 +321,12 @@ extern "C"
 
         /* Load history from file. The history file is just a plain text file
          * where entries are separated by newlines. */
-        linenoiseHistoryLoad(HISTORY_FILE_PATH); /* Load the history at startup */
+        linenoiseHistoryLoad(
+            HISTORY_FILE_PATH); /* Load the history at startup */
 
         /* Now this is the main loop of the typical linenoise-based application.
-         * The call to linenoise() will block as long as the user types something
-         * and presses enter.
+         * The call to linenoise() will block as long as the user types
+         * something and presses enter.
          *
          * The typed string is returned as a malloc() allocated string by
          * linenoise, so the user needs to free() it. */
@@ -359,8 +356,9 @@ extern "C"
                 }
                 else
                 {
-                    linenoiseHistoryAdd(line);               /* Add to the history. */
-                    linenoiseHistorySave(HISTORY_FILE_PATH); /* Save the history on disk. */
+                    linenoiseHistoryAdd(line); /* Add to the history. */
+                    linenoiseHistorySave(
+                        HISTORY_FILE_PATH); /* Save the history on disk. */
                 }
             }
             else if (!strncmp(line, "/historylen", 11))

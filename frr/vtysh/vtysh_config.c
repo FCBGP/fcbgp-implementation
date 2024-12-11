@@ -315,11 +315,20 @@ void vtysh_config_parse_line(void *arg, const char *line)
 			} else if (!strncmp(line, " ip mroute",
 					    strlen(" ip mroute"))) {
 				config_add_line_uniq_end(config->line, line);
+			} else if ((strncmp(line, " rpki", strlen(" rpki")) ==
+				    0) &&
+				   config->index == VRF_NODE) {
+				config_add_line(config->line, line);
+				config->index = RPKI_VRF_NODE;
 			} else if (config->index == RMAP_NODE ||
 				   config->index == INTERFACE_NODE ||
 				   config->index == VTY_NODE)
 				config_add_line_uniq(config->line, line);
-			else if (config->index == NH_GROUP_NODE) {
+			else if (config->index == RPKI_VRF_NODE &&
+				 strncmp(line, "  exit", strlen("  exit")) == 0) {
+				config_add_line(config->line, line);
+				config->index = VRF_NODE;
+			} else if (config->index == NH_GROUP_NODE) {
 				if (strncmp(line, " resilient",
 					    strlen(" resilient")) == 0)
 					config_add_line_head(config->line,
@@ -444,10 +453,6 @@ void vtysh_config_parse_line(void *arg, const char *line)
 			config = config_get(FORWARDING_NODE, line);
 		else if (strncmp(line, "debug vrf", strlen("debug vrf")) == 0)
 			config = config_get(VRF_DEBUG_NODE, line);
-		else if (strncmp(line, "debug northbound",
-				 strlen("debug northbound"))
-			 == 0)
-			config = config_get(NORTHBOUND_DEBUG_NODE, line);
 		else if (strncmp(line, "debug route-map",
 				 strlen("debug route-map"))
 			 == 0)
@@ -482,6 +487,11 @@ void vtysh_config_parse_line(void *arg, const char *line)
 			config = config_get(BFD_NODE, line);
 		else if (strncmp(line, "rpki", strlen("rpki")) == 0)
 			config = config_get(RPKI_NODE, line);
+		else if (strncmp(line, "router pim", strlen("router pim")) == 0)
+			config = config_get(PIM_NODE, line);
+		else if (strncmp(line, "router pim6", strlen("router pim6")) ==
+			 0)
+			config = config_get(PIM6_NODE, line);
 		else {
 			if (strncmp(line, "log", strlen("log")) == 0 ||
 			    strncmp(line, "hostname", strlen("hostname")) == 0 ||
@@ -517,9 +527,8 @@ void vtysh_config_parse_line(void *arg, const char *line)
 	 (I) == ACCESS_IPV6_NODE || (I) == ACCESS_MAC_NODE ||                  \
 	 (I) == PREFIX_IPV6_NODE || (I) == FORWARDING_NODE ||                  \
 	 (I) == DEBUG_NODE || (I) == AAA_NODE || (I) == VRF_DEBUG_NODE ||      \
-	 (I) == NORTHBOUND_DEBUG_NODE || (I) == RMAP_DEBUG_NODE ||             \
-	 (I) == RESOLVER_DEBUG_NODE || (I) == MPLS_NODE ||                     \
-	 (I) == KEYCHAIN_KEY_NODE)
+	 (I) == RMAP_DEBUG_NODE || (I) == RESOLVER_DEBUG_NODE ||               \
+	 (I) == MPLS_NODE || (I) == KEYCHAIN_KEY_NODE)
 
 static void configvec_dump(vector vec, bool nested)
 {
@@ -544,9 +553,7 @@ static void configvec_dump(vector vec, bool nested)
 				 * are not under the VRF node.
 				 */
 				if (config->index == INTERFACE_NODE
-				    && (listcount(config->line) == 1)
-				    && (line = listnode_head(config->line))
-				    && strmatch(line, "exit")) {
+				    && list_isempty(config->line)) {
 					config_del(config);
 					continue;
 				}
@@ -603,8 +610,13 @@ static int vtysh_read_file(FILE *confp, bool dry_run)
 	vty->node = CONFIG_NODE;
 
 	vtysh_execute_no_pager("enable");
-	vtysh_execute_no_pager("conf term file-lock");
-	vty->vtysh_file_locked = true;
+	/*
+	 * When reading the config, we need to wait until the lock is acquired.
+	 * If we ignore the failure and continue without the lock, the config
+	 * will be fully ignored.
+	 */
+	while (vtysh_execute_no_pager("conf term file-lock") == CMD_WARNING_CONFIG_FAILED)
+		usleep(100000);
 
 	if (!dry_run)
 		vtysh_execute_no_pager("XFRR_start_configuration");
@@ -616,7 +628,6 @@ static int vtysh_read_file(FILE *confp, bool dry_run)
 		vtysh_execute_no_pager("XFRR_end_configuration");
 
 	vtysh_execute_no_pager("end");
-	vty->vtysh_file_locked = false;
 	vtysh_execute_no_pager("disable");
 
 	vty_close(vty);

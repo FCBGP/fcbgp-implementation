@@ -15,12 +15,10 @@ extern "C"
 {
 #endif /* __cplusplus */
 
-    extern char *fc_combine_path(const char *const path,
-                                 const char *const filename);
-    extern void fc_utils_str_toupper(char *str,
-                                     const int size);
-    extern int fc_print_bin(const char *msg,
-                            const unsigned char *bin,
+    extern char* fc_combine_path(const char* const path,
+                                 const char* const filename);
+    extern void fc_utils_str_toupper(char* str, const int size);
+    extern int fc_print_bin(const char* msg, const unsigned char* bin,
                             const int binlen);
 #ifdef __cplusplus
 }

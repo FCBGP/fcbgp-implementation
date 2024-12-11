@@ -1,30 +1,31 @@
 #include "libsysmgr.h"
 
-#define LINEBUFF_SZ             256
-#define HZ                      1000
+#define LINEBUFF_SZ 256
+#define HZ 1000
 
-#define SCHED_NONE_STR          "none"
-#define SCHED_NICE_STR          "nice"
-#define SCHED_FIFO_STR          "fifo"
-#define SCHED_RR_STR            "round robin"
+#define SCHED_NONE_STR "none"
+#define SCHED_NICE_STR "nice"
+#define SCHED_FIFO_STR "fifo"
+#define SCHED_RR_STR "round robin"
 
-#define PARSE_PROC_STATM        "%*s %lu %lu"
-#define PARSE_PROC_UPTIME       "%lu.%lu"
-#define PARSE_PROC_STAT         "%c %*d %*d %*d %*d %*d %*u %*u %*u " \
-                                "%*u %*u %lu %lu %*d %*d %ld %ld %*d %*d %lu"
+#define PARSE_PROC_STATM "%*s %lu %lu"
+#define PARSE_PROC_UPTIME "%lu.%lu"
+#define PARSE_PROC_STAT                                                        \
+    "%c %*d %*d %*d %*d %*d %*u %*u %*u "                                      \
+    "%*u %*u %lu %lu %*d %*d %ld %ld %*d %*d %lu"
 
-static int sys_pidinfo_get(int pid, sys_pidinfo_t * pidinfo)
+static int sys_pidinfo_get(int pid, sys_pidinfo_t* pidinfo)
 {
     int ret = -1;
-    FILE *fp = NULL;
+    FILE* fp = NULL;
     unsigned long utime = 0;
     unsigned long stime = 0;
     unsigned long starttime = 0;
     unsigned long long uptime = 0;
     char procfile[LINEBUFF_SZ + 1];
-    char buffer[512] = { };
-    char *ptr1 = buffer;
-    char *ptr2 = pidinfo->name;
+    char buffer[512] = {};
+    char* ptr1 = buffer;
+    char* ptr2 = pidinfo->name;
 
     if (pid <= 0 || !pidinfo)
         goto proc_info_exit;
@@ -37,7 +38,8 @@ static int sys_pidinfo_get(int pid, sys_pidinfo_t * pidinfo)
     if (!(fp = fopen(procfile, "r")))
         goto proc_info_exit;
 
-    if (fscanf(fp, PARSE_PROC_STATM, &pidinfo->mem_rss, &pidinfo->mem_shared) != 2)
+    if (fscanf(fp, PARSE_PROC_STATM, &pidinfo->mem_rss, &pidinfo->mem_shared) !=
+        2)
         goto proc_info_exit;
 
     fclose(fp);
@@ -61,38 +63,42 @@ static int sys_pidinfo_get(int pid, sys_pidinfo_t * pidinfo)
     fp = NULL;
 
     while (*ptr1 && *ptr1++ != '(')
-        /* skip */ ;
+        /* skip */;
 
     while (*ptr1 && *ptr1 != ')')
         *ptr2++ = *ptr1++;
     *ptr2 = '\0';
     ptr1 += 2;
 
-    if (sscanf(ptr1, PARSE_PROC_STAT, &pidinfo->state, &utime, &stime, &pidinfo->priority, &pidinfo->nice, &starttime) != 6)
+    if (sscanf(ptr1, PARSE_PROC_STAT, &pidinfo->state, &utime, &stime,
+               &pidinfo->priority, &pidinfo->nice, &starttime) != 6)
         goto proc_info_exit;
 
-    pidinfo->time = (stime + utime);   // in jiffies
-    pidinfo->pcpu = (uptime - starttime);  // in jiffies
-    pidinfo->pcpu = pidinfo->pcpu > pidinfo->time ? (int) (((double) (pidinfo->time) * 100) / pidinfo->pcpu) : 0;
+    pidinfo->time = (stime + utime);      // in jiffies
+    pidinfo->pcpu = (uptime - starttime); // in jiffies
+    pidinfo->pcpu = pidinfo->pcpu > pidinfo->time
+                        ? (int)(((double)(pidinfo->time) * 100) / pidinfo->pcpu)
+                        : 0;
 
     pidinfo->time_s = (pidinfo->time % HZ);
     pidinfo->time = (pidinfo->time / HZ);
 
-    switch (pidinfo->sched) {
-    case SCHED_OTHER:
-        pidinfo->sched_str = SCHED_NICE_STR;   /* Std UNIX scheduler */
-        break;
-    case SCHED_FIFO:
-        pidinfo->sched_str = SCHED_FIFO_STR;   /* FIFO scheduler */
-        break;
+    switch (pidinfo->sched)
+    {
+        case SCHED_OTHER:
+            pidinfo->sched_str = SCHED_NICE_STR; /* Std UNIX scheduler */
+            break;
+        case SCHED_FIFO:
+            pidinfo->sched_str = SCHED_FIFO_STR; /* FIFO scheduler */
+            break;
 
-    case SCHED_RR:
-        pidinfo->sched_str = SCHED_RR_STR; /* Round Robin scheduler */
-        break;
+        case SCHED_RR:
+            pidinfo->sched_str = SCHED_RR_STR; /* Round Robin scheduler */
+            break;
 
-    default:
-        pidinfo->sched_str = SCHED_NONE_STR;   /* Undefined scheduler */
-        break;
+        default:
+            pidinfo->sched_str = SCHED_NONE_STR; /* Undefined scheduler */
+            break;
     }
 
     ret = 0;
@@ -104,42 +110,50 @@ proc_info_exit:
     return ret;
 }
 
-int sys_pidinfo_gets(sys_pidinfo_t ** ppidinfos)
+int sys_pidinfo_gets(sys_pidinfo_t** ppidinfos)
 {
     int cnt = 0;
-    DIR *d = NULL;
-    struct dirent *pd = NULL;
+    DIR* d = NULL;
+    struct dirent* pd = NULL;
 
-    sys_pidinfo_t *tail = NULL;
-    sys_pidinfo_t *head = NULL;
-    sys_pidinfo_t *pidinfo = NULL;
+    sys_pidinfo_t* tail = NULL;
+    sys_pidinfo_t* head = NULL;
+    sys_pidinfo_t* pidinfo = NULL;
 
     d = opendir(SYS_PROC_PATH);
-    if (d == NULL) {
+    if (d == NULL)
+    {
         return -ENOENT;
     }
 
-    while ((pd = readdir(d)) != 0) {
+    while ((pd = readdir(d)) != 0)
+    {
         pidinfo = calloc(1, sizeof(sys_pidinfo_t));
-        if (!pidinfo) {
+        if (!pidinfo)
+        {
             return -ENOMEM;
         }
 
         /* Skip uninteresting files */
-        if (!isdigit((int) (pd->d_name[0]))) {
+        if (!isdigit((int)(pd->d_name[0])))
+        {
             free(pidinfo);
             continue;
         }
 
-        if (sys_pidinfo_get(atoi(pd->d_name), pidinfo) != 0) {
+        if (sys_pidinfo_get(atoi(pd->d_name), pidinfo) != 0)
+        {
             free(pidinfo);
             continue;
         }
 
-        if (tail) {
+        if (tail)
+        {
             tail->next = pidinfo;
             tail = pidinfo;
-        } else {
+        }
+        else
+        {
             head = pidinfo;
             tail = pidinfo;
         }
@@ -152,17 +166,19 @@ int sys_pidinfo_gets(sys_pidinfo_t ** ppidinfos)
     return cnt;
 }
 
-int sys_pidinfo_free(sys_pidinfo_t *pidinfos)
+int sys_pidinfo_free(sys_pidinfo_t* pidinfos)
 {
-    sys_pidinfo_t *cur = NULL;
-    sys_pidinfo_t *next = NULL;
+    sys_pidinfo_t* cur = NULL;
+    sys_pidinfo_t* next = NULL;
 
-    if (pidinfos == NULL) {
+    if (pidinfos == NULL)
+    {
         return 0;
     }
 
     cur = pidinfos;
-    while (cur) {
+    while (cur)
+    {
         next = cur->next;
         free(cur);
         cur = next;
@@ -171,21 +187,26 @@ int sys_pidinfo_free(sys_pidinfo_t *pidinfos)
     return 0;
 }
 
-int sys_check_process(char *appname)
+int sys_check_process(char* appname)
 {
-    sys_pidinfo_t *pidinfo = NULL;
-    sys_pidinfo_t *pidinfos = NULL;
+    sys_pidinfo_t* pidinfo = NULL;
+    sys_pidinfo_t* pidinfos = NULL;
 
     int pidcnt = sys_pidinfo_gets(&pidinfos);
-    if (pidcnt < 0) {
+    if (pidcnt < 0)
+    {
         return 0;
     }
 
     pidinfo = pidinfos;
-    while (pidinfo) {
-        if (strcmp(pidinfo->name, appname) == 0) {
-            if (pidinfo->pid != getpid()) {
-                fprintf(stderr, "process %s has been exist as pid %d\n", appname, pidinfo->pid);
+    while (pidinfo)
+    {
+        if (strcmp(pidinfo->name, appname) == 0)
+        {
+            if (pidinfo->pid != getpid())
+            {
+                fprintf(stderr, "process %s has been exist as pid %d\n",
+                        appname, pidinfo->pid);
                 sys_pidinfo_free(pidinfos);
                 return 1;
             }
@@ -197,4 +218,3 @@ int sys_check_process(char *appname)
     sys_pidinfo_free(pidinfos);
     return 0;
 }
-

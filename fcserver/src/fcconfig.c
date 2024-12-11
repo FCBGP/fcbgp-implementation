@@ -12,12 +12,11 @@
 #include "sigutils.h"
 #include "strutils.h"
 
-static char *
-fc_read_file(const char *const fname)
+static char* fc_read_file(const char* const fname)
 {
-    FILE *fp = NULL;
+    FILE* fp = NULL;
     long length = 0;
-    char *content = NULL;
+    char* content = NULL;
     size_t read_chars = 0;
 
     fp = fopen(fname, "rb");
@@ -44,7 +43,7 @@ fc_read_file(const char *const fname)
     }
 
     // alloc the mem
-    content = (char *)malloc((size_t)length + sizeof(""));
+    content = (char*)malloc((size_t)length + sizeof(""));
     if (content == NULL)
     {
         goto cleanup;
@@ -70,19 +69,17 @@ cleanup:
     return content;
 }
 
-static inline void
-fc_cjson_print(const cJSON *const root)
+static inline void fc_cjson_print(const cJSON* const root)
 {
-    char *output = cJSON_Print(root);
+    char* output = cJSON_Print(root);
     DIAG_INFO("%s\n", output);
     FC_MEM_FREE(output);
 }
 
-static inline cJSON *
-fc_cjson_root_ptr(const char *const fname)
+static inline cJSON* fc_cjson_root_ptr(const char* const fname)
 {
-    cJSON *root = NULL;
-    char *content = fc_read_file(fname);
+    cJSON* root = NULL;
+    char* content = fc_read_file(fname);
 
     root = cJSON_Parse(content);
 
@@ -113,12 +110,11 @@ int fc_set_listen_port(int listen_port)
     return 0;
 }
 
-int fc_cfg_set_hash_algo_id(const char *const hash_algo_str)
+int fc_cfg_set_hash_algo_id(const char* const hash_algo_str)
 {
     int size = 0;
 
-    memcpy(g_fc_server.hash_algorithm, hash_algo_str,
-           strlen(hash_algo_str));
+    memcpy(g_fc_server.hash_algorithm, hash_algo_str, strlen(hash_algo_str));
     size = strlen(g_fc_server.hash_algorithm);
     fc_utils_str_toupper(g_fc_server.hash_algorithm, size);
 
@@ -147,10 +143,10 @@ int fc_cfg_set_hash_algo_id(const char *const hash_algo_str)
     return 0;
 }
 
-int fc_cfg_set_log_mode(const char *const log_mode_str)
+int fc_cfg_set_log_mode(const char* const log_mode_str)
 {
     int size = 0;
-    char *modestr = NULL;
+    char* modestr = NULL;
 
     size = strlen(log_mode_str);
     modestr = malloc(size);
@@ -191,10 +187,10 @@ int fc_cfg_set_log_mode(const char *const log_mode_str)
     return 0;
 }
 
-int fc_cfg_set_dp_mode(const char *const dp_mode_str)
+int fc_cfg_set_dp_mode(const char* const dp_mode_str)
 {
     int size = 0;
-    char *modestr = NULL;
+    char* modestr = NULL;
 
     size = strlen(dp_mode_str);
     modestr = calloc(size + 1, sizeof(char));
@@ -224,7 +220,7 @@ int fc_cfg_set_dp_mode(const char *const dp_mode_str)
     return 0;
 }
 
-int fc_cfg_set_certs_location(const char *const certs_location)
+int fc_cfg_set_certs_location(const char* const certs_location)
 {
     if (g_fc_server.certs_location)
     {
@@ -236,19 +232,17 @@ int fc_cfg_set_certs_location(const char *const certs_location)
     return 0;
 }
 
-static void
-fc_json_read_local_asn(const cJSON *const root)
+static void fc_json_read_local_asn(const cJSON* const root)
 {
-    cJSON *elem = NULL;
+    cJSON* elem = NULL;
     elem = cJSON_GetObjectItem(root, "local_asn");
     FC_ASSERT_RETP(elem);
     fc_cfg_set_local_asn(elem->valueint);
 }
 
-static void
-fc_json_read_fcs_addr_type(const cJSON *const root)
+static void fc_json_read_fcs_addr_type(const cJSON* const root)
 {
-    cJSON *elem = NULL;
+    cJSON* elem = NULL;
     elem = cJSON_GetObjectItem(root, "fc_fcs_addr_type");
     g_fc_server.fcs_addr_type = FC_FCS_ADDR_TYPE_DEFAULT;
     if (elem)
@@ -260,10 +254,9 @@ fc_json_read_fcs_addr_type(const cJSON *const root)
     }
 }
 
-static void
-fc_json_read_fc_db_fname(const cJSON *const root)
+static void fc_json_read_fc_db_fname(const cJSON* const root)
 {
-    cJSON *elem = NULL;
+    cJSON* elem = NULL;
     elem = cJSON_GetObjectItem(root, "fc_db_fname");
     if (elem)
     {
@@ -275,10 +268,9 @@ fc_json_read_fc_db_fname(const cJSON *const root)
     }
 }
 
-static void
-fc_json_read_listen_port(const cJSON *const root)
+static void fc_json_read_listen_port(const cJSON* const root)
 {
-    cJSON *elem = NULL;
+    cJSON* elem = NULL;
     elem = cJSON_GetObjectItem(root, "listen_port");
     if (elem)
     {
@@ -290,10 +282,9 @@ fc_json_read_listen_port(const cJSON *const root)
     }
 }
 
-static void
-fc_json_read_hash_algo_id(const cJSON *const root)
+static void fc_json_read_hash_algo_id(const cJSON* const root)
 {
-    cJSON *elem = NULL;
+    cJSON* elem = NULL;
 
     elem = cJSON_GetObjectItem(root, "hash_algorithm");
     if (elem == NULL)
@@ -307,10 +298,9 @@ fc_json_read_hash_algo_id(const cJSON *const root)
     fc_cfg_set_hash_algo_id(elem->valuestring);
 }
 
-static void
-fc_json_read_log_mode(const cJSON *const root)
+static void fc_json_read_log_mode(const cJSON* const root)
 {
-    cJSON *elem = NULL;
+    cJSON* elem = NULL;
 
     elem = cJSON_GetObjectItem(root, "log_mode");
     if (elem == NULL)
@@ -323,16 +313,14 @@ fc_json_read_log_mode(const cJSON *const root)
     }
 }
 
-static void
-fc_json_read_clear_fc_db(const cJSON *const root)
+static void fc_json_read_clear_fc_db(const cJSON* const root)
 {
-    cJSON *elem = NULL;
+    cJSON* elem = NULL;
 
     elem = cJSON_GetObjectItem(root, "clear_fc_db");
     if (elem)
     {
-        g_fc_server.clear_fc_db =
-            elem->type == cJSON_True ? true : false;
+        g_fc_server.clear_fc_db = elem->type == cJSON_True ? true : false;
     }
     else
     {
@@ -340,10 +328,9 @@ fc_json_read_clear_fc_db(const cJSON *const root)
     }
 }
 
-static void
-fc_json_read_dp_mode(const cJSON *const root)
+static void fc_json_read_dp_mode(const cJSON* const root)
 {
-    cJSON *elem = NULL;
+    cJSON* elem = NULL;
 
     elem = cJSON_GetObjectItem(root, "use_data_plane");
     if (elem == NULL)
@@ -355,34 +342,31 @@ fc_json_read_dp_mode(const cJSON *const root)
     fc_cfg_set_dp_mode(elem->valuestring);
 }
 
-static void
-fc_json_read_certs_location(const cJSON *const root)
+static void fc_json_read_certs_location(const cJSON* const root)
 {
-    cJSON *elem = NULL;
+    cJSON* elem = NULL;
     elem = cJSON_GetObjectItem(root, "certs_location");
     FC_ASSERT_RETP(elem);
     fc_cfg_set_certs_location(elem->valuestring);
 }
 
-static void
-fc_json_read_private_key(const cJSON *const root)
+static void fc_json_read_private_key(const cJSON* const root)
 {
-    cJSON *elem = NULL;
-    char *fpath = NULL;
+    cJSON* elem = NULL;
+    char* fpath = NULL;
     elem = cJSON_GetObjectItem(root, "private_key_fname");
     FC_ASSERT_RETP(elem);
     g_fc_server.prikey_fname = strdup(elem->valuestring);
-    fpath = fc_combine_path(g_fc_server.certs_location,
-                            g_fc_server.prikey_fname);
+    fpath =
+        fc_combine_path(g_fc_server.certs_location, g_fc_server.prikey_fname);
     fc_read_eckey_from_file(fpath, FC_KEY_TYPE_PRIVATE, &g_fc_server.prikey);
     FC_MEM_FREE(fpath);
 }
 
-static void
-fc_json_read_router_info_list(const cJSON *const root)
+static void fc_json_read_router_info_list(const cJSON* const root)
 {
     int i = 0;
-    cJSON *elem = NULL;
+    cJSON* elem = NULL;
     cJSON *router_list = NULL, *router_info = NULL;
     FC_router_info_t *curr_router = NULL, *next_router = NULL;
 
@@ -442,15 +426,15 @@ fc_json_read_router_info_list(const cJSON *const root)
     }
 }
 
-static int fc_json_read_as_info_list(const cJSON *const root)
+static int fc_json_read_as_info_list(const cJSON* const root)
 {
     int i = 0, j = 0, ret = 0;
-    char *fpath = NULL;
+    char* fpath = NULL;
     cJSON *asn_list = NULL, *elem = NULL;
     cJSON *ipv4 = NULL, *ipv6 = NULL, *ifaddr = NULL, *ifname = NULL;
     cJSON *asn = NULL, *cert = NULL, *nics = NULL, *acs = NULL;
     FC_node_as_t meta = {0};
-    FC_ht_node_as_t *node = NULL;
+    FC_ht_node_as_t* node = NULL;
 
     asn_list = cJSON_GetObjectItem(root, "as_info_list");
     g_fc_server.asns_num = cJSON_GetArraySize(asn_list);
@@ -545,7 +529,7 @@ static int fc_json_read_as_info_list(const cJSON *const root)
 
 int fc_read_config(void)
 {
-    cJSON *root = NULL;
+    cJSON* root = NULL;
 
     root = fc_cjson_root_ptr(g_fc_server.config_fname);
     FC_ASSERT_RETP(root);
